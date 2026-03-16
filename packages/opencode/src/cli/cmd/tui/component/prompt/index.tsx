@@ -334,6 +334,7 @@ export function Prompt(props: PromptProps) {
         title: "Skills",
         value: "prompt.skills",
         category: "Prompt",
+        hidden: !!sync.data.config.skills?.slash,
         slash: {
           name: "skills",
         },

@@ -33,6 +33,7 @@ export namespace Command {
       // https://zod.dev/v4/changelog?id=zfunction
       template: z.promise(z.string()).or(z.string()),
       subtask: z.boolean().optional(),
+      slash: z.boolean().optional(),
       hints: z.array(z.string()),
     })
     .meta({
@@ -131,6 +132,7 @@ export namespace Command {
         name: skill.name,
         description: skill.description,
         source: "skill",
+        slash: cfg.skills?.slash ?? false,
         get template() {
           return skill.content
         },

@@ -1877,6 +1877,7 @@ export type Command = {
   source?: "command" | "mcp" | "skill"
   template: string
   subtask?: boolean
+  slash?: boolean
   hints: Array<string>
 }
 
