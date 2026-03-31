@@ -631,6 +631,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const start = store.slashStart
     promptProbe.select(cmd.id)
     closePopover()
+    const images = imageAttachments()
 
     if (cmd.type === "custom") {
       if (inline) {
@@ -655,14 +656,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       }
       const text = `/${cmd.trigger} `
       setEditorText(text)
-      prompt.set([{ type: "text", content: text, start: 0, end: text.length }], text.length)
+      prompt.set([{ type: "text", content: text, start: 0, end: text.length }, ...images], text.length)
       focusEditorEnd()
       return
     }
 
     if (inline) return
     clearEditor()
-    prompt.set([{ type: "text", content: "", start: 0, end: 0 }], 0)
+    prompt.set([...DEFAULT_PROMPT, ...images], 0)
     command.trigger(cmd.id, "slash")
   }
 
