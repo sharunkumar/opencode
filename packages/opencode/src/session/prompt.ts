@@ -44,7 +44,6 @@ import { Shell } from "@/shell/shell"
 import { Truncate } from "@/tool"
 import { decodeDataUrl } from "@/util/data-url"
 import { Process } from "@/util"
-import { Runner } from "@/effect/runner"
 import { AppFileSystem } from "@opencode-ai/shared/filesystem"
 import { Cause, Effect, Exit, Layer, Option, Scope, Context } from "effect"
 import { EffectLogger } from "@/effect"
@@ -93,6 +92,7 @@ export namespace SessionPrompt {
       const compaction = yield* SessionCompaction.Service
       const plugin = yield* Plugin.Service
       const commands = yield* Command.Service
+      const config = yield* Config.Service
       const permission = yield* Permission.Service
       const fsys = yield* AppFileSystem.Service
       const mcp = yield* MCP.Service
@@ -1568,7 +1568,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
         const raw = input.arguments.match(argsRegex) ?? []
         const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
-        const cfg = yield* Effect.promise(() => Config.get())
+        const cfg = yield* config.get()
         const inline = cfg.skills?.inline !== false
         const templateCommand =
           cmd.source === "skill" && !inline ? `/${input.command}` : yield* Effect.promise(async () => cmd.template)
@@ -1704,6 +1704,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       Layer.provide(Session.defaultLayer),
       Layer.provide(SessionRevert.defaultLayer),
       Layer.provide(SessionSummary.defaultLayer),
+      Layer.provide(Config.defaultLayer),
       Layer.provide(
         Layer.mergeAll(
           Agent.defaultLayer,
