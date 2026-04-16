@@ -1609,7 +1609,7 @@ export type Config = {
         }
       }
   lsp?:
-    | false
+    | true
     | {
         [key: string]:
           | {
