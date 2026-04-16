@@ -1,4 +1,5 @@
 - This is a fork; see `PATCH.md` for fork-specific changes.
+  - Update `PATCH.md` for every custom change made in this fork.
 - To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
 - The default branch in this repo is `dev`.
