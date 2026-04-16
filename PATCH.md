@@ -33,3 +33,7 @@ Upstream workflows disabled for this fork:
 - vouch-check-pr, vouch-manage-by-issue
 
 Kept: test, typecheck, generate
+
+## CI Runners
+
+Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-latest`).
