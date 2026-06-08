@@ -13,6 +13,7 @@ import { useSDK } from "@/context/sdk"
 import { useSettings } from "@/context/settings"
 import { useSync } from "@/context/sync"
 import { useTerminal } from "@/context/terminal"
+import { DialogSelectSkill } from "@/components/dialog-select-skill"
 import { showToast } from "@/utils/toast"
 import { findLast } from "@opencode-ai/core/util/array"
 import { createSessionTabs } from "@/pages/session/helpers"
@@ -120,6 +121,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const terminalCommand = withCategory(language.t("command.category.terminal"))
   const modelCommand = withCategory(language.t("command.category.model"))
   const mcpCommand = withCategory(language.t("command.category.mcp"))
+  const skillCommand = withCategory(language.t("command.category.skill"))
   const agentCommand = withCategory(language.t("command.category.agent"))
   const permissionsCommand = withCategory(language.t("command.category.permissions"))
 
@@ -540,6 +542,24 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     }),
   ]
 
+  const skillCmds = () => [
+    skillCommand({
+      id: "skill.choose",
+      title: language.t("command.skill.choose"),
+      description: language.t("command.skill.choose.description"),
+      slash: "skills",
+      disabled: !!sync.data.config.skills?.slash,
+      onSelect: () =>
+        dialog.show(() => (
+          <DialogSelectSkill
+            onSelect={(skill) => {
+              prompt.set([{ type: "text" as const, content: `/${skill} `, start: 0, end: skill.length + 2 }])
+            }}
+          />
+        )),
+    }),
+  ]
+
   const agentCmds = () => [
     agentCommand({
       id: "agent.cycle",
@@ -582,6 +602,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     ...messageCmds(),
     ...modelCmds(),
     ...mcpCmds(),
+    ...skillCmds(),
     ...agentCmds(),
     ...permissionsCmds(),
   ])

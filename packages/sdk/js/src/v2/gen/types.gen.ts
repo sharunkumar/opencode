@@ -1940,6 +1940,8 @@ export type Config = {
   skills?: {
     paths?: Array<string>
     urls?: Array<string>
+    slash?: boolean
+    inline?: boolean
   }
   reference?: ReferenceConfig
   watcher?: {
@@ -2373,6 +2375,7 @@ export type Command = {
   source?: "command" | "mcp" | "skill"
   template: string
   subtask?: boolean
+  slash?: boolean
   hints: Array<string>
 }
 

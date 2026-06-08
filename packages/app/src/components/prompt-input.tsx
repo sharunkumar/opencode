@@ -275,6 +275,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const [store, setStore] = createStore<{
     popover: "at" | "slash" | null
+    inline: boolean
+    slashStart: number
     historyIndex: number
     savedPrompt: PromptHistoryEntry | null
     placeholder: number
@@ -284,6 +286,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     variantOpen: boolean
   }>({
     popover: null,
+    inline: false,
+    slashStart: 0,
     historyIndex: -1,
     savedPrompt: null as PromptHistoryEntry | null,
     placeholder: Math.floor(Math.random() * EXAMPLES.length),
@@ -694,6 +698,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       description: cmd.description,
       type: "custom" as const,
       source: cmd.source,
+      slash: cmd.slash,
     }))
 
     return [...custom, ...builtin]
@@ -701,10 +706,32 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const handleSlashSelect = (cmd: SlashCommand | undefined) => {
     if (!cmd) return
+    const inline = store.inline
+    const start = store.slashStart
     closePopover()
     const images = imageAttachments()
 
     if (cmd.type === "custom") {
+      if (inline) {
+        // Replace just the /partial text with /{trigger}
+        const selection = window.getSelection()
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0)
+          if (editorRef.contains(range.startContainer)) {
+            const cursorPosition = getCursorPosition(editorRef)
+            setRangeEdge(editorRef, range, "start", start)
+            setRangeEdge(editorRef, range, "end", cursorPosition)
+            range.deleteContents()
+            const text = `/${cmd.trigger} `
+            range.insertNode(document.createTextNode(text))
+            range.collapse(false)
+            selection.removeAllRanges()
+            selection.addRange(range)
+          }
+        }
+        handleInput()
+        return
+      }
       const text = `/${cmd.trigger} `
       setEditorText(text)
       prompt.set([{ type: "text", content: text, start: 0, end: text.length }, ...images], text.length)
@@ -712,6 +739,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       return
     }
 
+    if (inline) return
     clearEditor()
     prompt.set([...DEFAULT_PROMPT, ...images], 0)
     command.trigger(cmd.id, "slash")
@@ -948,11 +976,23 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       if (atMatch) {
         atOnInput(atMatch[1])
         setStore("popover", "at")
+        setStore("inline", false)
       } else if (slashMatch) {
         slashOnInput(slashMatch[1])
         setStore("popover", "slash")
+        setStore("inline", false)
       } else {
-        closePopover()
+        // Check for inline / after whitespace — triggers skill-only autocomplete
+        const textBefore = rawText.substring(0, cursorPosition)
+        const inlineMatch = textBefore.match(/(?:^|\s)\/(\S*)$/)
+        if (inlineMatch) {
+          slashOnInput(inlineMatch[1])
+          setStore("popover", "slash")
+          setStore("inline", true)
+          setStore("slashStart", cursorPosition - inlineMatch[1].length - 1)
+        } else {
+          closePopover()
+        }
       }
     } else {
       closePopover()
@@ -1481,7 +1521,18 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         atKey={atKey}
         setAtActive={setAtActive}
         onAtSelect={handleAtSelect}
-        slashFlat={slashFlat()}
+        slashFlat={
+          store.inline
+            ? slashFlat().filter((cmd) => {
+                if (cmd.source !== "skill") return false
+                const text = prompt
+                  .current()
+                  .map((p) => ("content" in p ? p.content : ""))
+                  .join("")
+                return !text.includes(`/${cmd.trigger} `)
+              })
+            : slashFlat().filter((cmd) => cmd.slash !== false)
+        }
         slashActive={slashActive() ?? undefined}
         setSlashActive={setSlashActive}
         onSlashSelect={handleSlashSelect}

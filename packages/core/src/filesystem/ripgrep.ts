@@ -198,7 +198,9 @@ function fail(queue: Queue.Queue<string, PlatformError | Error | Cause.Done>, er
 }
 
 function filesArgs(input: FilesInput) {
-  const args = ["--no-config", "--files", "--glob=!.git/*"]
+  // NOTE: WASM ripgrep can't traverse to parent dirs to find .gitignore when
+  // running from a subdirectory, so we hardcode common ignores as a fallback
+  const args = ["--no-config", "--files", "--glob=!.git/*", "--glob=!node_modules/*"]
   if (input.follow) args.push("--follow")
   if (input.hidden !== false) args.push("--hidden")
   if (input.hidden === false) args.push("--glob=!.*")
@@ -211,7 +213,9 @@ function filesArgs(input: FilesInput) {
 }
 
 function searchArgs(input: SearchInput) {
-  const args = ["--no-config", "--json", "--hidden", "--glob=!.git/*", "--no-messages"]
+  // NOTE: WASM ripgrep can't traverse to parent dirs to find .gitignore when
+  // running from a subdirectory, so we hardcode common ignores as a fallback
+  const args = ["--no-config", "--json", "--hidden", "--glob=!.git/*", "--glob=!node_modules/*", "--no-messages"]
   if (input.follow) args.push("--follow")
   if (input.glob) {
     for (const glob of input.glob) args.push(`--glob=${glob}`)

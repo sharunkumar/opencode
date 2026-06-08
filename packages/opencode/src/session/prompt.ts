@@ -1502,7 +1502,10 @@ export const layer = Layer.effect(
 
       const raw = input.arguments.match(argsRegex) ?? []
       const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
-      const templateCommand = yield* Effect.promise(async () => cmd.template)
+      const cfg = yield* config.get()
+      const inline = cfg.skills?.inline !== false
+      const templateCommand =
+        cmd.source === "skill" && !inline ? `/${input.command}` : yield* Effect.promise(async () => cmd.template)
 
       const placeholders = templateCommand.match(placeholderRegex) ?? []
       let last = 0
