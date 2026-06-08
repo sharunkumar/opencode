@@ -511,9 +511,6 @@ export function Prompt(props: PromptProps) {
         name: "prompt.skills",
         category: "Prompt",
         hidden: !!sync.data.config.skills?.slash,
-        slash: {
-          slashName: "skills",
-        },
         slashName: "skills",
         run: () => {
           dialog.replace(() => (

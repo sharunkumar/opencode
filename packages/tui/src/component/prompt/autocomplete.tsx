@@ -480,11 +480,12 @@ export function Autocomplete(props: {
           onSelect: () => {
             const input = props.input()
             const newText = "/" + serverCommand.name + " "
-            const cursor = input.logicalCursor
+            const currentCursorOffset = input.cursorOffset
             input.cursorOffset = store.index
             const start = input.logicalCursor
-            input.cursorOffset = cursor.col + cursor.row * 1000
-            input.deleteRange(start.row, start.col, cursor.row, cursor.col)
+            input.cursorOffset = currentCursorOffset
+            const end = input.logicalCursor
+            input.deleteRange(start.row, start.col, end.row, end.col)
             input.insertText(newText)
           },
         })
