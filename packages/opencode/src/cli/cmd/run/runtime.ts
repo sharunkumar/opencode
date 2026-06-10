@@ -14,6 +14,7 @@
 //   4. runs the prompt queue until the footer closes.
 import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import { StartupProfile } from "@/startup/profile"
 import { MessageID } from "@/session/schema"
 import { createRunDemo } from "./demo"
 import { resolveModelInfo, resolveRunTuiConfig, resolveSessionInfo } from "./runtime.boot"
@@ -436,6 +437,8 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         .idle()
         .then(loadCatalog)
         .catch(() => {})
+
+      StartupProfile.mark("tui.first-frame")
 
       if (Flag.OPENCODE_SHOW_TTFD) {
         footer.append({

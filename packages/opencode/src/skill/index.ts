@@ -17,6 +17,7 @@ import { Glob } from "@opencode-ai/core/util/glob"
 import * as Log from "@opencode-ai/core/util/log"
 import { Discovery } from "./discovery"
 import { isRecord } from "@/util/record"
+import { StartupProfile } from "@/startup/profile"
 
 const log = Log.create({ service: "skill" })
 const CLAUDE_EXTERNAL_DIR = ".claude"
@@ -258,7 +259,8 @@ export const layer = Layer.effect(
     const flags = yield* RuntimeFlags.Service
     const discovered = yield* InstanceState.make(
       Effect.fn("Skill.discovery")(function* (ctx) {
-        return yield* discoverSkills(
+        const start = performance.now()
+        const result = yield* discoverSkills(
           config,
           discovery,
           fsys,
@@ -268,10 +270,18 @@ export const layer = Layer.effect(
           ctx.directory,
           ctx.worktree,
         )
+        yield* Effect.sync(() =>
+          StartupProfile.duration("skill.discover", start, {
+            matches: result.matches.length,
+            dirs: result.dirs.length,
+          }),
+        )
+        return result
       }),
     )
     const state = yield* InstanceState.make(
       Effect.fn("Skill.state")(function* () {
+        const start = performance.now()
         const s: State = { skills: {}, dirs: new Set() }
         // Register the built-in skill BEFORE disk discovery so a user-disk
         // skill with the same name can override it.
@@ -282,6 +292,10 @@ export const layer = Layer.effect(
           content: CUSTOMIZE_OPENCODE_SKILL_BODY,
         }
         yield* loadSkills(s, yield* InstanceState.get(discovered), events)
+        yield* Effect.sync(() => {
+          StartupProfile.duration("skill.load", start, { count: Object.keys(s.skills).length })
+          StartupProfile.mark("skill.ready")
+        })
         return s
       }),
     )

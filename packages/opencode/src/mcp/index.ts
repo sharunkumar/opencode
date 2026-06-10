@@ -30,6 +30,7 @@ import open from "open"
 import { Effect, Exit, Layer, Option, Context, Schema, Stream } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
+import { StartupProfile } from "@/startup/profile"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 
@@ -524,6 +525,7 @@ export const layer = Layer.effect(
 
     const state = yield* InstanceState.make<State>(
       Effect.fn("MCP.state")(function* () {
+        const start = performance.now()
         const cfg = yield* cfgSvc.get()
         const bridge = yield* EffectBridge.make()
         const config = cfg.mcp ?? {}
@@ -560,6 +562,14 @@ export const layer = Layer.effect(
             }),
           { concurrency: "unbounded" },
         )
+
+        yield* Effect.sync(() => {
+          StartupProfile.duration("mcp.connect", start, {
+            configured: Object.keys(config).length,
+            connected: Object.keys(s.clients).length,
+          })
+          StartupProfile.mark("mcp.ready")
+        })
 
         yield* Effect.addFinalizer(() =>
           Effect.gen(function* () {

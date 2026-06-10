@@ -45,3 +45,18 @@ Added `--glob=!node_modules/*` to WASM ripgrep args to exclude node_modules when
 ## Makefile
 
 Added a `Makefile` with a `build-single` target that builds the single-file `opencode` binary.
+
+## Startup Profiling
+
+`OPENCODE_STARTUP_PROFILE=1` emits `[startup-profile] <phase> <ms>` lines to stderr for the lazy
+startup phases that run on first access (after the TUI is already visible):
+
+- `mcp.connect` — time to connect all configured MCP servers (fields: `configured`, `connected`)
+- `skill.discover` — filesystem discovery of `SKILL.md` files (fields: `matches`, `dirs`)
+- `skill.load` — discovery + parse of skills (field: `count`)
+- `mcp.ready` / `skill.ready` / `tui.first-frame` — module-load-relative marks for timeline anchoring
+
+Implemented in `src/startup/profile.ts` (mirrors `src/acp/profile.ts`); instrumented in
+`src/mcp/index.ts` (`MCP.state`), `src/skill/index.ts` (`Skill.discovery`/`Skill.state`), and
+`src/cli/cmd/run/runtime.ts` (first frame). Trigger in-process via `opencode mcp list` and
+`opencode debug skill`.
