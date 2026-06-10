@@ -1,3 +1,4 @@
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { InstanceState } from "@/effect/instance-state"
 import { EffectBridge } from "@/effect/bridge"
 import type { InstanceContext } from "@/project/instance-context"
@@ -210,5 +211,7 @@ export const defaultLayer = layer.pipe(
   Layer.provide(Skill.defaultLayer),
   Layer.provide(EventV2Bridge.defaultLayer),
 )
+
+export const node = LayerNode.make(layer, [Config.node, MCP.node, Skill.node, EventV2Bridge.node])
 
 export * as Command from "."
