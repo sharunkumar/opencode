@@ -76,6 +76,7 @@ export type Event =
   | EventMcpToolsChanged
   | EventMcpBrowserOpenFailed
   | EventCommandExecuted
+  | EventCommandChanged
   | EventProjectDirectoriesUpdated
   | EventProjectUpdated
   | EventQuestionAsked
@@ -1479,6 +1480,13 @@ export type GlobalEvent = {
           sessionID: string
           arguments: string
           messageID: string
+        }
+      }
+    | {
+        id: string
+        type: "command.changed"
+        properties: {
+          [key: string]: unknown
         }
       }
     | {
@@ -5082,6 +5090,14 @@ export type EventCommandExecuted = {
     sessionID: string
     arguments: string
     messageID: string
+  }
+}
+
+export type EventCommandChanged = {
+  id: string
+  type: "command.changed"
+  properties: {
+    [key: string]: unknown
   }
 }
 

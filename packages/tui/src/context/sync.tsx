@@ -166,6 +166,11 @@ export const {
         case "server.instance.disposed":
           void bootstrap()
           break
+        case "command.changed": {
+          const workspace = project.workspace.current()
+          void sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? [])))
+          break
+        }
         case "permission.replied": {
           const requests = store.permission[event.properties.sessionID]
           if (!requests) break

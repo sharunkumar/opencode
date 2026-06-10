@@ -7,6 +7,8 @@ import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import { EventV2 } from "@opencode-ai/core/event"
+import { EventV2Bridge } from "@/event-v2-bridge"
+import { StartupProfile } from "@/startup/profile"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 
@@ -23,6 +25,12 @@ export const Event = {
       arguments: Schema.String,
       messageID: MessageID,
     },
+  }),
+  // Emitted when the command list changes after initial materialization, e.g.
+  // once MCP prompt commands finish loading in the background. Clients refetch.
+  Changed: EventV2.define({
+    type: "command.changed",
+    schema: {},
   }),
 }
 
@@ -69,8 +77,10 @@ export const layer = Layer.effect(
     const config = yield* Config.Service
     const mcp = yield* MCP.Service
     const skill = yield* Skill.Service
+    const events = yield* EventV2Bridge.Service
 
     const init = Effect.fn("Command.state")(function* (ctx: InstanceContext) {
+      const start = performance.now()
       const cfg = yield* config.get()
       const bridge = yield* EffectBridge.make()
       const commands: Record<string, Info> = {}
@@ -110,35 +120,6 @@ export const layer = Layer.effect(
         }
       }
 
-      for (const [name, prompt] of Object.entries(yield* mcp.prompts())) {
-        commands[name] = {
-          name,
-          source: "mcp",
-          description: prompt.description,
-          get template() {
-            return bridge.promise(
-              mcp
-                .getPrompt(
-                  prompt.client,
-                  prompt.name,
-                  prompt.arguments
-                    ? Object.fromEntries(prompt.arguments.map((argument, i) => [argument.name, `$${i + 1}`]))
-                    : {},
-                )
-                .pipe(
-                  Effect.map(
-                    (template) =>
-                      template?.messages
-                        .map((message) => (message.content.type === "text" ? message.content.text : ""))
-                        .join("\n") || "",
-                  ),
-                ),
-            )
-          },
-          hints: prompt.arguments?.map((_, i) => `$${i + 1}`) ?? [],
-        }
-      }
-
       for (const item of yield* skill.all()) {
         if (commands[item.name]) continue
         commands[item.name] = {
@@ -153,9 +134,58 @@ export const layer = Layer.effect(
         }
       }
 
-      return {
-        commands,
-      }
+      const state: State = { commands }
+      yield* Effect.sync(() => {
+        StartupProfile.duration("command.init", start, { count: Object.keys(commands).length })
+        StartupProfile.mark("command.ready")
+      })
+
+      // MCP prompt commands require connecting MCP servers, which can take many
+      // seconds. Fold them in on a background fiber so the base command list
+      // (builtins, config, skills) -- and the inline skill autocomplete that
+      // reads it -- stays available without waiting for MCP. Notify clients to
+      // refetch once the prompts are merged.
+      yield* Effect.forkScoped(
+        Effect.gen(function* () {
+          const mcpStart = performance.now()
+          const prompts = yield* mcp.prompts()
+          yield* Effect.sync(() =>
+            StartupProfile.duration("command.mcp-prompts", mcpStart, { count: Object.keys(prompts).length }),
+          )
+          if (Object.keys(prompts).length === 0) return
+          for (const [name, prompt] of Object.entries(prompts)) {
+            commands[name] = {
+              name,
+              source: "mcp",
+              description: prompt.description,
+              get template() {
+                return bridge.promise(
+                  mcp
+                    .getPrompt(
+                      prompt.client,
+                      prompt.name,
+                      prompt.arguments
+                        ? Object.fromEntries(prompt.arguments.map((argument, i) => [argument.name, `$${i + 1}`]))
+                        : {},
+                    )
+                    .pipe(
+                      Effect.map(
+                        (template) =>
+                          template?.messages
+                            .map((message) => (message.content.type === "text" ? message.content.text : ""))
+                            .join("\n") || "",
+                      ),
+                    ),
+                )
+              },
+              hints: prompt.arguments?.map((_, i) => `$${i + 1}`) ?? [],
+            }
+          }
+          yield* events.publish(Event.Changed, {})
+        }).pipe(Effect.catchCause((cause) => Effect.logWarning("mcp prompt load failed", { cause }))),
+      )
+
+      return state
     })
 
     const state = yield* InstanceState.make<State>((ctx) => init(ctx))
@@ -178,6 +208,7 @@ export const defaultLayer = layer.pipe(
   Layer.provide(Config.defaultLayer),
   Layer.provide(MCP.defaultLayer),
   Layer.provide(Skill.defaultLayer),
+  Layer.provide(EventV2Bridge.defaultLayer),
 )
 
 export * as Command from "."
