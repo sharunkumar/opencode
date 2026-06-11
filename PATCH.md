@@ -44,7 +44,7 @@ Added `--glob=!node_modules/*` to WASM ripgrep args to exclude node_modules when
 
 ## Makefile
 
-Added a `Makefile` with a `build-single` target that builds the single-file `opencode` binary.
+Added a `Makefile` with a `build-single` target that builds the single-file `opencode` binary and a `generate` target that runs `./script/generate.ts` to regenerate the SDK and related files.
 
 ## Startup Profiling
 
