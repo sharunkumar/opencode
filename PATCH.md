@@ -78,3 +78,16 @@ existing `lsp.updated` handler. Measured: first `GET /command` dropped from ~11s
 
 Added `opencode debug command` (`src/cli/cmd/debug/command.ts`) to list commands / probe this path,
 mirroring `opencode debug skill`. SDK regenerated for the new event type.
+
+## Shell Tool Identity Env (OPENCODE / AGENT)
+
+Shells spawned by the bash/shell tool stopped exposing `OPENCODE=1` and `AGENT=1`. These let shell
+prompts and scripts detect they are running inside opencode (the use case from upstream request
+#1775). They were only ever set via the `index.ts` CLI middleware on `process.env`, and the process
+that runs `ShellTool` no longer inherits them, so `shellEnv` (`src/tool/shell.ts`), which merges
+`{ ...process.env, ...pluginShellEnv }`, had nothing to forward.
+
+Fixed by appending `OPENCODE: "1"` / `AGENT: "1"` after the plugin `shell.env` output in `shellEnv`,
+so they are always present and authoritative (a plugin `shell.env` hook cannot clobber the identity
+markers, but can still add other vars). Covered by a real-shell test that unsets both vars on
+`process.env` first to prove the tool injects them.

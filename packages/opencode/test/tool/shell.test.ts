@@ -214,6 +214,38 @@ describe("tool.shell", () => {
       )
     }),
   )
+
+  if (process.platform !== "win32") {
+    it.live("sets OPENCODE and AGENT env vars on spawned shells", () =>
+      Effect.acquireUseRelease(
+        Effect.sync(() => {
+          const prev = { OPENCODE: process.env.OPENCODE, AGENT: process.env.AGENT }
+          delete process.env.OPENCODE
+          delete process.env.AGENT
+          return prev
+        }),
+        () =>
+          runIn(
+            projectRoot,
+            Effect.gen(function* () {
+              const result = yield* run({
+                command: 'echo "$OPENCODE-$AGENT"',
+                description: "Print identity env vars",
+              })
+              expect(result.metadata.exit).toBe(0)
+              expect(result.output).toContain("1-1")
+            }),
+          ),
+        (prev) =>
+          Effect.sync(() => {
+            if (prev.OPENCODE === undefined) delete process.env.OPENCODE
+            else process.env.OPENCODE = prev.OPENCODE
+            if (prev.AGENT === undefined) delete process.env.AGENT
+            else process.env.AGENT = prev.AGENT
+          }),
+      ),
+    )
+  }
 })
 
 describe("tool.shell permissions", () => {

@@ -428,6 +428,8 @@ export const ShellTool = Tool.define(
       return {
         ...process.env,
         ...extra.env,
+        OPENCODE: "1",
+        AGENT: "1",
       }
     })
 
