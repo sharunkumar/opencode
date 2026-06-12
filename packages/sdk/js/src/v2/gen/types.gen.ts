@@ -6,9 +6,6 @@ export type ClientOptions = {
 
 export type Event =
   | EventModelsDevRefreshed
-  | EventCredentialAdded
-  | EventCredentialRemoved
-  | EventCredentialSwitched
   | EventPluginAdded
   | EventCatalogModelUpdated
   | EventSessionCreated
@@ -55,10 +52,11 @@ export type Event =
   | EventInstallationUpdated
   | EventInstallationUpdateAvailable
   | EventFileEdited
-  | EventConnectorUpdated
+  | EventIntegrationUpdated
   | EventPermissionV2Asked
   | EventPermissionV2Replied
   | EventReferenceUpdated
+  | EventProjectDirectoriesUpdated
   | EventFileWatcherUpdated
   | EventPtyCreated
   | EventPtyUpdated
@@ -79,20 +77,19 @@ export type Event =
   | EventMcpBrowserOpenFailed
   | EventCommandExecuted
   | EventCommandChanged
-  | EventProjectDirectoriesUpdated
   | EventProjectUpdated
-  | EventVcsBranchUpdated
+  | EventSessionStatus
+  | EventSessionIdle
   | EventQuestionAsked
   | EventQuestionReplied
   | EventQuestionRejected
-  | EventSessionStatus
-  | EventSessionIdle
   | EventSessionCompacted
-  | EventWorktreeReady
-  | EventWorktreeFailed
+  | EventVcsBranchUpdated
   | EventWorkspaceReady
   | EventWorkspaceFailed
   | EventWorkspaceStatus
+  | EventWorktreeReady
+  | EventWorktreeFailed
   | EventServerConnected
   | EventGlobalDisposed
   | EventServerInstanceDisposed
@@ -671,6 +668,28 @@ export type Todo = {
   priority: string
 }
 
+export type SessionStatus =
+  | {
+      type: "idle"
+    }
+  | {
+      type: "retry"
+      attempt: number
+      message: string
+      action?: {
+        reason: string
+        provider: string
+        title: string
+        message: string
+        label: string
+        link?: string
+      }
+      next: number
+    }
+  | {
+      type: "busy"
+    }
+
 export type QuestionOption = {
   /**
    * Display text (1-5 words, concise)
@@ -706,28 +725,6 @@ export type QuestionTool = {
 
 export type QuestionAnswer = Array<string>
 
-export type SessionStatus =
-  | {
-      type: "idle"
-    }
-  | {
-      type: "retry"
-      attempt: number
-      message: string
-      action?: {
-        reason: string
-        provider: string
-        title: string
-        message: string
-        label: string
-        link?: string
-      }
-      next: number
-    }
-  | {
-      type: "busy"
-    }
-
 export type GlobalEvent = {
   directory: string
   project?: string
@@ -738,29 +735,6 @@ export type GlobalEvent = {
         type: "models-dev.refreshed"
         properties: {
           [key: string]: unknown
-        }
-      }
-    | {
-        id: string
-        type: "credential.added"
-        properties: {
-          credential: CredentialInfo
-        }
-      }
-    | {
-        id: string
-        type: "credential.removed"
-        properties: {
-          credential: CredentialInfo
-        }
-      }
-    | {
-        id: string
-        type: "credential.switched"
-        properties: {
-          connectorID: string
-          from?: string
-          to?: string
         }
       }
     | {
@@ -1285,7 +1259,7 @@ export type GlobalEvent = {
       }
     | {
         id: string
-        type: "connector.updated"
+        type: "integration.updated"
         properties: {
           [key: string]: unknown
         }
@@ -1319,6 +1293,13 @@ export type GlobalEvent = {
         type: "reference.updated"
         properties: {
           [key: string]: unknown
+        }
+      }
+    | {
+        id: string
+        type: "project.directories.updated"
+        properties: {
+          projectID: string
         }
       }
     | {
@@ -1515,13 +1496,6 @@ export type GlobalEvent = {
       }
     | {
         id: string
-        type: "project.directories.updated"
-        properties: {
-          projectID: string
-        }
-      }
-    | {
-        id: string
         type: "project.updated"
         properties: {
           id: string
@@ -1549,9 +1523,17 @@ export type GlobalEvent = {
       }
     | {
         id: string
-        type: "vcs.branch.updated"
+        type: "session.status"
         properties: {
-          branch?: string
+          sessionID: string
+          status: SessionStatus
+        }
+      }
+    | {
+        id: string
+        type: "session.idle"
+        properties: {
+          sessionID: string
         }
       }
     | {
@@ -1586,21 +1568,6 @@ export type GlobalEvent = {
       }
     | {
         id: string
-        type: "session.status"
-        properties: {
-          sessionID: string
-          status: SessionStatus
-        }
-      }
-    | {
-        id: string
-        type: "session.idle"
-        properties: {
-          sessionID: string
-        }
-      }
-    | {
-        id: string
         type: "session.compacted"
         properties: {
           sessionID: string
@@ -1608,17 +1575,9 @@ export type GlobalEvent = {
       }
     | {
         id: string
-        type: "worktree.ready"
+        type: "vcs.branch.updated"
         properties: {
-          name: string
           branch?: string
-        }
-      }
-    | {
-        id: string
-        type: "worktree.failed"
-        properties: {
-          message: string
         }
       }
     | {
@@ -1641,6 +1600,21 @@ export type GlobalEvent = {
         properties: {
           workspaceID: string
           status: "connected" | "connecting" | "disconnected" | "error"
+        }
+      }
+    | {
+        id: string
+        type: "worktree.ready"
+        properties: {
+          name: string
+          branch?: string
+        }
+      }
+    | {
+        id: string
+        type: "worktree.failed"
+        properties: {
+          message: string
         }
       }
     | {
@@ -2501,14 +2475,6 @@ export type ProjectNotFoundError = {
   message: string
 }
 
-export type ProjectCopyError = {
-  name: "ProjectCopyError"
-  data: {
-    message: string
-    forceRequired?: boolean
-  }
-}
-
 export type PtyNotFoundError = {
   _tag: "PtyNotFoundError"
   ptyID: string
@@ -2804,6 +2770,14 @@ export type ProviderNotFoundError = {
   message: string
 }
 
+export type ProjectCopyError = {
+  name: "ProjectCopyError"
+  data: {
+    message: string
+    forceRequired?: boolean
+  }
+}
+
 export type EffectHttpApiErrorForbidden = {
   _tag: "Forbidden"
 }
@@ -2865,34 +2839,6 @@ export type EventTuiSessionSelect2 = {
 
 export type MoveSessionDestination = {
   directory: string
-}
-
-export type CredentialOAuth = {
-  type: "oauth"
-  refresh: string
-  access: string
-  expires: number
-  metadata?: {
-    [key: string]: string
-  }
-}
-
-export type CredentialKey = {
-  type: "key"
-  key: string
-  metadata?: {
-    [key: string]: string
-  }
-}
-
-export type CredentialValue = CredentialOAuth | CredentialKey
-
-export type CredentialInfo = {
-  id: string
-  connectorID: string
-  methodID: string
-  label: string
-  value: CredentialValue
 }
 
 export type ModelV2Info = {
@@ -3764,12 +3710,8 @@ export type ConfigV2ExperimentalPolicy = {
 
 export type ProjectDirectories = Array<{
   directory: string
-  type: "main" | "root" | "git_worktree"
+  strategy?: string
 }>
-
-export type ProjectCopyCopy = {
-  directory: string
-}
 
 export type LocationInfo = {
   directory: string
@@ -4131,21 +4073,21 @@ export type ProviderV2Info = {
   }
 }
 
-export type ConnectorWhen = {
+export type IntegrationWhen = {
   key: string
   op: "eq" | "neq"
   value: string
 }
 
-export type ConnectorTextPrompt = {
+export type IntegrationTextPrompt = {
   type: "text"
   key: string
   message: string
   placeholder?: string
-  when?: ConnectorWhen
+  when?: IntegrationWhen
 }
 
-export type ConnectorSelectPrompt = {
+export type IntegrationSelectPrompt = {
   type: "select"
   key: string
   message: string
@@ -4154,30 +4096,47 @@ export type ConnectorSelectPrompt = {
     value: string
     hint?: string
   }>
-  when?: ConnectorWhen
+  when?: IntegrationWhen
 }
 
-export type ConnectorOAuthMethod = {
+export type IntegrationOAuthMethod = {
   id: string
   type: "oauth"
   label: string
-  prompts?: Array<ConnectorTextPrompt | ConnectorSelectPrompt>
+  prompts?: Array<IntegrationTextPrompt | IntegrationSelectPrompt>
 }
 
-export type ConnectorKeyMethod = {
-  id: string
+export type IntegrationKeyMethod = {
   type: "key"
-  label: string
-  prompts?: Array<ConnectorTextPrompt | ConnectorSelectPrompt>
+  label?: string
 }
 
-export type ConnectorInfo = {
+export type IntegrationEnvMethod = {
+  type: "env"
+  names: Array<string>
+}
+
+export type ConnectionCredentialInfo = {
+  type: "credential"
+  id: string
+  label: string
+}
+
+export type ConnectionEnvInfo = {
+  type: "env"
+  name: string
+}
+
+export type ConnectionInfo = ConnectionCredentialInfo | ConnectionEnvInfo
+
+export type IntegrationInfo = {
   id: string
   name: string
-  methods: Array<ConnectorOAuthMethod | ConnectorKeyMethod>
+  methods: Array<IntegrationOAuthMethod | IntegrationKeyMethod | IntegrationEnvMethod>
+  connections: Array<ConnectionInfo>
 }
 
-export type ConnectorAttempt = {
+export type IntegrationAttempt = {
   attemptID: string
   url: string
   instructions: string
@@ -4274,37 +4233,15 @@ export type ReferenceInfo = {
   source: ReferenceLocalSource | ReferenceGitSource
 }
 
+export type ProjectCopyCopy = {
+  directory: string
+}
+
 export type EventModelsDevRefreshed = {
   id: string
   type: "models-dev.refreshed"
   properties: {
     [key: string]: unknown
-  }
-}
-
-export type EventCredentialAdded = {
-  id: string
-  type: "credential.added"
-  properties: {
-    credential: CredentialInfo
-  }
-}
-
-export type EventCredentialRemoved = {
-  id: string
-  type: "credential.removed"
-  properties: {
-    credential: CredentialInfo
-  }
-}
-
-export type EventCredentialSwitched = {
-  id: string
-  type: "credential.switched"
-  properties: {
-    connectorID: string
-    from?: string
-    to?: string
   }
 }
 
@@ -4970,9 +4907,9 @@ export type EventFileEdited = {
   }
 }
 
-export type EventConnectorUpdated = {
+export type EventIntegrationUpdated = {
   id: string
-  type: "connector.updated"
+  type: "integration.updated"
   properties: {
     [key: string]: unknown
   }
@@ -5009,6 +4946,14 @@ export type EventReferenceUpdated = {
   type: "reference.updated"
   properties: {
     [key: string]: unknown
+  }
+}
+
+export type EventProjectDirectoriesUpdated = {
+  id: string
+  type: "project.directories.updated"
+  properties: {
+    projectID: string
   }
 }
 
@@ -5169,14 +5114,6 @@ export type EventCommandChanged = {
   }
 }
 
-export type EventProjectDirectoriesUpdated = {
-  id: string
-  type: "project.directories.updated"
-  properties: {
-    projectID: string
-  }
-}
-
 export type EventProjectUpdated = {
   id: string
   type: "project.updated"
@@ -5205,11 +5142,20 @@ export type EventProjectUpdated = {
   }
 }
 
-export type EventVcsBranchUpdated = {
+export type EventSessionStatus = {
   id: string
-  type: "vcs.branch.updated"
+  type: "session.status"
   properties: {
-    branch?: string
+    sessionID: string
+    status: SessionStatus
+  }
+}
+
+export type EventSessionIdle = {
+  id: string
+  type: "session.idle"
+  properties: {
+    sessionID: string
   }
 }
 
@@ -5246,23 +5192,6 @@ export type EventQuestionRejected = {
   }
 }
 
-export type EventSessionStatus = {
-  id: string
-  type: "session.status"
-  properties: {
-    sessionID: string
-    status: SessionStatus
-  }
-}
-
-export type EventSessionIdle = {
-  id: string
-  type: "session.idle"
-  properties: {
-    sessionID: string
-  }
-}
-
 export type EventSessionCompacted = {
   id: string
   type: "session.compacted"
@@ -5271,20 +5200,11 @@ export type EventSessionCompacted = {
   }
 }
 
-export type EventWorktreeReady = {
+export type EventVcsBranchUpdated = {
   id: string
-  type: "worktree.ready"
+  type: "vcs.branch.updated"
   properties: {
-    name: string
     branch?: string
-  }
-}
-
-export type EventWorktreeFailed = {
-  id: string
-  type: "worktree.failed"
-  properties: {
-    message: string
   }
 }
 
@@ -5310,6 +5230,23 @@ export type EventWorkspaceStatus = {
   properties: {
     workspaceID: string
     status: "connected" | "connecting" | "disconnected" | "error"
+  }
+}
+
+export type EventWorktreeReady = {
+  id: string
+  type: "worktree.ready"
+  properties: {
+    name: string
+    branch?: string
+  }
+}
+
+export type EventWorktreeFailed = {
+  id: string
+  type: "worktree.failed"
+  properties: {
+    message: string
   }
 }
 
@@ -7076,78 +7013,10 @@ export type ProjectDirectoriesResponses = {
 
 export type ProjectDirectoriesResponse = ProjectDirectoriesResponses[keyof ProjectDirectoriesResponses]
 
-export type ExperimentalProjectCopyRemoveData = {
+export type ExperimentalProjectCopyGenerateNameData = {
   body?: {
-    directory: string
-    force: boolean
-  }
-  path: {
-    projectID: string
-  }
-  query?: {
-    workspace?: string
-  }
-  url: "/experimental/project/{projectID}/copy"
-}
-
-export type ExperimentalProjectCopyRemoveErrors = {
-  /**
-   * ProjectCopyError | InvalidRequestError
-   */
-  400: ProjectCopyError | InvalidRequestError
-}
-
-export type ExperimentalProjectCopyRemoveError =
-  ExperimentalProjectCopyRemoveErrors[keyof ExperimentalProjectCopyRemoveErrors]
-
-export type ExperimentalProjectCopyRemoveResponses = {
-  /**
-   * Project copy removed
-   */
-  204: void
-}
-
-export type ExperimentalProjectCopyRemoveResponse =
-  ExperimentalProjectCopyRemoveResponses[keyof ExperimentalProjectCopyRemoveResponses]
-
-export type ExperimentalProjectCopyCreateData = {
-  body?: {
-    strategy: "git_worktree"
-    directory: string
-    name?: string
     context?: string
   }
-  path: {
-    projectID: string
-  }
-  query?: {
-    workspace?: string
-  }
-  url: "/experimental/project/{projectID}/copy"
-}
-
-export type ExperimentalProjectCopyCreateErrors = {
-  /**
-   * ProjectCopyError | InvalidRequestError
-   */
-  400: ProjectCopyError | InvalidRequestError
-}
-
-export type ExperimentalProjectCopyCreateError =
-  ExperimentalProjectCopyCreateErrors[keyof ExperimentalProjectCopyCreateErrors]
-
-export type ExperimentalProjectCopyCreateResponses = {
-  /**
-   * Project copy created
-   */
-  200: ProjectCopyCopy
-}
-
-export type ExperimentalProjectCopyCreateResponse =
-  ExperimentalProjectCopyCreateResponses[keyof ExperimentalProjectCopyCreateResponses]
-
-export type ExperimentalProjectCopyRefreshData = {
-  body?: never
   path: {
     projectID: string
   }
@@ -7155,28 +7024,30 @@ export type ExperimentalProjectCopyRefreshData = {
     directory?: string
     workspace?: string
   }
-  url: "/experimental/project/{projectID}/copy/refresh"
+  url: "/experimental/project/{projectID}/copy/generate-name"
 }
 
-export type ExperimentalProjectCopyRefreshErrors = {
+export type ExperimentalProjectCopyGenerateNameErrors = {
   /**
-   * ProjectCopyError | InvalidRequestError
+   * Bad request
    */
-  400: ProjectCopyError | InvalidRequestError
+  400: BadRequestError
 }
 
-export type ExperimentalProjectCopyRefreshError =
-  ExperimentalProjectCopyRefreshErrors[keyof ExperimentalProjectCopyRefreshErrors]
+export type ExperimentalProjectCopyGenerateNameError =
+  ExperimentalProjectCopyGenerateNameErrors[keyof ExperimentalProjectCopyGenerateNameErrors]
 
-export type ExperimentalProjectCopyRefreshResponses = {
+export type ExperimentalProjectCopyGenerateNameResponses = {
   /**
-   * Project copies refreshed
+   * Success
    */
-  204: void
+  200: {
+    name: string
+  }
 }
 
-export type ExperimentalProjectCopyRefreshResponse =
-  ExperimentalProjectCopyRefreshResponses[keyof ExperimentalProjectCopyRefreshResponses]
+export type ExperimentalProjectCopyGenerateNameResponse =
+  ExperimentalProjectCopyGenerateNameResponses[keyof ExperimentalProjectCopyGenerateNameResponses]
 
 export type PtyShellsData = {
   body?: never
@@ -10081,7 +9952,7 @@ export type V2ProviderGetResponses = {
 
 export type V2ProviderGetResponse = V2ProviderGetResponses[keyof V2ProviderGetResponses]
 
-export type V2ConnectorListData = {
+export type V2IntegrationListData = {
   body?: never
   path?: never
   query?: {
@@ -10090,10 +9961,10 @@ export type V2ConnectorListData = {
       workspace?: string
     }
   }
-  url: "/api/connector"
+  url: "/api/integration"
 }
 
-export type V2ConnectorListErrors = {
+export type V2IntegrationListErrors = {
   /**
    * InvalidRequestError
    */
@@ -10104,24 +9975,24 @@ export type V2ConnectorListErrors = {
   401: UnauthorizedError
 }
 
-export type V2ConnectorListError = V2ConnectorListErrors[keyof V2ConnectorListErrors]
+export type V2IntegrationListError = V2IntegrationListErrors[keyof V2IntegrationListErrors]
 
-export type V2ConnectorListResponses = {
+export type V2IntegrationListResponses = {
   /**
    * Success
    */
   200: {
     location: LocationInfo
-    data: Array<ConnectorInfo>
+    data: Array<IntegrationInfo>
   }
 }
 
-export type V2ConnectorListResponse = V2ConnectorListResponses[keyof V2ConnectorListResponses]
+export type V2IntegrationListResponse = V2IntegrationListResponses[keyof V2IntegrationListResponses]
 
-export type V2ConnectorGetData = {
+export type V2IntegrationGetData = {
   body?: never
   path: {
-    connectorID: string
+    integrationID: string
   }
   query?: {
     location?: {
@@ -10129,10 +10000,10 @@ export type V2ConnectorGetData = {
       workspace?: string
     }
   }
-  url: "/api/connector/{connectorID}"
+  url: "/api/integration/{integrationID}"
 }
 
-export type V2ConnectorGetErrors = {
+export type V2IntegrationGetErrors = {
   /**
    * InvalidRequestError
    */
@@ -10143,31 +10014,27 @@ export type V2ConnectorGetErrors = {
   401: UnauthorizedError
 }
 
-export type V2ConnectorGetError = V2ConnectorGetErrors[keyof V2ConnectorGetErrors]
+export type V2IntegrationGetError = V2IntegrationGetErrors[keyof V2IntegrationGetErrors]
 
-export type V2ConnectorGetResponses = {
+export type V2IntegrationGetResponses = {
   /**
    * Success
    */
   200: {
     location: LocationInfo
-    data: ConnectorInfo
+    data: IntegrationInfo
   }
 }
 
-export type V2ConnectorGetResponse = V2ConnectorGetResponses[keyof V2ConnectorGetResponses]
+export type V2IntegrationGetResponse = V2IntegrationGetResponses[keyof V2IntegrationGetResponses]
 
-export type V2ConnectorConnectKeyData = {
+export type V2IntegrationConnectKeyData = {
   body: {
-    methodID: string
     key: string
-    inputs: {
-      [key: string]: string
-    }
     label?: string
   }
   path: {
-    connectorID: string
+    integrationID: string
   }
   query?: {
     location?: {
@@ -10175,10 +10042,10 @@ export type V2ConnectorConnectKeyData = {
       workspace?: string
     }
   }
-  url: "/api/connector/{connectorID}/connect/key"
+  url: "/api/integration/{integrationID}/connect/key"
 }
 
-export type V2ConnectorConnectKeyErrors = {
+export type V2IntegrationConnectKeyErrors = {
   /**
    * InvalidRequestError
    */
@@ -10189,18 +10056,18 @@ export type V2ConnectorConnectKeyErrors = {
   401: UnauthorizedError
 }
 
-export type V2ConnectorConnectKeyError = V2ConnectorConnectKeyErrors[keyof V2ConnectorConnectKeyErrors]
+export type V2IntegrationConnectKeyError = V2IntegrationConnectKeyErrors[keyof V2IntegrationConnectKeyErrors]
 
-export type V2ConnectorConnectKeyResponses = {
+export type V2IntegrationConnectKeyResponses = {
   /**
    * <No Content>
    */
   204: void
 }
 
-export type V2ConnectorConnectKeyResponse = V2ConnectorConnectKeyResponses[keyof V2ConnectorConnectKeyResponses]
+export type V2IntegrationConnectKeyResponse = V2IntegrationConnectKeyResponses[keyof V2IntegrationConnectKeyResponses]
 
-export type V2ConnectorConnectOauthBeginData = {
+export type V2IntegrationConnectOauthData = {
   body: {
     methodID: string
     inputs: {
@@ -10209,7 +10076,7 @@ export type V2ConnectorConnectOauthBeginData = {
     label?: string
   }
   path: {
-    connectorID: string
+    integrationID: string
   }
   query?: {
     location?: {
@@ -10217,10 +10084,10 @@ export type V2ConnectorConnectOauthBeginData = {
       workspace?: string
     }
   }
-  url: "/api/connector/{connectorID}/connect/oauth"
+  url: "/api/integration/{integrationID}/connect/oauth"
 }
 
-export type V2ConnectorConnectOauthBeginErrors = {
+export type V2IntegrationConnectOauthErrors = {
   /**
    * InvalidRequestError
    */
@@ -10231,23 +10098,22 @@ export type V2ConnectorConnectOauthBeginErrors = {
   401: UnauthorizedError
 }
 
-export type V2ConnectorConnectOauthBeginError =
-  V2ConnectorConnectOauthBeginErrors[keyof V2ConnectorConnectOauthBeginErrors]
+export type V2IntegrationConnectOauthError = V2IntegrationConnectOauthErrors[keyof V2IntegrationConnectOauthErrors]
 
-export type V2ConnectorConnectOauthBeginResponses = {
+export type V2IntegrationConnectOauthResponses = {
   /**
    * Success
    */
   200: {
     location: LocationInfo
-    data: ConnectorAttempt
+    data: IntegrationAttempt
   }
 }
 
-export type V2ConnectorConnectOauthBeginResponse =
-  V2ConnectorConnectOauthBeginResponses[keyof V2ConnectorConnectOauthBeginResponses]
+export type V2IntegrationConnectOauthResponse =
+  V2IntegrationConnectOauthResponses[keyof V2IntegrationConnectOauthResponses]
 
-export type V2ConnectorConnectOauthCancelData = {
+export type V2IntegrationAttemptCancelData = {
   body?: never
   path: {
     attemptID: string
@@ -10258,10 +10124,10 @@ export type V2ConnectorConnectOauthCancelData = {
       workspace?: string
     }
   }
-  url: "/api/connector/oauth/{attemptID}"
+  url: "/api/integration/attempt/{attemptID}"
 }
 
-export type V2ConnectorConnectOauthCancelErrors = {
+export type V2IntegrationAttemptCancelErrors = {
   /**
    * InvalidRequestError
    */
@@ -10272,20 +10138,19 @@ export type V2ConnectorConnectOauthCancelErrors = {
   401: UnauthorizedError
 }
 
-export type V2ConnectorConnectOauthCancelError =
-  V2ConnectorConnectOauthCancelErrors[keyof V2ConnectorConnectOauthCancelErrors]
+export type V2IntegrationAttemptCancelError = V2IntegrationAttemptCancelErrors[keyof V2IntegrationAttemptCancelErrors]
 
-export type V2ConnectorConnectOauthCancelResponses = {
+export type V2IntegrationAttemptCancelResponses = {
   /**
    * <No Content>
    */
   204: void
 }
 
-export type V2ConnectorConnectOauthCancelResponse =
-  V2ConnectorConnectOauthCancelResponses[keyof V2ConnectorConnectOauthCancelResponses]
+export type V2IntegrationAttemptCancelResponse =
+  V2IntegrationAttemptCancelResponses[keyof V2IntegrationAttemptCancelResponses]
 
-export type V2ConnectorConnectOauthStatusData = {
+export type V2IntegrationAttemptStatusData = {
   body?: never
   path: {
     attemptID: string
@@ -10296,10 +10161,10 @@ export type V2ConnectorConnectOauthStatusData = {
       workspace?: string
     }
   }
-  url: "/api/connector/oauth/{attemptID}"
+  url: "/api/integration/attempt/{attemptID}"
 }
 
-export type V2ConnectorConnectOauthStatusErrors = {
+export type V2IntegrationAttemptStatusErrors = {
   /**
    * InvalidRequestError
    */
@@ -10310,10 +10175,9 @@ export type V2ConnectorConnectOauthStatusErrors = {
   401: UnauthorizedError
 }
 
-export type V2ConnectorConnectOauthStatusError =
-  V2ConnectorConnectOauthStatusErrors[keyof V2ConnectorConnectOauthStatusErrors]
+export type V2IntegrationAttemptStatusError = V2IntegrationAttemptStatusErrors[keyof V2IntegrationAttemptStatusErrors]
 
-export type V2ConnectorConnectOauthStatusResponses = {
+export type V2IntegrationAttemptStatusResponses = {
   /**
    * Success
    */
@@ -10352,10 +10216,10 @@ export type V2ConnectorConnectOauthStatusResponses = {
   }
 }
 
-export type V2ConnectorConnectOauthStatusResponse =
-  V2ConnectorConnectOauthStatusResponses[keyof V2ConnectorConnectOauthStatusResponses]
+export type V2IntegrationAttemptStatusResponse =
+  V2IntegrationAttemptStatusResponses[keyof V2IntegrationAttemptStatusResponses]
 
-export type V2ConnectorConnectOauthCompleteData = {
+export type V2IntegrationAttemptCompleteData = {
   body: {
     code?: string
   }
@@ -10368,10 +10232,10 @@ export type V2ConnectorConnectOauthCompleteData = {
       workspace?: string
     }
   }
-  url: "/api/connector/oauth/{attemptID}/complete"
+  url: "/api/integration/attempt/{attemptID}/complete"
 }
 
-export type V2ConnectorConnectOauthCompleteErrors = {
+export type V2IntegrationAttemptCompleteErrors = {
   /**
    * InvalidRequestError
    */
@@ -10382,18 +10246,82 @@ export type V2ConnectorConnectOauthCompleteErrors = {
   401: UnauthorizedError
 }
 
-export type V2ConnectorConnectOauthCompleteError =
-  V2ConnectorConnectOauthCompleteErrors[keyof V2ConnectorConnectOauthCompleteErrors]
+export type V2IntegrationAttemptCompleteError =
+  V2IntegrationAttemptCompleteErrors[keyof V2IntegrationAttemptCompleteErrors]
 
-export type V2ConnectorConnectOauthCompleteResponses = {
+export type V2IntegrationAttemptCompleteResponses = {
   /**
    * <No Content>
    */
   204: void
 }
 
-export type V2ConnectorConnectOauthCompleteResponse =
-  V2ConnectorConnectOauthCompleteResponses[keyof V2ConnectorConnectOauthCompleteResponses]
+export type V2IntegrationAttemptCompleteResponse =
+  V2IntegrationAttemptCompleteResponses[keyof V2IntegrationAttemptCompleteResponses]
+
+export type V2CredentialRemoveData = {
+  body?: never
+  path: {
+    credentialID: string
+  }
+  query?: never
+  url: "/api/credential/{credentialID}"
+}
+
+export type V2CredentialRemoveErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+}
+
+export type V2CredentialRemoveError = V2CredentialRemoveErrors[keyof V2CredentialRemoveErrors]
+
+export type V2CredentialRemoveResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2CredentialRemoveResponse = V2CredentialRemoveResponses[keyof V2CredentialRemoveResponses]
+
+export type V2CredentialUpdateData = {
+  body: {
+    label: string
+  }
+  path: {
+    credentialID: string
+  }
+  query?: never
+  url: "/api/credential/{credentialID}"
+}
+
+export type V2CredentialUpdateErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+}
+
+export type V2CredentialUpdateError = V2CredentialUpdateErrors[keyof V2CredentialUpdateErrors]
+
+export type V2CredentialUpdateResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2CredentialUpdateResponse = V2CredentialUpdateResponses[keyof V2CredentialUpdateResponses]
 
 export type V2PermissionRequestListData = {
   body?: never
@@ -10975,6 +10903,109 @@ export type V2ReferenceListResponses = {
 }
 
 export type V2ReferenceListResponse = V2ReferenceListResponses[keyof V2ReferenceListResponses]
+
+export type V2ProjectCopyRemoveData = {
+  body?: {
+    directory: string
+    force: boolean
+  }
+  path: {
+    projectID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/experimental/project/{projectID}/copy"
+}
+
+export type V2ProjectCopyRemoveErrors = {
+  /**
+   * ProjectCopyError | InvalidRequestError
+   */
+  400: ProjectCopyError | InvalidRequestError
+}
+
+export type V2ProjectCopyRemoveError = V2ProjectCopyRemoveErrors[keyof V2ProjectCopyRemoveErrors]
+
+export type V2ProjectCopyRemoveResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2ProjectCopyRemoveResponse = V2ProjectCopyRemoveResponses[keyof V2ProjectCopyRemoveResponses]
+
+export type V2ProjectCopyCreateData = {
+  body?: {
+    strategy: string
+    directory: string
+    name?: string
+  }
+  path: {
+    projectID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/experimental/project/{projectID}/copy"
+}
+
+export type V2ProjectCopyCreateErrors = {
+  /**
+   * ProjectCopyError | InvalidRequestError
+   */
+  400: ProjectCopyError | InvalidRequestError
+}
+
+export type V2ProjectCopyCreateError = V2ProjectCopyCreateErrors[keyof V2ProjectCopyCreateErrors]
+
+export type V2ProjectCopyCreateResponses = {
+  /**
+   * ProjectCopy.Copy
+   */
+  200: ProjectCopyCopy
+}
+
+export type V2ProjectCopyCreateResponse = V2ProjectCopyCreateResponses[keyof V2ProjectCopyCreateResponses]
+
+export type V2ProjectCopyRefreshData = {
+  body?: never
+  path: {
+    projectID: string
+  }
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
+  url: "/experimental/project/{projectID}/copy/refresh"
+}
+
+export type V2ProjectCopyRefreshErrors = {
+  /**
+   * ProjectCopyError | InvalidRequestError
+   */
+  400: ProjectCopyError | InvalidRequestError
+}
+
+export type V2ProjectCopyRefreshError = V2ProjectCopyRefreshErrors[keyof V2ProjectCopyRefreshErrors]
+
+export type V2ProjectCopyRefreshResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2ProjectCopyRefreshResponse = V2ProjectCopyRefreshResponses[keyof V2ProjectCopyRefreshResponses]
 
 export type PtyConnectData = {
   body?: never
