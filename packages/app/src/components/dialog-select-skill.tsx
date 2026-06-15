@@ -11,7 +11,7 @@ export const DialogSelectSkill: Component<{ onSelect: (skill: string) => void }>
   const language = useLanguage()
 
   const [skills] = createResource(async () => {
-    const result = await sdk.client.app.skills()
+    const result = await sdk().client.app.skills()
     return result.data ?? []
   })
 
