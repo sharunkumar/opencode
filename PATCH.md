@@ -36,10 +36,6 @@ Kept: test, typecheck, generate
 
 Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-latest`).
 
-## Ripgrep WASM Fix
-
-Exclude `node_modules` from WASM ripgrep searches started in subdirectories whose `.gitignore` lives in a parent directory.
-
 ## Makefile
 
 Added `make build-single` (builds the single-file `opencode` binary) and `make generate` (regenerates the SDK and related files).
