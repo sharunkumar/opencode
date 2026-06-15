@@ -79,6 +79,33 @@ existing `lsp.updated` handler. Measured: first `GET /command` dropped from ~11s
 Added `opencode debug command` (`src/cli/cmd/debug/command.ts`) to list commands / probe this path,
 mirroring `opencode debug skill`. SDK regenerated for the new event type.
 
+## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`)
+
+By default, submitting a prompt while the assistant is still working steers/queues the message into
+the running loop (picked up at the next safe boundary, shown with a `QUEUED` badge). There was no way
+to atomically interrupt the active run and send a new prompt immediately — you had to press `escape`
+twice to abort, wait for idle, then submit.
+
+Added a `prompt_interrupt_submit` keybind (default `ctrl+return`, i.e. Ctrl+Enter) mapped to the
+command `prompt.interrupt_submit`. The handler (in `packages/tui/src/component/prompt/index.tsx`)
+awaits `sdk.client.session.abort(...)` when the session is busy — the abort endpoint awaits
+cancellation, so once it resolves the runner is idle (`SessionRunState.cancel` → `Runner.cancel`
+interrupts the fiber and `onIdle` drops the runner) — then calls the normal `submit()`, so the prompt
+starts a fresh run instead of being queued. On an empty prompt it is a no-op (does not interrupt).
+When the session is already idle it behaves like a normal submit.
+
+`ctrl+return` was previously part of `input_newline` (`shift+return,ctrl+return,alt+return,ctrl+j`);
+it is removed from that default (now `shift+return,alt+return,ctrl+j`) so Ctrl+Enter is free for
+interrupt-and-submit. Newline still has `shift+return`, `alt+return`, and `ctrl+j`.
+
+Ctrl+Enter is distinct from plain Enter only under the kitty keyboard protocol (which opencode
+enables via `useKittyKeyboard`); terminals/multiplexers without it collapse Ctrl+Enter into a plain
+newline. The original `super+return` (Cmd+Enter) default was dropped because macOS terminals reserve
+Cmd and do not forward it to the app.
+
+Definition + `CommandMap` entry live in `packages/tui/src/config/keybind.ts`; the binding is gathered
+in the existing `prompt.palette` group. Like `prompt.submit`, the command is hidden from the palette.
+
 ## Shell Tool Identity Env (OPENCODE / AGENT)
 
 Shells spawned by the bash/shell tool stopped exposing `OPENCODE=1` and `AGENT=1`. These let shell

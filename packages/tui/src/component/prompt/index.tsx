@@ -353,6 +353,30 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
+        title: "Interrupt and submit",
+        name: "prompt.interrupt_submit",
+        category: "Prompt",
+        hidden: true,
+        run: async () => {
+          if (!input.focused) return
+          if (auto()?.visible) return
+          // Nothing to send: don't interrupt the run on an empty prompt.
+          const text = input && !input.isDestroyed ? input.plainText : store.prompt.input
+          if (!text.trim()) return
+          // Abort the active run first so the prompt starts a fresh run instead
+          // of being steered/queued into the current one. The abort endpoint
+          // awaits cancellation, so once it resolves the session is idle.
+          if (props.sessionID && status().type !== "idle") {
+            await sdk.client.session.abort({ sessionID: props.sessionID })
+            setStore("interrupt", 0)
+          }
+          const handled = await submit()
+          if (!handled) return
+
+          dialog.clear()
+        },
+      },
+      {
         title: "Remove editor context",
         name: "prompt.editor_context.clear",
         category: "Prompt",
@@ -563,6 +587,7 @@ export function Prompt(props: PromptProps) {
     mode: OPENCODE_BASE_MODE,
     bindings: tuiConfig.keybinds.gather("prompt.palette", [
       "prompt.submit",
+      "prompt.interrupt_submit",
       "prompt.editor",
       "prompt.editor_context.clear",
       "prompt.stash",
