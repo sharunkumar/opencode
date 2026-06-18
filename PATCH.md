@@ -36,6 +36,10 @@ Kept: test, typecheck, generate
 
 Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-latest`).
 
+## Fork Release Workflow
+
+`release.yml`: fork-friendly workflow that builds and creates a GitHub Release on push to `dev`.
+
 ## Makefile
 
 Added `make build-single` (builds the single-file `opencode` binary) and `make generate` (regenerates the SDK and related files).
