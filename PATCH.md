@@ -61,3 +61,7 @@ Submitting while the assistant is working normally steers/queues the message (sh
 ## Shell Tool Identity Env (OPENCODE / AGENT)
 
 Shells spawned by the bash/shell tool always expose `OPENCODE=1` and `AGENT=1` so prompts and scripts can detect they run inside opencode (upstream #1775). A plugin `shell.env` hook can add vars but cannot clobber these markers.
+
+## Click-to-Toggle MCPs in TUI Sidebar
+
+Clicking an MCP in the sidebar enables or disables it. A new `connecting` status surfaces in-flight connections across the TUI, web app, and CLI.

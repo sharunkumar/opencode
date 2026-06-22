@@ -7,6 +7,10 @@ export async function toggleMcp(input: {
   authenticate: () => Promise<void>
   refresh: () => Promise<void>
 }) {
+  if (input.status === "connecting") {
+    await input.refresh()
+    return
+  }
   await {
     connected: input.disconnect,
     needs_auth: input.authenticate,

@@ -1,8 +1,65 @@
-import type { TuiPlugin, TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { TuiPlugin, TuiPluginApi, TuiSidebarMcpItem } from "@opencode-ai/plugin/tui"
 import type { BuiltinTuiPlugin } from "../builtins"
 import { createMemo, For, Match, Show, Switch, createSignal } from "solid-js"
+import { useSync } from "../../context/sync"
+import { useSDK } from "../../context/sdk"
+import { useTheme } from "../../context/theme"
 
 const id = "internal:sidebar-mcp"
+
+function McpItem(props: { item: TuiSidebarMcpItem }) {
+  const { theme } = useTheme()
+  const sync = useSync()
+  const sdk = useSDK()
+
+  const dot = () => {
+    const status = props.item.status
+    if (status === "connected") return theme.success
+    if (status === "connecting") return theme.warning
+    if (status === "failed") return theme.error
+    if (status === "disabled") return theme.textMuted
+    if (status === "needs_auth") return theme.warning
+    if (status === "needs_client_registration") return theme.error
+    return theme.textMuted
+  }
+
+  const toggle = async () => {
+    const name = props.item.name
+    const status = props.item.status
+    if (status === "connecting") return
+    const action =
+      status === "connected" ? () => sdk.client.mcp.disconnect({ name }) : () => sdk.client.mcp.connect({ name })
+    sync.set("mcp", name, { status: status === "connected" ? "disabled" : "connecting" })
+    await action().catch((error) => console.error("Failed to toggle MCP:", error))
+    const fresh = await sdk.client.mcp
+      .status()
+      .catch((error) => (console.error("Failed to refresh MCP status:", error), undefined))
+    if (fresh?.data) sync.set("mcp", fresh.data)
+  }
+
+  return (
+    <box flexDirection="row" gap={1} onMouseDown={toggle}>
+      <text flexShrink={0} style={{ fg: dot() }}>
+        •
+      </text>
+      <text fg={theme.text} wrapMode="word">
+        {props.item.name}{" "}
+        <span style={{ fg: theme.textMuted }}>
+          <Switch fallback={props.item.status}>
+            <Match when={props.item.status === "connecting"}>⋯ Connecting</Match>
+            <Match when={props.item.status === "connected"}>Connected</Match>
+            <Match when={props.item.status === "failed"}>
+              <i>{props.item.error}</i>
+            </Match>
+            <Match when={props.item.status === "disabled"}>Disabled</Match>
+            <Match when={props.item.status === "needs_auth"}>Needs auth</Match>
+            <Match when={props.item.status === "needs_client_registration"}>Needs client ID</Match>
+          </Switch>
+        </span>
+      </text>
+    </box>
+  )
+}
 
 function View(props: { api: TuiPluginApi }) {
   const [open, setOpen] = createSignal(true)
@@ -16,15 +73,6 @@ function View(props: { api: TuiPluginApi }) {
           item.status === "failed" || item.status === "needs_auth" || item.status === "needs_client_registration",
       ).length,
   )
-
-  const dot = (status: string) => {
-    if (status === "connected") return theme().success
-    if (status === "failed") return theme().error
-    if (status === "disabled") return theme().textMuted
-    if (status === "needs_auth") return theme().warning
-    if (status === "needs_client_registration") return theme().error
-    return theme().textMuted
-  }
 
   return (
     <Show when={list().length > 0}>
@@ -44,34 +92,7 @@ function View(props: { api: TuiPluginApi }) {
           </text>
         </box>
         <Show when={list().length <= 2 || open()}>
-          <For each={list()}>
-            {(item) => (
-              <box flexDirection="row" gap={1}>
-                <text
-                  flexShrink={0}
-                  style={{
-                    fg: dot(item.status),
-                  }}
-                >
-                  •
-                </text>
-                <text fg={theme().text} wrapMode="word">
-                  {item.name}{" "}
-                  <span style={{ fg: theme().textMuted }}>
-                    <Switch fallback={item.status}>
-                      <Match when={item.status === "connected"}>Connected</Match>
-                      <Match when={item.status === "failed"}>
-                        <i>{item.error}</i>
-                      </Match>
-                      <Match when={item.status === "disabled"}>Disabled</Match>
-                      <Match when={item.status === "needs_auth"}>Needs auth</Match>
-                      <Match when={item.status === "needs_client_registration"}>Needs client ID</Match>
-                    </Switch>
-                  </span>
-                </text>
-              </box>
-            )}
-          </For>
+          <For each={list()}>{(item) => <McpItem item={item} />}</For>
         </Show>
       </box>
     </Show>

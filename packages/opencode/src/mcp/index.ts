@@ -96,6 +96,9 @@ function createClient(directory: string) {
 const StatusConnected = Schema.Struct({ status: Schema.Literal("connected") }).annotate({
   identifier: "MCPStatusConnected",
 })
+const StatusConnecting = Schema.Struct({ status: Schema.Literal("connecting") }).annotate({
+  identifier: "MCPStatusConnecting",
+})
 const StatusDisabled = Schema.Struct({ status: Schema.Literal("disabled") }).annotate({
   identifier: "MCPStatusDisabled",
 })
@@ -112,6 +115,7 @@ const StatusNeedsClientRegistration = Schema.Struct({
 
 export const Status = Schema.Union([
   StatusConnected,
+  StatusConnecting,
   StatusDisabled,
   StatusFailed,
   StatusNeedsAuth,
@@ -498,6 +502,7 @@ export const layer = Layer.effect(
                 return
               }
 
+              s.status[key] = { status: "connecting" }
               const result = yield* create(key, mcp)
               s.status[key] = result.status
               if (result.mcpClient) {
@@ -598,6 +603,7 @@ export const layer = Layer.effect(
 
     const createAndStore = Effect.fn("MCP.createAndStore")(function* (name: string, mcp: ConfigMCPV1.Info) {
       const s = yield* InstanceState.get(state)
+      if (mcp.enabled !== false) s.status[name] = { status: "connecting" }
       const result = yield* create(name, mcp)
 
       s.status[name] = result.status

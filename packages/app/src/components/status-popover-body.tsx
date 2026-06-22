@@ -406,10 +406,12 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
                         type="button"
                         class="flex items-center gap-2 w-full min-h-8 pl-3 pr-2 py-1 rounded-md hover:bg-surface-raised-base-hover transition-colors text-left"
                         onClick={() => {
-                          if (toggleMcp.isPending) return
+                          if (toggleMcp.isPending || status() === "connecting") return
                           toggleMcp.mutate(name)
                         }}
-                        disabled={toggleMcp.isPending && toggleMcp.variables === name}
+                        disabled={
+                          status() === "connecting" || (toggleMcp.isPending && toggleMcp.variables === name)
+                        }
                       >
                         <div
                           classList={{
@@ -418,7 +420,9 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
                             "bg-icon-critical-base": status() === "failed",
                             "bg-border-weak-base": status() === "disabled",
                             "bg-icon-warning-base":
-                              status() === "needs_auth" || status() === "needs_client_registration",
+                              status() === "connecting" ||
+                              status() === "needs_auth" ||
+                              status() === "needs_client_registration",
                           }}
                         />
                         <span class="flex flex-col min-w-0 flex-1">
@@ -434,9 +438,11 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
                         <div onClick={(event) => event.stopPropagation()}>
                           <Switch
                             checked={enabled()}
-                            disabled={toggleMcp.isPending && toggleMcp.variables === name}
+                            disabled={
+                              status() === "connecting" || (toggleMcp.isPending && toggleMcp.variables === name)
+                            }
                             onChange={() => {
-                              if (toggleMcp.isPending) return
+                              if (toggleMcp.isPending || status() === "connecting") return
                               toggleMcp.mutate(name)
                             }}
                           />

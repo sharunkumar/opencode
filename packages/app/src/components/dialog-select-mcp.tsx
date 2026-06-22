@@ -8,6 +8,7 @@ import { useMcpToggle } from "@/context/mcp"
 
 const statusLabels = {
   connected: "mcp.status.connected",
+  connecting: "mcp.status.connecting",
   failed: "mcp.status.failed",
   needs_auth: "mcp.status.needs_auth",
   needs_client_registration: "mcp.status.needs_client_registration",
@@ -44,6 +45,7 @@ export const DialogSelectMcp: Component = () => {
         sortBy={(a, b) => a.name.localeCompare(b.name)}
         onSelect={(x) => {
           if (!x || toggle.isPending) return
+          if (sync().data.mcp[x.name]?.status === "connecting") return
           toggle.mutate(x.name)
         }}
       >
@@ -76,9 +78,9 @@ export const DialogSelectMcp: Component = () => {
               <div onClick={(e) => e.stopPropagation()}>
                 <Switch
                   checked={enabled()}
-                  disabled={toggle.isPending && toggle.variables === i.name}
+                  disabled={status() === "connecting" || (toggle.isPending && toggle.variables === i.name)}
                   onChange={() => {
-                    if (toggle.isPending) return
+                    if (toggle.isPending || status() === "connecting") return
                     toggle.mutate(i.name)
                   }}
                 />
