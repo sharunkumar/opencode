@@ -409,9 +409,7 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
                           if (toggleMcp.isPending || status() === "connecting") return
                           toggleMcp.mutate(name)
                         }}
-                        disabled={
-                          status() === "connecting" || (toggleMcp.isPending && toggleMcp.variables === name)
-                        }
+                        disabled={status() === "connecting" || (toggleMcp.isPending && toggleMcp.variables === name)}
                       >
                         <div
                           classList={{

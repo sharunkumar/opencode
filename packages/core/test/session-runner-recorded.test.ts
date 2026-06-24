@@ -154,7 +154,7 @@ describe("SessionRunnerLLM recorded", () => {
       const session = yield* SessionV2.Service
       const prompt = yield* session.prompt({
         sessionID,
-        prompt: new Prompt({ text: "Say hello in one short sentence." }),
+        prompt: Prompt.make({ text: "Say hello in one short sentence." }),
         resume: false,
       })
 
@@ -176,7 +176,7 @@ describe("SessionRunnerLLM recorded", () => {
           .all()).map((event) => event.type),
       ).toEqual([
         "session.next.prompt.admitted.1",
-        "session.next.prompt.promoted.1",
+        "session.next.prompted.1",
         "session.next.step.started.1",
         "session.next.text.started.1",
         "session.next.text.ended.1",
