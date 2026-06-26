@@ -1,38 +1,27 @@
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import path from "path"
 import { InstanceState } from "@/effect/instance-state"
 import { EffectBridge } from "@/effect/bridge"
 import type { InstanceContext } from "@/project/instance-context"
-import { SessionID, MessageID } from "@/session/schema"
 import { Effect, Layer, Context, Schema } from "effect"
 import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
-import { EventV2 } from "@opencode-ai/core/event"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { StartupProfile } from "@/startup/profile"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
+import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
 type State = {
   commands: Record<string, Info>
 }
 
 export const Event = {
-  Executed: EventV2.define({
-    type: "command.executed",
-    schema: {
-      name: Schema.String,
-      sessionID: SessionID,
-      arguments: Schema.String,
-      messageID: MessageID,
-    },
-  }),
+  Executed: LegacyEvent.CommandExecuted,
   // Emitted when the command list changes after initial materialization, e.g.
   // once MCP prompt commands finish loading in the background. Clients refetch.
-  Changed: EventV2.define({
-    type: "command.changed",
-    schema: {},
-  }),
+  Changed: LegacyEvent.CommandChanged,
 }
 
 export const Info = Schema.Struct({
@@ -123,13 +112,20 @@ export const layer = Layer.effect(
 
       for (const item of yield* skill.all()) {
         if (commands[item.name]) continue
+        const dir = item.location === "<built-in>" ? undefined : path.dirname(item.location)
         commands[item.name] = {
           name: item.name,
           description: item.description,
           source: "skill",
           slash: cfg.skills?.slash ?? false,
           get template() {
-            return item.content
+            if (!dir) return item.content
+            return [
+              item.content,
+              "",
+              `Base directory for this skill: ${dir}`,
+              "Relative paths in this skill (e.g., scripts/, references/) are relative to this base directory.",
+            ].join("\n")
           },
           hints: [],
         }
@@ -212,6 +208,10 @@ export const defaultLayer = layer.pipe(
   Layer.provide(EventV2Bridge.defaultLayer),
 )
 
-export const node = LayerNode.make(layer, [Config.node, MCP.node, Skill.node, EventV2Bridge.node])
+export const node = LayerNode.make({
+  service: Service,
+  layer: layer,
+  deps: [Config.node, MCP.node, Skill.node, EventV2Bridge.node],
+})
 
 export * as Command from "."
