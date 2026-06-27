@@ -565,7 +565,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       title: language.t("command.skill.choose"),
       description: language.t("command.skill.choose.description"),
       slash: "skills",
-      disabled: !!sync().data.config.skills?.slash,
+      disabled: sync().data.config.skills?.slash ?? true,
       onSelect: () =>
         dialog.show(() => (
           <DialogSelectSkill

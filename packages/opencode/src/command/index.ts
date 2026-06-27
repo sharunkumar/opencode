@@ -117,7 +117,7 @@ export const layer = Layer.effect(
           name: item.name,
           description: item.description,
           source: "skill",
-          slash: cfg.skills?.slash ?? false,
+          slash: cfg.skills?.slash ?? true,
           get template() {
             if (!dir) return item.content
             return [
