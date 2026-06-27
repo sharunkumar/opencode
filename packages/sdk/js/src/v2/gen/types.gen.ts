@@ -4047,6 +4047,10 @@ export type SessionMessageAssistantReasoning = {
   id: string
   text: string
   providerMetadata?: LlmProviderMetadata
+  time?: {
+    created: number
+    completed?: number
+  }
 }
 
 export type SessionMessageToolStatePending = {
