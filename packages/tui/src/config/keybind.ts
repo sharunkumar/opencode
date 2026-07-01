@@ -153,8 +153,8 @@ export const Definitions = {
   prompt_interrupt_submit: keybind("ctrl+return", "Interrupt the running session and submit the prompt immediately"),
   prompt_editor_context_clear: keybind("none", "Clear editor context"),
   prompt_skills: keybind("none", "Open skill selector"),
-  prompt_stash: keybind("none", "Stash prompt"),
-  prompt_stash_pop: keybind("none", "Pop stashed prompt"),
+  prompt_stash: keybind("ctrl+s", "Stash prompt"),
+  prompt_stash_pop: keybind("ctrl+shift+s", "Pop stashed prompt"),
   prompt_stash_list: keybind("none", "List stashed prompts"),
   workspace_set: keybind("none", "Set workspace"),
 

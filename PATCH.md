@@ -65,3 +65,7 @@ Shells spawned by the bash/shell tool always expose `OPENCODE=1` and `AGENT=1` s
 ## Click-to-Toggle MCPs in TUI Sidebar
 
 Clicking an MCP in the sidebar enables or disables it. A new `connecting` status surfaces in-flight connections across the TUI, web app, and CLI.
+
+## Prompt Stash Defaults
+
+Default keybinds: `ctrl+s` to stash the current prompt, `ctrl+shift+s` to pop the last stashed prompt.
