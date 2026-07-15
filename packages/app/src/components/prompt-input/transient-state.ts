@@ -4,9 +4,9 @@ import type { PromptHistoryEntry } from "./history"
 
 export type PromptInputTransientState = {
   popover: "at" | "slash" | null
-  inline: boolean;
-  slashStart: number;
-  slashMenu: boolean;
+  inline: boolean
+  slashStart: number
+  slashMenu: boolean
   slashMenuQuery: string
   historyIndex: number
   savedPrompt: PromptHistoryEntry | null
