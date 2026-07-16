@@ -69,3 +69,7 @@ Clicking an MCP in the sidebar enables or disables it. A new `connecting` status
 ## Prompt Stash Defaults
 
 Default keybinds: `ctrl+s` to stash the current prompt, `ctrl+shift+s` to pop the last stashed prompt.
+
+## Terminal Title Without `OC |` Prefix
+
+Session and plugin terminal titles use the bare title/id (no `OC |` prefix).
