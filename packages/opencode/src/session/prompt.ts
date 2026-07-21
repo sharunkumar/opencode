@@ -280,6 +280,13 @@ const layer = Layer.effect(
         providerID: taskModel.providerID,
         time: { created: Date.now() },
       })
+      const taskArgs = {
+        prompt: task.prompt,
+        description: task.description,
+        subagent_type: task.agent,
+        command: task.command,
+        ...(task.background ? { background: true as const } : {}),
+      }
       let part: SessionV1.ToolPart = yield* sessions.updatePart({
         id: PartID.ascending(),
         messageID: assistantMessage.id,
@@ -289,21 +296,10 @@ const layer = Layer.effect(
         tool: TaskTool.id,
         state: {
           status: "running",
-          input: {
-            prompt: task.prompt,
-            description: task.description,
-            subagent_type: task.agent,
-            command: task.command,
-          },
+          input: taskArgs,
           time: { start: Date.now() },
         },
       })
-      const taskArgs = {
-        prompt: task.prompt,
-        description: task.description,
-        subagent_type: task.agent,
-        command: task.command,
-      }
       yield* plugin.trigger(
         "tool.execute.before",
         { tool: TaskTool.id, sessionID, callID: part.id },
@@ -972,21 +968,7 @@ const layer = Layer.effect(
         }
 
         if (part.type === "agent") {
-          const perm = Permission.evaluate("task", part.name, ag.permission)
-          const hint = perm.action === "deny" ? " . Invoked by user; guaranteed to exist." : ""
-          return [
-            { ...part, messageID: info.id, sessionID: input.sessionID },
-            {
-              messageID: info.id,
-              sessionID: input.sessionID,
-              type: "text",
-              synthetic: true,
-              text:
-                " Use the above message and context to generate a prompt and call the task tool with subagent: " +
-                part.name +
-                hint,
-            },
-          ]
+          return [{ ...part, messageID: info.id, sessionID: input.sessionID }]
         }
 
         return [{ ...part, messageID: info.id, sessionID: input.sessionID }]
@@ -995,6 +977,8 @@ const layer = Layer.effect(
       const resolvedParts = yield* Effect.forEach(input.parts, resolvePart, { concurrency: "unbounded" }).pipe(
         Effect.map((x) => x.flat().map(assign)),
       )
+
+      const withAgents = yield* materializeAgentParts(resolvedParts, info, ag, agents)
 
       yield* plugin.trigger(
         "chat.message",
@@ -1005,10 +989,10 @@ const layer = Layer.effect(
           messageID: input.messageID,
           variant: input.variant,
         },
-        { message: info, parts: resolvedParts },
+        { message: info, parts: withAgents },
       )
 
-      const parts = yield* Effect.forEach(resolvedParts, (part) =>
+      const parts = yield* Effect.forEach(withAgents, (part) =>
         part.type === "file" && part.mime.startsWith("image/")
           ? image.normalize(part).pipe(
               Effect.catchIf(
@@ -1143,6 +1127,7 @@ const layer = Layer.effect(
 
           if (task?.type === "subtask") {
             yield* handleSubtask({ task, model, lastUser, sessionID, session, msgs })
+            if (task.background) break
             continue
           }
 
@@ -1563,6 +1548,94 @@ export const CommandInput = Schema.Struct({
   ),
 })
 export type CommandInput = Schema.Schema.Type<typeof CommandInput>
+
+function materializeAgentParts(
+  parts: SessionV1.Part[],
+  info: SessionV1.User,
+  caller: Agent.Info,
+  agents: Agent.Interface,
+) {
+  return Effect.gen(function* () {
+    if (!parts.some((p) => p.type === "agent")) return parts
+
+    const leading = leadingAgentInvocation(parts)
+    if (leading) {
+      const target = yield* agents.get(leading.agent.name)
+      if (target && (target.mode === "subagent" || target.mode === "all")) {
+        const prompt = stripLeadingAgentMention(leading.text?.text ?? "", leading.agent)
+        return [
+          {
+            id: PartID.ascending(),
+            messageID: info.id,
+            sessionID: info.sessionID,
+            type: "subtask" as const,
+            agent: leading.agent.name,
+            description: `@${leading.agent.name}`,
+            prompt: prompt || leading.agent.name,
+            background: true,
+          } satisfies SessionV1.SubtaskPart,
+        ]
+      }
+    }
+
+    const out: SessionV1.Part[] = []
+    for (const part of parts) {
+      out.push(part)
+      if (part.type !== "agent") continue
+      const perm = Permission.evaluate("task", part.name, caller.permission)
+      const hint = perm.action === "deny" ? " . Invoked by user; guaranteed to exist." : ""
+      out.push({
+        id: PartID.ascending(),
+        messageID: info.id,
+        sessionID: info.sessionID,
+        type: "text",
+        synthetic: true,
+        text:
+          " Use the above message and context to generate a prompt and call the task tool with subagent: " +
+          part.name +
+          hint,
+      })
+    }
+    return out
+  })
+}
+
+function leadingAgentInvocation(parts: SessionV1.Part[]) {
+  if (parts.some((p) => p.type === "subtask")) return
+
+  const agents = parts.filter((p): p is SessionV1.AgentPart => p.type === "agent")
+  if (agents.length !== 1) return
+
+  const texts = parts.filter(
+    (p): p is SessionV1.TextPart => p.type === "text" && !p.synthetic && p.text.trim().length > 0,
+  )
+  if (texts.length > 1) return
+
+  const agent = agents[0]!
+  const text = texts[0]
+  if (!text) return { agent, text: undefined }
+
+  if (agent.source) {
+    if (agent.source.start !== 0) return
+    const before = text.text.slice(0, agent.source.start).trim()
+    if (before.length > 0) return
+    return { agent, text }
+  }
+
+  const escaped = agent.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  if (!new RegExp(`^\\s*@${escaped}\\b`, "i").test(text.text)) return
+  return { agent, text }
+}
+
+function stripLeadingAgentMention(text: string, agent: SessionV1.AgentPart) {
+  if (agent.source) {
+    const before = text.slice(0, agent.source.start)
+    const after = text.slice(agent.source.end)
+    return (before + after).replace(/^\s+/, "").trim()
+  }
+  const escaped = agent.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return text.replace(new RegExp(`^\\s*@${escaped}\\b\\s*`, "i"), "").trim()
+}
 
 /** @internal Exported for testing */
 export function createStructuredOutputTool(input: {

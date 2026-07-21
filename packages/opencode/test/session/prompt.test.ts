@@ -948,6 +948,101 @@ it.instance("subtask child inherits parent session external_directory allow", ()
   }),
 )
 
+it.instance("leading @subagent prompt becomes background subtask without parent LLM", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const status = yield* SessionStatus.Service
+    const chat = yield* sessions.create({
+      title: "Parent",
+      permission: [{ permission: "*", pattern: "*", action: "allow" }],
+    })
+    yield* llm.text("explore done")
+
+    const result = yield* prompt.prompt({
+      sessionID: chat.id,
+      agent: "build",
+      parts: [
+        {
+          type: "text",
+          text: "@explore find auth middleware",
+        },
+        {
+          type: "agent",
+          name: "explore",
+          source: { value: "@explore", start: 0, end: 8 },
+        },
+      ],
+    })
+
+    expect(result.info.role).toBe("assistant")
+    expect((yield* status.get(chat.id)).type).toBe("idle")
+
+    const msgs = yield* MessageV2.filterCompactedEffect(chat.id)
+    const userMsg = msgs.find((item) => item.info.role === "user")
+    const subtask = userMsg?.parts.find((part): part is SessionV1.SubtaskPart => part.type === "subtask")
+    expect(subtask?.agent).toBe("explore")
+    expect(subtask?.prompt).toBe("find auth middleware")
+    expect(subtask?.background).toBe(true)
+    expect(userMsg?.parts.some((part) => part.type === "agent")).toBe(false)
+
+    const kids = yield* pollWithTimeout(
+      Effect.gen(function* () {
+        const list = yield* sessions.children(chat.id)
+        return list.length > 0 ? list : undefined
+      }),
+      "child session never created",
+    )
+    expect(kids).toHaveLength(1)
+
+    yield* pollWithTimeout(
+      Effect.gen(function* () {
+        const calls = yield* llm.calls
+        return calls > 0 ? calls : undefined
+      }),
+      "child subagent never called LLM",
+    )
+    expect(yield* llm.calls).toBe(1)
+  }),
+)
+
+it.instance("mid-prompt @subagent keeps synthetic task-tool hint", () =>
+  Effect.gen(function* () {
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({ title: "Parent" })
+
+    const msg = yield* prompt.prompt({
+      sessionID: chat.id,
+      agent: "build",
+      noReply: true,
+      parts: [
+        {
+          type: "text",
+          text: "please use @explore for the search",
+        },
+        {
+          type: "agent",
+          name: "explore",
+          source: { value: "@explore", start: 11, end: 19 },
+        },
+      ],
+    })
+
+    expect(msg.parts.some((part) => part.type === "subtask")).toBe(false)
+    expect(msg.parts.some((part) => part.type === "agent" && part.name === "explore")).toBe(true)
+    expect(
+      msg.parts.some(
+        (part) =>
+          part.type === "text" &&
+          part.synthetic === true &&
+          part.text.includes("call the task tool with subagent: explore"),
+      ),
+    ).toBe(true)
+  }),
+)
+
 noLLMServer.instance("prompt tools replace previous prompt tool rules", () =>
   Effect.gen(function* () {
     const prompt = yield* SessionPrompt.Service

@@ -73,3 +73,7 @@ Default keybinds: `ctrl+s` to stash the current prompt, `ctrl+shift+s` to pop th
 ## Terminal Title Without `OC |` Prefix
 
 Session and plugin terminal titles use the bare title/id (no `OC |` prefix).
+
+## Leading `@subagent` Direct Invoke
+
+A prompt that starts with `@explore …` / `@general …` (etc.) skips the primary LLM and launches that subagent as a background subtask, so the parent stays idle for parallel invokes. Mid-prompt `@agent` still uses the synthetic task-tool hint.
