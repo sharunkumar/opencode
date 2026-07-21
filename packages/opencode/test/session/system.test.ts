@@ -8,6 +8,8 @@ import { Permission } from "../../src/permission"
 import type { Provider } from "../../src/provider/provider"
 import { SystemPrompt } from "../../src/session/system"
 import { MCP } from "../../src/mcp"
+import { Config } from "../../src/config/config"
+import { Ripgrep } from "@opencode-ai/core/ripgrep"
 import { testEffect } from "../lib/effect"
 
 const skills: Skill.Info[] = [
@@ -80,6 +82,18 @@ const it = testEffect(
         }),
       ),
     ],
+    [
+      Config.node,
+      Layer.mock(Config.Service, {
+        get: () => Effect.succeed({ skills: { auto_load: ["alpha-skill", "missing-skill"] } } as never),
+      }),
+    ],
+    [
+      Ripgrep.node,
+      Layer.mock(Ripgrep.Service, {
+        find: () => Effect.succeed([]),
+      }),
+    ],
   ]),
 )
 
@@ -99,14 +113,35 @@ describe("session.system", () => {
 
       expect(first).toBe(second)
 
-      const alpha = output.indexOf("<name>alpha-skill</name>")
       const middle = output.indexOf("<name>middle-skill</name>")
       const zeta = output.indexOf("<name>zeta-skill</name>")
 
-      expect(alpha).toBeGreaterThan(-1)
-      expect(middle).toBeGreaterThan(alpha)
+      expect(output).not.toContain("<name>alpha-skill</name>")
+      expect(middle).toBeGreaterThan(-1)
       expect(zeta).toBeGreaterThan(middle)
       expect(output).not.toContain("manual-skill")
+    }),
+  )
+
+  it.effect("autoLoadSkills injects configured skills for main sessions only", () =>
+    Effect.gen(function* () {
+      const prompt = yield* SystemPrompt.Service
+      const main = yield* prompt.autoLoadSkills(build)
+      const child = yield* prompt.autoLoadSkills(build, "ses_child")
+
+      expect(main).toContain('<skill_content name="alpha-skill">')
+      expect(main).toContain("# alpha-skill")
+      expect(main).toContain("loaded automatically")
+      expect(child).toBeUndefined()
+    }),
+  )
+
+  it.effect("autoLoadSkills skips missing skill names without failing", () =>
+    Effect.gen(function* () {
+      const prompt = yield* SystemPrompt.Service
+      const output = yield* prompt.autoLoadSkills(build)
+      expect(output).toContain('<skill_content name="alpha-skill">')
+      expect(output).not.toContain("missing-skill")
     }),
   )
 

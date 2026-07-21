@@ -15,5 +15,9 @@ export const Info = Schema.Struct({
   inline: Schema.optional(Schema.Boolean).annotate({
     description: "Inline full skill content into prompt on slash command invocation (default: false)",
   }),
+  auto_load: Schema.optional(Schema.Array(Schema.String)).annotate({
+    description:
+      "Skill names to load automatically into the main session system prompt. These skills are omitted from the available skills list.",
+  }),
 })
 export type Info = Schema.Schema.Type<typeof Info>

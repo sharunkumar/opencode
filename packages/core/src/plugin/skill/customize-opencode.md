@@ -72,7 +72,8 @@ Every field is optional.
 
   "skills": {
     "paths": [".opencode/skills", "/abs/path/to/skills"],
-    "urls": ["https://example.com/.well-known/skills/"]
+    "urls": ["https://example.com/.well-known/skills/"],
+    "auto_load": ["my-skill"]
   },
 
   "references": {
@@ -188,6 +189,11 @@ description: One sentence covering what this skill does AND when to trigger it. 
 Register skills from non-default locations via `skills.paths` (scanned
 recursively for `**/SKILL.md`) and `skills.urls` (each URL serves a list of
 skills).
+
+`skills.auto_load` is an array of skill names. On the main session (not
+subagent children), those skills are injected into the system prompt
+automatically and omitted from the `<available_skills>` catalog so the model
+does not need to call the skill tool for them.
 
 ## References
 

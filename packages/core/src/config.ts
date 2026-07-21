@@ -90,6 +90,10 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   skills: Schema.String.pipe(Schema.Array, Schema.optional).annotate({
     description: "Additional paths or URLs to discover skills from",
   }),
+  auto_load_skills: Schema.String.pipe(Schema.Array, Schema.optional).annotate({
+    description:
+      "Skill names to load automatically into the main session system prompt. These skills are omitted from the available skills list.",
+  }),
   commands: Schema.Record(Schema.String, ConfigCommand.Info).pipe(Schema.optional).annotate({
     description: "Named slash command definitions",
   }),

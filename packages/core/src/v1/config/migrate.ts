@@ -60,6 +60,7 @@ export function migrate(info: typeof ConfigV1.Info.Type) {
       buffer: info.compaction.reserved,
     },
     skills: info.skills && [...(info.skills.paths ?? []), ...(info.skills.urls ?? [])],
+    auto_load_skills: info.skills?.auto_load,
     commands: info.command,
     instructions: info.instructions,
     references: info.references ?? info.reference,

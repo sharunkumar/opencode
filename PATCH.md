@@ -8,8 +8,9 @@ Type `/` mid-prompt (after whitespace) to trigger skill-only autocomplete. Skill
 
 ```ts
 skills: {
-  slash?: boolean   // Show skills as slash commands (default: true)
-  inline?: boolean  // Inline full skill content on invocation (default: false)
+  slash?: boolean     // Show skills as slash commands (default: true)
+  inline?: boolean    // Inline full skill content on invocation (default: false)
+  auto_load?: string[] // Skill names injected into main-session system prompt; omitted from available_skills
 }
 ```
 

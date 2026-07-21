@@ -1,5 +1,6 @@
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Context, Effect, Layer } from "effect"
+import path from "path"
 
 import { InstanceState } from "@/effect/instance-state"
 
@@ -23,6 +24,8 @@ import { LocationServiceMap, locationServiceMapLayer } from "@opencode-ai/core/l
 import { Reference } from "@opencode-ai/core/reference"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
+import { Config } from "@/config/config"
+import { Ripgrep } from "@opencode-ai/core/ripgrep"
 
 export function provider(model: Provider.Model) {
   if (model.api.id.includes("muse-spark")) return [PROMPT_META]
@@ -44,6 +47,7 @@ export function provider(model: Provider.Model) {
 export interface Interface {
   readonly environment: (model: Provider.Model) => Effect.Effect<string[]>
   readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
+  readonly autoLoadSkills: (agent: Agent.Info, parentID?: string) => Effect.Effect<string | undefined>
   readonly mcp: (agent: Agent.Info, permission?: PermissionV1.Ruleset) => Effect.Effect<string | undefined>
 }
 
@@ -55,6 +59,8 @@ const layer = Layer.effect(
     const skill = yield* Skill.Service
     const mcp = yield* MCP.Service
     const locations = yield* LocationServiceMap.Service
+    const config = yield* Config.Service
+    const ripgrep = yield* Ripgrep.Service
 
     return Service.of({
       environment: Effect.fn("SystemPrompt.environment")(function* (model: Provider.Model) {
@@ -98,7 +104,9 @@ const layer = Layer.effect(
       skills: Effect.fn("SystemPrompt.skills")(function* (agent: Agent.Info) {
         if (Permission.disabled(["skill"], agent.permission).has("skill")) return
 
-        const list = yield* skill.available(agent)
+        const cfg = yield* config.get()
+        const auto = new Set(cfg.skills?.auto_load ?? [])
+        const list = (yield* skill.available(agent)).filter((item) => !auto.has(item.name))
 
         return [
           "Skills provide specialized instructions and workflows for specific tasks.",
@@ -107,6 +115,61 @@ const layer = Layer.effect(
           // version of them here and a less verbose version in tool description, rather than vice versa.
           Skill.fmt(list, { verbose: true }),
         ].join("\n")
+      }),
+
+      autoLoadSkills: Effect.fn("SystemPrompt.autoLoadSkills")(function* (agent: Agent.Info, parentID?: string) {
+        if (parentID) return
+        if (Permission.disabled(["skill"], agent.permission).has("skill")) return
+
+        return yield* Effect.gen(function* () {
+          const names = (yield* config.get()).skills?.auto_load ?? []
+          if (names.length === 0) return
+
+          const contents = yield* Effect.forEach(
+            names,
+            (name) =>
+              Effect.gen(function* () {
+                if (Permission.evaluate("skill", name, agent.permission).action === "deny") return
+                const info = yield* skill.get(name)
+                if (!info) return
+                const dir = path.dirname(info.location)
+                const files =
+                  path.basename(info.location) === "SKILL.md" && info.location !== "<built-in>"
+                    ? yield* ripgrep
+                        .find({
+                          cwd: dir,
+                          pattern: "!**/SKILL.md",
+                          hidden: true,
+                          follow: false,
+                          limit: 10,
+                        })
+                        .pipe(Effect.catch(() => Effect.succeed([])))
+                    : []
+                return [
+                  `<skill_content name="${info.name}">`,
+                  `# Skill: ${info.name}`,
+                  "",
+                  info.content.trim(),
+                  "",
+                  `Base directory for this skill: ${dir}`,
+                  "Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.",
+                  "Note: file list is sampled.",
+                  "",
+                  "<skill_files>",
+                  files.map((file) => `<file>${path.resolve(dir, file.path)}</file>`).join("\n"),
+                  "</skill_files>",
+                  "</skill_content>",
+                ].join("\n")
+              }).pipe(Effect.catch(() => Effect.succeed(undefined))),
+            { concurrency: "unbounded" },
+          )
+          const loaded = contents.filter((item): item is string => item !== undefined)
+          if (loaded.length === 0) return
+          return [
+            "The following skills were loaded automatically for this session. Their instructions already apply; do not call the skill tool for them.",
+            ...loaded,
+          ].join("\n\n")
+        }).pipe(Effect.catch(() => Effect.succeed(undefined)))
       }),
 
       mcp: Effect.fn("SystemPrompt.mcp")(function* (agent: Agent.Info, permission?: PermissionV1.Ruleset) {
@@ -139,7 +202,7 @@ const locationServiceMapNode = LayerNode.make({
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [Skill.node, MCP.node, locationServiceMapNode],
+  deps: [Skill.node, MCP.node, locationServiceMapNode, Config.node, Ripgrep.node],
 })
 
 export * as SystemPrompt from "./system"

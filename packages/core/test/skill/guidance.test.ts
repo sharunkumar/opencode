@@ -2,6 +2,7 @@ import path from "path"
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { AgentV2 } from "@opencode-ai/core/agent"
+import { Config } from "@opencode-ai/core/config"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
 import { AbsolutePath } from "@opencode-ai/core/schema"
 import { SkillV2 } from "@opencode-ai/core/skill"
@@ -28,9 +29,26 @@ const denied = SkillV2.Info.make({
   content: "Denied guidance",
 })
 
-const layer = (list: () => SkillV2.Info[]) =>
+const layer = (list: () => SkillV2.Info[], autoLoad: string[] = []) =>
   AppNodeBuilder.build(SkillGuidance.node, [
     [SkillV2.node, Layer.mock(SkillV2.Service, { list: () => Effect.succeed(list()) })],
+    [
+      Config.node,
+      Layer.mock(Config.Service, {
+        entries: () =>
+          Effect.succeed(
+            autoLoad.length === 0
+              ? []
+              : [
+                  new Config.Document({
+                    type: "document",
+                    path: "/tmp/opencode.json",
+                    info: new Config.Info({ auto_load_skills: autoLoad }),
+                  }),
+                ],
+          ),
+      }),
+    ],
   ])
 
 describe("SkillGuidance", () => {
@@ -140,5 +158,17 @@ describe("SkillGuidance", () => {
         snapshot: {},
       })
     }).pipe(Effect.provide(layer(() => [effect])))
+  })
+
+  it.effect("omits auto-loaded skills from the available skills list", () => {
+    const agent = AgentV2.Info.empty(build)
+    return Effect.gen(function* () {
+      const guidance = yield* SkillGuidance.Service
+      const initialized = yield* guidance
+        .load({ id: agent.id, info: agent })
+        .pipe(Effect.flatMap(SystemContext.initialize))
+      expect(initialized.baseline).not.toContain("<name>effect</name>")
+      expect(initialized.baseline).toContain("No skills are currently available.")
+    }).pipe(Effect.provide(layer(() => [effect], ["effect"])))
   })
 })

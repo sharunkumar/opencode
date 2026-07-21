@@ -520,7 +520,11 @@ describe("Config", () => {
                   "opencode-helicone-session",
                   ["@my-org/audit-plugin", { endpoint: "https://audit.example.com" }],
                 ],
-                skills: { paths: ["./skills"], urls: ["https://example.com/.well-known/skills/"] },
+                skills: {
+                  paths: ["./skills"],
+                  urls: ["https://example.com/.well-known/skills/"],
+                  auto_load: ["effect"],
+                },
                 references: {
                   docs: { path: "../docs", description: "Use for product documentation", hidden: true },
                 },
@@ -600,6 +604,7 @@ describe("Config", () => {
               { package: "@my-org/audit-plugin", options: { endpoint: "https://audit.example.com" } },
             ])
             expect(documents[0]?.info.skills).toEqual(["./skills", "https://example.com/.well-known/skills/"])
+            expect(documents[0]?.info.auto_load_skills).toEqual(["effect"])
             expect(documents[0]?.info.references).toEqual({
               docs: { path: "../docs", description: "Use for product documentation", hidden: true },
             })
