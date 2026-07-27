@@ -65,7 +65,7 @@ Shells spawned by the bash/shell tool always expose `OPENCODE=1` and `AGENT=1` s
 
 ## Click-to-Toggle MCPs in TUI Sidebar
 
-Clicking an MCP in the sidebar enables or disables it. A new `connecting` status surfaces in-flight connections across the TUI, web app, and CLI.
+Clicking an MCP in the sidebar enables or disables it. In-flight connections use status `pending` (upstream rename of `connecting`); the web UI still labels it "connecting". V1 servers that emit `connecting` are normalized to `pending` at the load boundary.
 
 ## Prompt Stash Defaults
 

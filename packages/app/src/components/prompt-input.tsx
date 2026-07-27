@@ -596,7 +596,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         type: "resource",
         name: resource.name,
         uri: resource.uri,
-        client: resource.client,
+        client: resource.server,
         display: resource.name,
         description: resource.description,
         mime: resource.mimeType,
