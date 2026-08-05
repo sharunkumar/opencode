@@ -406,6 +406,7 @@ export type SubtaskPart = {
     modelID: string
   }
   command?: string
+  background?: boolean
 }
 
 export type ReasoningPart = {
@@ -1911,6 +1912,7 @@ export type Config = {
     urls?: Array<string>
     slash?: boolean
     inline?: boolean
+    auto_load?: Array<string>
   }
   references?: {
     [key: string]: string | ConfigV2ReferenceGit | ConfigV2ReferenceLocal
@@ -2609,6 +2611,7 @@ export type SubtaskPartInput = {
     modelID: string
   }
   command?: string
+  background?: boolean
 }
 
 export type SessionBusyError = {

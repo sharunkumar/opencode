@@ -16485,6 +16485,9 @@
           },
           "command": {
             "type": "string"
+          },
+          "background": {
+            "type": "boolean"
           }
         },
         "required": ["id", "sessionID", "messageID", "type", "prompt", "description", "agent"],
@@ -21190,6 +21193,12 @@
               },
               "inline": {
                 "type": "boolean"
+              },
+              "auto_load": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               }
             },
             "additionalProperties": false
@@ -23267,6 +23276,9 @@
           },
           "command": {
             "type": "string"
+          },
+          "background": {
+            "type": "boolean"
           }
         },
         "required": ["type", "prompt", "description", "agent"],

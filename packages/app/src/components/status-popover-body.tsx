@@ -445,9 +445,7 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
                         <div onClick={(event) => event.stopPropagation()}>
                           <Switch
                             checked={enabled()}
-                            disabled={
-                              status() === "pending" || (toggleMcp.isPending && toggleMcp.variables === name)
-                            }
+                            disabled={status() === "pending" || (toggleMcp.isPending && toggleMcp.variables === name)}
                             onChange={() => {
                               if (toggleMcp.isPending || status() === "pending") return
                               toggleMcp.mutate(name)
