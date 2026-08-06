@@ -81,4 +81,4 @@ A prompt that starts with `@explore …` / `@general …` (etc.) skips the prima
 
 ## Bash Tool Syntax Highlighting (TUI)
 
-Expanded bash/shell tool commands use tree-sitter bash highlighting (including while running); inline one-liners stay plain text.
+Bash/shell tool commands use tree-sitter bash highlighting.

@@ -1835,6 +1835,7 @@ function InlineTool(props: {
   failure?: string
   spinner?: boolean
   separate?: boolean
+  rich?: boolean
   children: JSX.Element
   part: ToolPart
   onClick?: () => void
@@ -1888,6 +1889,7 @@ function InlineTool(props: {
       failure={props.failure}
       spinner={props.spinner}
       separate={props.separate}
+      rich={props.rich}
       onMouseOver={() => clickable() && setHover(true)}
       onMouseOut={() => setHover(false)}
       onMouseUp={() => {
@@ -1918,6 +1920,7 @@ export function InlineToolRow(props: {
   failure?: string
   spinner?: boolean
   separate?: boolean
+  rich?: boolean
   children: JSX.Element
   onMouseOver?: () => void
   onMouseOut?: () => void
@@ -1964,13 +1967,20 @@ export function InlineToolRow(props: {
               >
                 {props.icon}
               </text>
-              <text
-                flexGrow={1}
-                fg={props.failed ? props.errorColor : props.color}
-                attributes={props.denied ? TextAttributes.STRIKETHROUGH : undefined}
+              <Show
+                when={props.rich && !(props.failed && !props.complete)}
+                fallback={
+                  <text
+                    flexGrow={1}
+                    fg={props.failed ? props.errorColor : props.color}
+                    attributes={props.denied ? TextAttributes.STRIKETHROUGH : undefined}
+                  >
+                    {props.failed && !props.complete ? (props.failure ?? props.children) : props.children}
+                  </text>
+                }
               >
-                {props.failed && !props.complete ? (props.failure ?? props.children) : props.children}
-              </text>
+                <box flexGrow={1}>{props.children}</box>
+              </Show>
             </box>
           </Show>
         </Match>
@@ -2100,8 +2110,8 @@ function Shell(props: ToolProps) {
         </BlockTool>
       </Match>
       <Match when={true}>
-        <InlineTool icon="$" pending="Writing command..." complete={command()} part={props.part}>
-          {command()}
+        <InlineTool icon="$" pending="Writing command..." complete={command()} part={props.part} rich>
+          <code conceal={false} fg={theme.text} filetype="bash" syntaxStyle={syntax()} content={command()} />
         </InlineTool>
       </Match>
     </Switch>
