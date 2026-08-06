@@ -78,3 +78,7 @@ Session and plugin terminal titles use the bare title/id (no `OC |` prefix).
 ## Leading `@subagent` Direct Invoke
 
 A prompt that starts with `@explore …` / `@general …` (etc.) skips the primary LLM and launches that subagent as a background subtask, so the parent stays idle for parallel invokes. Mid-prompt `@agent` still uses the synthetic task-tool hint.
+
+## Bash Tool Syntax Highlighting (TUI)
+
+Expanded bash/shell tool commands use tree-sitter bash highlighting; inline one-liners stay plain text.

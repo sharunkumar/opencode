@@ -2037,10 +2037,11 @@ function BlockTool(props: {
 }
 
 function Shell(props: ToolProps) {
-  const { theme } = useTheme()
+  const { theme, syntax } = useTheme()
   const pathFormatter = usePathFormatter()
   const ctx = use()
   const isRunning = createMemo(() => props.part.state.status === "running")
+  const command = createMemo(() => stringValue(props.input.command) ?? "")
   const output = createMemo(() => stripAnsi(stringValue(props.metadata.output)?.trim() ?? ""))
   const [expanded, setExpanded] = createSignal(false)
   const maxLines = 10
@@ -2074,8 +2075,16 @@ function Shell(props: ToolProps) {
           onClick={collapsed().overflow ? () => setExpanded((prev) => !prev) : undefined}
         >
           <box gap={1}>
-            <Show when={isRunning()} fallback={<text fg={theme.text}>$ {stringValue(props.input.command)}</text>}>
-              <Spinner color={theme.text}>{stringValue(props.input.command)}</Spinner>
+            <Show
+              when={isRunning()}
+              fallback={
+                <box flexDirection="row" gap={1}>
+                  <text fg={theme.text}>$</text>
+                  <code conceal={false} fg={theme.text} filetype="bash" syntaxStyle={syntax()} content={command()} />
+                </box>
+              }
+            >
+              <Spinner color={theme.text}>{command()}</Spinner>
             </Show>
             <Show when={output()}>
               <text fg={theme.text}>{limited()}</text>
@@ -2087,8 +2096,8 @@ function Shell(props: ToolProps) {
         </BlockTool>
       </Match>
       <Match when={true}>
-        <InlineTool icon="$" pending="Writing command..." complete={stringValue(props.input.command)} part={props.part}>
-          {stringValue(props.input.command)}
+        <InlineTool icon="$" pending="Writing command..." complete={command()} part={props.part}>
+          {command()}
         </InlineTool>
       </Match>
     </Switch>
