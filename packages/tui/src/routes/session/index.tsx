@@ -23,7 +23,7 @@ import { useSync } from "../../context/sync"
 import { useEvent } from "../../context/event"
 import { SplitBorder } from "../../ui/border"
 import { useTuiPaths, useTuiTerminalEnvironment } from "../../context/runtime"
-import { Spinner } from "../../component/spinner"
+import { Spinner, SPINNER_FRAMES } from "../../component/spinner"
 import { createSyntaxStyleMemo, generateSubtleSyntax, selectedForeground, useTheme } from "../../context/theme"
 import { BoxRenderable, ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "../../component/prompt"
@@ -2039,6 +2039,7 @@ function BlockTool(props: {
 function Shell(props: ToolProps) {
   const { theme, syntax } = useTheme()
   const pathFormatter = usePathFormatter()
+  const kv = useKV()
   const ctx = use()
   const isRunning = createMemo(() => props.part.state.status === "running")
   const command = createMemo(() => stringValue(props.input.command) ?? "")
@@ -2075,17 +2076,20 @@ function Shell(props: ToolProps) {
           onClick={collapsed().overflow ? () => setExpanded((prev) => !prev) : undefined}
         >
           <box gap={1}>
-            <Show
-              when={isRunning()}
-              fallback={
-                <box flexDirection="row" gap={1}>
+            <box flexDirection="row" gap={1}>
+              <Switch>
+                <Match when={isRunning() && kv.get("animations_enabled", true)}>
+                  <spinner frames={SPINNER_FRAMES} interval={80} color={theme.text} />
+                </Match>
+                <Match when={isRunning()}>
+                  <text fg={theme.text}>⋯</text>
+                </Match>
+                <Match when={true}>
                   <text fg={theme.text}>$</text>
-                  <code conceal={false} fg={theme.text} filetype="bash" syntaxStyle={syntax()} content={command()} />
-                </box>
-              }
-            >
-              <Spinner color={theme.text}>{command()}</Spinner>
-            </Show>
+                </Match>
+              </Switch>
+              <code conceal={false} fg={theme.text} filetype="bash" syntaxStyle={syntax()} content={command()} />
+            </box>
             <Show when={output()}>
               <text fg={theme.text}>{limited()}</text>
             </Show>
