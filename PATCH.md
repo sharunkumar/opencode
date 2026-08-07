@@ -43,7 +43,7 @@ Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-late
 
 ## Makefile
 
-Added `make build-single` (builds the single-file `opencode` binary) and `make generate` (regenerates the SDK and related files).
+Added `make build-single` (builds the single-file `opencode` binary), `make lildax` (builds the v2 `lildax` binary), and `make generate` (regenerates the SDK and related files).
 
 ## Startup Profiling
 
