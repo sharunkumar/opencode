@@ -110,6 +110,28 @@ export function selectedForeground(theme: Theme, bg?: RGBA): RGBA {
   return theme.background
 }
 
+const PROVIDER_DEFAULTS: Record<string, ThemeColor> = {
+  anthropic: "warning",
+  openai: "success",
+  google: "info",
+  "github-copilot": "accent",
+  opencode: "secondary",
+  "opencode-go": "secondary",
+  xai: "primary",
+  openrouter: "warning",
+  vercel: "info",
+}
+
+export function providerColor(theme: Theme, id: string): RGBA {
+  const key = id.toLowerCase()
+  const named = PROVIDER_DEFAULTS[id] ?? PROVIDER_DEFAULTS[key]
+  if (named) return theme[named]
+  const palette = [theme.secondary, theme.accent, theme.success, theme.warning, theme.primary, theme.info]
+  let hash = 0
+  for (const char of key) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  return palette[hash % palette.length]
+}
+
 type HexColor = `#${string}`
 type RefName = string
 type Variant = {

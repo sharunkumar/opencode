@@ -82,3 +82,7 @@ A prompt that starts with `@explore …` / `@general …` (etc.) skips the prima
 ## Bash Tool Syntax Highlighting (TUI)
 
 Bash/shell tool commands use tree-sitter bash highlighting.
+
+## Provider Colorization (TUI)
+
+Providers get stable theme colors (like agents/modes) in the model picker and prompt footer. `providerColor(theme, id)` maps common providers to brand hues and hashes the rest (palette excludes `error`). `DialogSelect` takes an optional `colorBy` callback so the widget stays domain-agnostic; the model dialog wires it for `{ providerID }` values and string provider ids.

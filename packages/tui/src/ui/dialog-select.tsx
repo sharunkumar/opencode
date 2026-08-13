@@ -36,6 +36,7 @@ export interface DialogSelectProps<T> {
   renderFilter?: boolean
   locked?: boolean
   preserveSelection?: boolean
+  colorBy?: (value: T) => RGBA | undefined
   actions?: {
     command: string
     title: string
@@ -64,6 +65,7 @@ export interface DialogSelectOption<T = any> {
   truncateTitle?: boolean | "left"
   category?: string
   categoryView?: JSX.Element
+  categoryColor?: RGBA
   disabled?: boolean
   bg?: RGBA
   gutter?: () => JSX.Element
@@ -86,6 +88,20 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const { theme } = useTheme()
   const tuiConfig = useTuiConfig()
   const scrollAcceleration = createMemo(() => getScrollAcceleration(tuiConfig))
+
+  function headerColor(options: DialogSelectOption<T>[]) {
+    const explicit = options.find((option) => option.categoryColor)?.categoryColor
+    if (explicit) return explicit
+    if (!props.colorBy) return theme.accent
+    const colors = new Set(
+      options.flatMap((option) => {
+        const color = props.colorBy?.(option.value)
+        return color ? [color] : []
+      }),
+    )
+    if (colors.size !== 1) return theme.accent
+    return [...colors][0]
+  }
 
   const [store, setStore] = createStore({
     selected: 0,
@@ -623,7 +639,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                       <Show
                         when={options[0]?.categoryView}
                         fallback={
-                          <text fg={theme.accent} attributes={TextAttributes.BOLD}>
+                          <text fg={headerColor(options)} attributes={TextAttributes.BOLD}>
                             {category}
                           </text>
                         }
@@ -636,6 +652,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                     {(option) => {
                       const active = createMemo(() => !props.locked && isDeepEqual(option.value, selected()?.value))
                       const current = createMemo(() => isDeepEqual(option.value, props.current))
+                      const tint = createMemo(() => props.colorBy?.(option.value))
                       return (
                         <box
                           flexDirection="column"
@@ -686,9 +703,13 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                               title={option.title}
                               titleView={option.titleView}
                               footer={flatten() ? (option.category ?? option.footer) : option.footer}
+                              footerColor={flatten() && option.category ? (option.categoryColor ?? tint()) : undefined}
                               titleWidth={option.titleWidth}
                               truncateTitle={option.truncateTitle}
                               description={option.description !== category ? option.description : undefined}
+                              descriptionColor={
+                                option.description && option.description !== category ? tint() : undefined
+                              }
                               active={active()}
                               current={current()}
                               muted={actionFocused()}
@@ -733,10 +754,12 @@ function Option(props: {
   title: string
   titleView?: JSX.Element
   description?: string
+  descriptionColor?: RGBA
   active?: boolean
   current?: boolean
   muted?: boolean
   footer?: JSX.Element | string
+  footerColor?: RGBA
   titleWidth?: number
   truncateTitle?: boolean | "left"
   gutter?: () => JSX.Element
@@ -749,6 +772,14 @@ function Option(props: {
     if (props.muted && (props.active || props.current)) return theme.textMuted
     if (props.current) return theme.primary
     return theme.text
+  })
+  const descriptionFg = createMemo(() => {
+    if (props.active && !props.muted) return fg
+    return props.descriptionColor ?? theme.textMuted
+  })
+  const footerFg = createMemo(() => {
+    if (props.active && !props.muted) return fg
+    return props.footerColor ?? theme.textMuted
   })
 
   return (
@@ -778,12 +809,12 @@ function Option(props: {
               ? Locale.truncateLeft(props.title, props.titleWidth ?? 61)
               : Locale.truncate(props.title, props.titleWidth ?? 61))}
         <Show when={props.description}>
-          <span style={{ fg: props.active && !props.muted ? fg : theme.textMuted }}> {props.description}</span>
+          <span style={{ fg: descriptionFg() }}> {props.description}</span>
         </Show>
       </text>
       <Show when={props.footer}>
         <box flexShrink={0}>
-          <text fg={props.active && !props.muted ? fg : theme.textMuted}>{props.footer}</text>
+          <text fg={footerFg()}>{props.footer}</text>
         </box>
       </Show>
     </>

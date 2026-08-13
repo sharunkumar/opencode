@@ -8,11 +8,13 @@ import { DialogVariant } from "./dialog-variant"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { useSync } from "../context/sync"
+import { providerColor, useTheme } from "../context/theme"
 
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
+  const { theme } = useTheme()
   const [query, setQuery] = createSignal("")
 
   const connected = useConnected()
@@ -157,6 +159,12 @@ export function DialogModel(props: { providerID?: string }) {
   return (
     <DialogSelect<ReturnType<typeof options>[number]["value"]>
       options={options()}
+      colorBy={(value) => {
+        if (typeof value === "string") return providerColor(theme, value)
+        if (value && typeof value === "object" && "providerID" in value) {
+          return providerColor(theme, value.providerID)
+        }
+      }}
       actions={[
         {
           command: "model.dialog.provider",
