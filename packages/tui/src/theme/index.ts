@@ -110,26 +110,43 @@ export function selectedForeground(theme: Theme, bg?: RGBA): RGBA {
   return theme.background
 }
 
-const PROVIDER_DEFAULTS: Record<string, ThemeColor> = {
-  anthropic: "warning",
-  openai: "success",
-  google: "info",
-  "github-copilot": "accent",
-  opencode: "secondary",
-  "opencode-go": "secondary",
-  xai: "primary",
-  openrouter: "warning",
-  vercel: "info",
+function palette(theme: Theme) {
+  return [theme.secondary, theme.accent, theme.success, theme.warning, theme.primary, theme.info]
+}
+
+export type LabelColors = {
+  provider(id: string): RGBA
+  keyword(value: string): RGBA
+}
+
+// One shared palette for providers + model keywords. Providers claim slots in the
+// order the provider layer lists them, then keywords continue, wrapping around the
+// palette. Colors may shift when the set changes; that's fine.
+export function createLabelColors(
+  theme: Theme,
+  input: { providers: readonly string[]; keywords: readonly string[] },
+): LabelColors {
+  const colors = palette(theme)
+  const provider = new Map<string, RGBA>()
+  const keyword = new Map<string, RGBA>()
+  let next = 0
+  const assign = (map: Map<string, RGBA>, key: string) => map.set(key, colors[next++ % colors.length])
+
+  for (const id of new Set(input.providers.map((item) => item.trim().toLowerCase()).filter(Boolean))) {
+    assign(provider, id)
+  }
+  for (const value of new Set(input.keywords.map((item) => item.trim()).filter(Boolean))) {
+    assign(keyword, value)
+  }
+
+  return {
+    provider: (id) => provider.get(id.toLowerCase()) ?? colors[0],
+    keyword: (value) => keyword.get(value) ?? colors[0],
+  }
 }
 
 export function providerColor(theme: Theme, id: string): RGBA {
-  const key = id.toLowerCase()
-  const named = PROVIDER_DEFAULTS[id] ?? PROVIDER_DEFAULTS[key]
-  if (named) return theme[named]
-  const palette = [theme.secondary, theme.accent, theme.success, theme.warning, theme.primary, theme.info]
-  let hash = 0
-  for (const char of key) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
-  return palette[hash % palette.length]
+  return createLabelColors(theme, { providers: [id], keywords: [] }).provider(id)
 }
 
 type HexColor = `#${string}`

@@ -37,6 +37,7 @@ export interface DialogSelectProps<T> {
   locked?: boolean
   preserveSelection?: boolean
   colorBy?: (value: T) => RGBA | undefined
+  highlightTitle?: (text: string, value: T) => readonly TitleHighlight[] | undefined
   actions?: {
     command: string
     title: string
@@ -71,6 +72,12 @@ export interface DialogSelectOption<T = any> {
   gutter?: () => JSX.Element
   margin?: JSX.Element
   onSelect?: (ctx: DialogContext) => void
+}
+
+export type TitleHighlight = {
+  start: number
+  end: number
+  color: RGBA
 }
 
 export type DialogSelectRef<T> = {
@@ -702,6 +709,11 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                             <Option
                               title={option.title}
                               titleView={option.titleView}
+                              highlightTitle={
+                                props.highlightTitle
+                                  ? (text) => props.highlightTitle?.(text, option.value)
+                                  : undefined
+                              }
                               footer={flatten() ? (option.category ?? option.footer) : option.footer}
                               footerColor={flatten() && option.category ? (option.categoryColor ?? tint()) : undefined}
                               titleWidth={option.titleWidth}
@@ -753,6 +765,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
 function Option(props: {
   title: string
   titleView?: JSX.Element
+  highlightTitle?: (text: string) => readonly TitleHighlight[] | undefined
   description?: string
   descriptionColor?: RGBA
   active?: boolean
@@ -781,6 +794,33 @@ function Option(props: {
     if (props.active && !props.muted) return fg
     return props.footerColor ?? theme.textMuted
   })
+  // Match highlights against the truncated display string so offsets stay in sync.
+  const display = createMemo(() => {
+    if (props.truncateTitle === false) return props.title
+    if (props.truncateTitle === "left") return Locale.truncateLeft(props.title, props.titleWidth ?? 61)
+    return Locale.truncate(props.title, props.titleWidth ?? 61)
+  })
+  const titleContent = createMemo(() => {
+    if (props.titleView) return props.titleView
+    const value = display()
+    const highlights = props.highlightTitle?.(value) ?? []
+    if (highlights.length === 0) return value
+    const parts: JSX.Element[] = []
+    let cursor = 0
+    for (const highlight of highlights) {
+      const start = Math.max(0, Math.min(highlight.start, value.length))
+      const end = Math.max(start, Math.min(highlight.end, value.length))
+      if (start < cursor || start >= end) continue
+      if (start > cursor) parts.push(value.slice(cursor, start))
+      const color = props.active && !props.muted ? fg : highlight.color
+      parts.push(
+        <span style={{ fg: color, bold: true }}>{value.slice(start, end)}</span>,
+      )
+      cursor = end
+    }
+    if (cursor < value.length) parts.push(value.slice(cursor))
+    return parts
+  })
 
   return (
     <>
@@ -802,12 +842,7 @@ function Option(props: {
         wrapMode="none"
         paddingLeft={3}
       >
-        {props.titleView ??
-          (props.truncateTitle === false
-            ? props.title
-            : props.truncateTitle === "left"
-              ? Locale.truncateLeft(props.title, props.titleWidth ?? 61)
-              : Locale.truncate(props.title, props.titleWidth ?? 61))}
+        {titleContent()}
         <Show when={props.description}>
           <span style={{ fg: descriptionFg() }}> {props.description}</span>
         </Show>

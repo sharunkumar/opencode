@@ -10,6 +10,7 @@ import {
   hasTheme,
   isTheme,
   providerColor,
+  createLabelColors,
   resolveTheme,
   selectedForeground,
   setCustomThemes,
@@ -72,12 +73,14 @@ export {
   isTheme,
   resolveTheme,
   providerColor,
+  createLabelColors,
   selectedForeground,
   terminalMode,
   tint,
   upsertTheme,
   type Theme,
   type ThemeJson,
+  type LabelColors,
   type SyntaxStyleOverrides,
 } from "../theme"
 

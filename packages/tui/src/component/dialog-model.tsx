@@ -8,14 +8,23 @@ import { DialogVariant } from "./dialog-variant"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { useSync } from "../context/sync"
-import { providerColor, useTheme } from "../context/theme"
+import { createLabelColors, useTheme } from "../context/theme"
+import { useTuiConfig } from "../config"
+import { Keyword } from "../util/keyword"
 
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
   const sync = useSync()
   const dialog = useDialog()
   const { theme } = useTheme()
+  const tuiConfig = useTuiConfig()
   const [query, setQuery] = createSignal("")
+  const labels = createMemo(() =>
+    createLabelColors(theme, {
+      providers: sync.data.provider.map((item) => item.id),
+      keywords: tuiConfig.model_keywords,
+    }),
+  )
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()
@@ -160,11 +169,18 @@ export function DialogModel(props: { providerID?: string }) {
     <DialogSelect<ReturnType<typeof options>[number]["value"]>
       options={options()}
       colorBy={(value) => {
-        if (typeof value === "string") return providerColor(theme, value)
+        if (typeof value === "string") return labels().provider(value)
         if (value && typeof value === "object" && "providerID" in value) {
-          return providerColor(theme, value.providerID)
+          return labels().provider(value.providerID)
         }
       }}
+      highlightTitle={(text) =>
+        Keyword.match(text, tuiConfig.model_keywords).map((item) => ({
+          start: item.start,
+          end: item.end,
+          color: labels().keyword(item.keyword),
+        }))
+      }
       actions={[
         {
           command: "model.dialog.provider",

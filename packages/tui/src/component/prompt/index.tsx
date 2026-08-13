@@ -9,13 +9,14 @@ import {
   type Renderable,
 } from "@opentui/core"
 import type { CommandContext } from "@opentui/keymap"
-import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match } from "solid-js"
+import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match, For } from "solid-js"
 import { registerOpencodeSpinner } from "../register-spinner"
 import path from "path"
 import { fileURLToPath } from "url"
 import { useLocal } from "../../context/local"
 import { Flag } from "@opencode-ai/core/flag/flag"
-import { providerColor, tint, useTheme } from "../../context/theme"
+import { createLabelColors, tint, useTheme } from "../../context/theme"
+import { Keyword } from "../../util/keyword"
 import { EmptyBorder, SplitBorder } from "../../ui/border"
 import { useTuiPaths, useTuiTerminalEnvironment } from "../../context/runtime"
 import { useClipboard } from "../../context/clipboard"
@@ -211,10 +212,16 @@ export function Prompt(props: PromptProps) {
   const move = usePromptMove({ projectID: project.project, sessionID: () => props.sessionID })
   const [cursorVersion, setCursorVersion] = createSignal(0)
   const currentProviderLabel = createMemo(() => local.model.parsed().provider)
+  const labels = createMemo(() =>
+    createLabelColors(theme, {
+      providers: sync.data.provider.map((item) => item.id),
+      keywords: tuiConfig.model_keywords,
+    }),
+  )
   const currentProviderColor = createMemo(() => {
     const id = local.model.current()?.providerID
     if (!id) return theme.textMuted
-    return providerColor(theme, id)
+    return labels().provider(id)
   })
   const hasRightContent = createMemo(() => Boolean(props.right))
 
@@ -1337,6 +1344,26 @@ export function Prompt(props: PromptProps) {
     () => !!local.agent.current() && store.mode === "normal" && showVariant(),
     animationsEnabled,
   )
+  const modelNameParts = createMemo(() => {
+    const name = local.model.parsed().model
+    const base = fadeColor(leader() ? theme.textMuted : theme.text, modelMetaAlpha())
+    if (leader()) return [{ text: name, color: base, bold: false as boolean }]
+    const matches = Keyword.match(name, tuiConfig.model_keywords)
+    if (matches.length === 0) return [{ text: name, color: base, bold: false as boolean }]
+    const parts: { text: string; color: ReturnType<typeof fadeColor>; bold: boolean }[] = []
+    let cursor = 0
+    for (const match of matches) {
+      if (match.start > cursor) parts.push({ text: name.slice(cursor, match.start), color: base, bold: false })
+      parts.push({
+        text: name.slice(match.start, match.end),
+        color: fadeColor(labels().keyword(match.keyword), modelMetaAlpha()),
+        bold: true,
+      })
+      cursor = match.end
+    }
+    if (cursor < name.length) parts.push({ text: name.slice(cursor), color: base, bold: false })
+    return parts
+  })
   const borderHighlight = createMemo(() => tint(theme.border, highlight(), agentMetaAlpha()))
 
   const placeholderText = createMemo(() => {
@@ -1486,11 +1513,10 @@ export function Prompt(props: PromptProps) {
                       <Show when={store.mode === "normal"}>
                         <box flexDirection="row" gap={1}>
                           <text fg={fadeColor(theme.textMuted, modelMetaAlpha())}>·</text>
-                          <text
-                            flexShrink={0}
-                            fg={fadeColor(leader() ? theme.textMuted : theme.text, modelMetaAlpha())}
-                          >
-                            {local.model.parsed().model}
+                          <text flexShrink={0}>
+                            <For each={modelNameParts()}>
+                              {(part) => <span style={{ fg: part.color, bold: part.bold }}>{part.text}</span>}
+                            </For>
                           </text>
                           <text fg={fadeColor(currentProviderColor(), modelMetaAlpha())}>{currentProviderLabel()}</text>
                           <Show when={showVariant()}>

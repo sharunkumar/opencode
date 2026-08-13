@@ -72,10 +72,31 @@ export const Info = Schema.Struct({
   diff_style: Schema.optional(DiffStyle),
   cursor: Schema.optional(Cursor),
   mouse: Schema.optional(Schema.Boolean).annotate({ description: "Enable or disable mouse capture (default: true)" }),
+  model_keywords: Schema.optional(Schema.Array(Schema.String)).annotate({
+    description:
+      "Model-name patterns to colorize in the model picker and prompt footer. Each entry is a case-insensitive regex (a plain string matches itself); first non-overlapping, longest matches win",
+  }),
 })
 export type Info = Schema.Schema.Type<typeof Info>
 
-export type Resolved = Omit<Info, "attention" | "keybinds" | "leader_timeout" | "mouse" | "cursor"> & {
+const MODEL_KEYWORDS_CAP = 100
+
+function normalizeKeywords(input: readonly string[] | undefined) {
+  if (!input) return []
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const item of input) {
+    const value = item.trim()
+    if (!value) continue
+    if (seen.has(value)) continue
+    seen.add(value)
+    result.push(value)
+    if (result.length >= MODEL_KEYWORDS_CAP) break
+  }
+  return result
+}
+
+export type Resolved = Omit<Info, "attention" | "keybinds" | "leader_timeout" | "mouse" | "cursor" | "model_keywords"> & {
   attention: {
     enabled: boolean
     notifications: boolean
@@ -87,6 +108,7 @@ export type Resolved = Omit<Info, "attention" | "keybinds" | "leader_timeout" | 
   keybinds: TuiKeybind.BindingLookupView
   leader_timeout: number
   mouse: boolean
+  model_keywords: string[]
   cursor?: {
     style: "block" | "underline" | "line" | "default"
     blinking: boolean
@@ -126,6 +148,7 @@ export function resolve(input: Info, options: ResolveOptions): Resolved {
     }),
     leader_timeout: input.leader_timeout ?? LeaderTimeoutDefault,
     mouse: input.mouse ?? true,
+    model_keywords: normalizeKeywords(input.model_keywords),
     cursor: input.cursor
       ? {
           style: input.cursor.style ?? "block",
