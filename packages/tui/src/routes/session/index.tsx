@@ -1983,7 +1983,7 @@ export function InlineToolRow(props: {
                 {props.icon}
               </text>
               <Show
-                when={props.rich && !(props.failed && !props.complete)}
+                when={props.rich}
                 fallback={
                   <text
                     flexGrow={1}
@@ -2125,7 +2125,14 @@ function Shell(props: ToolProps) {
         </BlockTool>
       </Match>
       <Match when={true}>
-        <InlineTool icon="$" pending="Writing command..." complete={command()} part={props.part} rich>
+        <InlineTool
+          icon="$"
+          pending="Writing command..."
+          failure="Command aborted"
+          complete={command() || props.part.state.status === "error"}
+          part={props.part}
+          rich
+        >
           <code conceal={false} fg={theme.text} filetype="bash" syntaxStyle={syntax()} content={command()} />
         </InlineTool>
       </Match>
