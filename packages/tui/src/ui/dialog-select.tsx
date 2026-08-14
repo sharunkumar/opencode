@@ -710,9 +710,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                               title={option.title}
                               titleView={option.titleView}
                               highlightTitle={
-                                props.highlightTitle
-                                  ? (text) => props.highlightTitle?.(text, option.value)
-                                  : undefined
+                                props.highlightTitle ? (text) => props.highlightTitle?.(text, option.value) : undefined
                               }
                               footer={flatten() ? (option.category ?? option.footer) : option.footer}
                               footerColor={flatten() && option.category ? (option.categoryColor ?? tint()) : undefined}
@@ -813,9 +811,7 @@ function Option(props: {
       if (start < cursor || start >= end) continue
       if (start > cursor) parts.push(value.slice(cursor, start))
       const color = props.active && !props.muted ? fg : highlight.color
-      parts.push(
-        <span style={{ fg: color, bold: true }}>{value.slice(start, end)}</span>,
-      )
+      parts.push(<span style={{ fg: color, bold: true }}>{value.slice(start, end)}</span>)
       cursor = end
     }
     if (cursor < value.length) parts.push(value.slice(cursor))

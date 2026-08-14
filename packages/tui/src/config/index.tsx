@@ -96,7 +96,10 @@ function normalizeKeywords(input: readonly string[] | undefined) {
   return result
 }
 
-export type Resolved = Omit<Info, "attention" | "keybinds" | "leader_timeout" | "mouse" | "cursor" | "model_keywords"> & {
+export type Resolved = Omit<
+  Info,
+  "attention" | "keybinds" | "leader_timeout" | "mouse" | "cursor" | "model_keywords"
+> & {
   attention: {
     enabled: boolean
     notifications: boolean
