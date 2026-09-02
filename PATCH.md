@@ -90,3 +90,7 @@ Providers get stable theme colors (like agents/modes) in the model picker and pr
 ## Model Keyword Highlights (TUI)
 
 `tui.json` `model_keywords: string[]` colorizes matching substrings in model names in the picker and prompt footer. Each entry is a case-insensitive regex (a plain string matches itself); first non-overlapping, longest matches win and only the matched span is tinted. Providers and keywords draw from one shared palette so their colors stay distinct until it wraps.
+
+## Free Badge for Zero-Cost Models (TUI)
+
+Model picker shows a `Free` footer for any model with `cost.input === 0`, not only `opencode` provider models.
