@@ -1,6 +1,7 @@
 import {
   BoxRenderable,
   RGBA,
+  TextAttributes,
   TextareaRenderable,
   MouseEvent,
   PasteEvent,
@@ -15,7 +16,7 @@ import path from "path"
 import { fileURLToPath } from "url"
 import { useLocal } from "../../context/local"
 import { Flag } from "@opencode-ai/core/flag/flag"
-import { createLabelColors, tint, useTheme } from "../../context/theme"
+import { createLabelColors, selectedForeground, tint, useTheme } from "../../context/theme"
 import { Keyword } from "../../util/keyword"
 import { EmptyBorder, SplitBorder } from "../../ui/border"
 import { useTuiPaths, useTuiTerminalEnvironment } from "../../context/runtime"
@@ -1504,13 +1505,46 @@ export function Prompt(props: PromptProps) {
                 <Show when={local.agent.current()} fallback={<box height={1} />}>
                   {(agent) => (
                     <>
-                      <text fg={fadeColor(highlight(), agentMetaAlpha())}>
-                        {store.mode === "shell" ? "Shell" : Locale.titlecase(agent().name)}
-                      </text>
+                      <Show
+                        when={store.mode !== "shell" && local.agent.picking()}
+                        fallback={
+                          <text fg={fadeColor(highlight(), agentMetaAlpha())}>
+                            {store.mode === "shell" ? "Shell" : Locale.titlecase(agent().name)}
+                          </text>
+                        }
+                      >
+                        <box flexDirection="row" gap={1} flexShrink={0}>
+                          <For each={local.agent.list()}>
+                            {(item) => {
+                              const active = () => item.name === agent().name
+                              const bg = () => local.agent.color(item.name)
+                              return (
+                                <box
+                                  paddingLeft={1}
+                                  paddingRight={1}
+                                  backgroundColor={active() ? bg() : theme.backgroundPanel}
+                                  onMouseUp={() => local.agent.set(item.name)}
+                                >
+                                  <text
+                                    fg={
+                                      active()
+                                        ? selectedForeground(theme, bg())
+                                        : fadeColor(bg(), agentMetaAlpha())
+                                    }
+                                    attributes={active() ? TextAttributes.BOLD : undefined}
+                                  >
+                                    {Locale.titlecase(item.name)}
+                                  </text>
+                                </box>
+                              )
+                            }}
+                          </For>
+                        </box>
+                      </Show>
                       <Show when={store.mode === "normal" && local.permission.mode === "auto"}>
                         <text fg={fadeColor(theme.textMuted, agentMetaAlpha())}>auto</text>
                       </Show>
-                      <Show when={store.mode === "normal"}>
+                      <Show when={store.mode === "normal" && !local.agent.picking()}>
                         <box flexDirection="row" gap={1}>
                           <text fg={fadeColor(theme.textMuted, modelMetaAlpha())}>·</text>
                           <text flexShrink={0}>

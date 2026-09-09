@@ -1,4 +1,4 @@
-import { createStore } from "solid-js/store"
+import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import { batch, createEffect, createMemo } from "solid-js"
 import { useSync } from "./sync"
@@ -79,7 +79,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       const visibleAgents = createMemo(() => sync.data.agent.filter((agent) => !agent.hidden))
       const [agentStore, setAgentStore] = createStore({
         current: undefined as string | undefined,
+        picking: false,
       })
+      let settleTimer: ReturnType<typeof setTimeout> | undefined
+      const SETTLE_MS = 500
       const colors = createMemo(() => [
         theme.secondary,
         theme.accent,
@@ -89,12 +92,22 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         theme.error,
         theme.info,
       ])
+      const settle = () => {
+        if (settleTimer) clearTimeout(settleTimer)
+        settleTimer = setTimeout(() => {
+          setAgentStore("picking", false)
+          settleTimer = undefined
+        }, SETTLE_MS).unref()
+      }
       return {
         list() {
           return agents()
         },
         current() {
           return agents().find((x) => x.name === agentStore.current) ?? agents().at(0)
+        },
+        picking() {
+          return agentStore.picking
         },
         set(name: string) {
           if (!agents().some((x) => x.name === name))
@@ -103,7 +116,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               message: `Agent not found: ${name}`,
               duration: 3000,
             })
-          setAgentStore("current", name)
+          if (settleTimer) clearTimeout(settleTimer)
+          settleTimer = undefined
+          setAgentStore(
+            produce((draft) => {
+              draft.current = name
+              draft.picking = false
+            }),
+          )
         },
         move(direction: 1 | -1) {
           batch(() => {
@@ -113,8 +133,14 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (next < 0) next = agents().length - 1
             if (next >= agents().length) next = 0
             const value = agents()[next]
-            setAgentStore("current", value.name)
+            setAgentStore(
+              produce((draft) => {
+                draft.current = value.name
+                draft.picking = true
+              }),
+            )
           })
+          settle()
         },
         color(name: string) {
           const index = visibleAgents().findIndex((x) => x.name === name)

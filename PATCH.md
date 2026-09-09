@@ -94,3 +94,7 @@ Providers get stable theme colors (like agents/modes) in the model picker and pr
 ## Free Badge for Zero-Cost Models (TUI)
 
 Model picker shows a `Free` footer for any model with `cost.input === 0`, not only `opencode` provider models.
+
+## Agent Cycle Tab Strip (TUI)
+
+Tab / Shift+Tab cycles agents and briefly shows a colored tab list of all primary agents (agent color as background on the active tab). Settles back to the normal agent/model footer after 500ms idle.
