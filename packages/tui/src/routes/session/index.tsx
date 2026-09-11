@@ -125,6 +125,7 @@ const sessionBindingCommands = [
   "session.toggle.conceal",
   "session.toggle.timestamps",
   "session.toggle.thinking",
+  "session.toggle.timeouts",
   "session.toggle.actions",
   "session.toggle.scrollbar",
   "session.toggle.generic_tool_output",
@@ -718,6 +719,28 @@ export function Session() {
       },
       run: () => {
         thinking.set(nextThinkingMode(thinkingMode()))
+        dialog.clear()
+      },
+    },
+    {
+      title: session()?.metadata?.shellTimeouts === false ? "Enable shell timeouts" : "Disable shell timeouts",
+      value: "session.toggle.timeouts",
+      category: "Session",
+      slash: {
+        name: "timeouts",
+      },
+      run: () => {
+        const current = session()
+        if (!current) return
+        const enabled = current.metadata?.shellTimeouts !== false
+        void sdk.client.session.update({
+          sessionID: route.sessionID,
+          metadata: { ...current.metadata, shellTimeouts: !enabled },
+        })
+        toast.show({
+          message: enabled ? "Shell timeouts disabled for this session" : "Shell timeouts enabled for this session",
+          variant: "info",
+        })
         dialog.clear()
       },
     },

@@ -221,6 +221,8 @@ const Model = Schema.Struct({
 
 export const Metadata = Schema.Record(Schema.String, Schema.Any)
 
+export const shellTimeoutsDisabled = (metadata: typeof Metadata.Type | undefined) => metadata?.shellTimeouts === false
+
 export const Info = Schema.Struct({
   id: SessionID,
   slug: Schema.String,

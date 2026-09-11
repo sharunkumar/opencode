@@ -1,4 +1,4 @@
-import { Effect, Stream } from "effect"
+import { Effect, Option, Stream } from "effect"
 import os from "os"
 import { createWriteStream } from "node:fs"
 import * as Tool from "./tool"
@@ -12,6 +12,7 @@ import { FSUtil } from "@opencode-ai/core/fs-util"
 import { fileURLToPath } from "url"
 import { Config } from "@/config/config"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { Session } from "@/session/session"
 import { Shell } from "@opencode-ai/core/shell"
 import { ShellID } from "./shell/id"
 
@@ -617,7 +618,16 @@ export const ShellTool = Tool.define(
               if (params.timeout !== undefined && params.timeout < 0) {
                 throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)
               }
-              const timeout = params.timeout ?? defaultTimeoutMs
+              const sessions = yield* Effect.serviceOption(Session.Service)
+              const timeoutsDisabled = Option.isSome(sessions)
+                ? Session.shellTimeoutsDisabled(
+                    (yield* sessions.value.get(ctx.sessionID).pipe(Effect.option)).pipe(
+                      Option.map((info) => info.metadata),
+                      Option.getOrUndefined,
+                    ),
+                  )
+                : false
+              const timeout = params.timeout ?? (timeoutsDisabled ? Number.MAX_SAFE_INTEGER : defaultTimeoutMs)
               const ps = Shell.ps(shell)
               yield* Effect.scoped(
                 Effect.gen(function* () {
