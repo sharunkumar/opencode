@@ -102,3 +102,7 @@ Tab / Shift+Tab cycles agents and briefly shows a colored tab list of all primar
 ## `/timeouts` Command
 
 Toggles the default shell timeout for the current session (`/timeouts`). Explicit `timeout` on a tool call still applies.
+
+## Task Tool Invalid `task_id`
+
+A `task_id` that isn't a real session id starts a new child session instead of throwing.
