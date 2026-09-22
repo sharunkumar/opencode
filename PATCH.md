@@ -106,3 +106,7 @@ Toggles the default shell timeout for the current session (`/timeouts`). Explici
 ## Task Tool Invalid `task_id`
 
 A `task_id` that isn't a real session id starts a new child session instead of throwing.
+
+## Session List Preview (TUI)
+
+The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.

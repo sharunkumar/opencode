@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test"
-import { createDialogSessionListQuery, loadDialogSessionList } from "../../src/component/dialog-session-list"
+import {
+  createDialogSessionListQuery,
+  loadDialogSessionList,
+  sessionPreviewLines,
+} from "../../src/component/dialog-session-list"
 
 describe("dialog session list", () => {
   test("requests root sessions for the default browse list", () => {
@@ -33,6 +37,18 @@ describe("dialog session list", () => {
 
   test("falls back when the root request returns an error response", async () => {
     expect(await loadDialogSessionList({ filter: {}, list: async () => ({}) })).toBeUndefined()
+  })
+
+  test("keeps the last user and assistant text for the preview", () => {
+    expect(
+      sessionPreviewLines([
+        { info: { role: "user" }, parts: [{ type: "text", text: "fix the picker" }] },
+        { info: { role: "assistant" }, parts: [{ type: "text", text: "done", synthetic: true }, { type: "reasoning", text: "think" }, { type: "text", text: "updated the list" }] },
+      ] as never),
+    ).toEqual([
+      { role: "assistant", text: "updated the list" },
+      { role: "you", text: "fix the picker" },
+    ])
   })
 
   test("falls back when the root request rejects", async () => {

@@ -2,7 +2,7 @@ import { useDialog } from "../ui/dialog"
 import { DialogSelect } from "../ui/dialog-select"
 import { useRoute } from "../context/route"
 import { useSync } from "../context/sync"
-import { createMemo, createResource, createSignal, onCleanup, onMount } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import path from "path"
 import { Locale } from "../util/locale"
 import { useProject } from "../context/project"
@@ -18,6 +18,9 @@ import { errorMessage } from "../util/error"
 import { DialogSessionDeleteFailed } from "./dialog-session-delete-failed"
 import { useCommandShortcut } from "../keymap"
 import { useEvent } from "../context/event"
+import { useTerminalDimensions } from "@opentui/solid"
+import { TextAttributes } from "@opentui/core"
+import type { Part } from "@opencode-ai/sdk/v2"
 
 type SessionListFilter = { scope?: "project"; path?: string }
 
@@ -29,6 +32,21 @@ export function createDialogSessionListQuery(input: { search?: string; filter: S
     ...(search ? { search } : {}),
     ...input.filter,
   }
+}
+
+export function sessionPreviewLines(messages: { info: { role: string }; parts: Part[] }[]) {
+  const lines: { role: "you" | "assistant"; text: string }[] = []
+  for (const message of messages) {
+    if (message.info.role !== "user" && message.info.role !== "assistant") continue
+    const text = message.parts
+      .flatMap((part) => (part.type === "text" && !part.synthetic && !part.ignored ? [part.text.trim()] : []))
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+    if (!text) continue
+    lines.push({ role: message.info.role === "user" ? "you" : "assistant", text })
+  }
+  return lines.slice(-6).reverse()
 }
 
 export function loadDialogSessionList<T>(input: {
@@ -55,6 +73,11 @@ export function DialogSessionList() {
   const [toDelete, setToDelete] = createSignal<string>()
   const [deleted, setDeleted] = createSignal(new Set<string>())
   const [search, setSearch] = createDebouncedSignal("", 150)
+  const [highlighted, setHighlighted] = createSignal<string | undefined>(
+    route.data.type === "session" ? route.data.sessionID : undefined,
+  )
+  const dimensions = useTerminalDimensions()
+  const showPreview = createMemo(() => dimensions().width >= 128)
   const deleteHint = useCommandShortcut("session.delete")
   const quickSwitch1 = useCommandShortcut("session.quick_switch.1")
   const quickSwitch9 = useCommandShortcut("session.quick_switch.9")
@@ -73,6 +96,15 @@ export function DialogSessionList() {
         list: (query) => sdk.client.session.list(query),
       })
     },
+  )
+
+  const [preview] = createResource(
+    () => (showPreview() ? highlighted() : undefined),
+    (sessionID) =>
+      sdk.client.session.messages({ sessionID, limit: 8 }).then(
+        (result) => sessionPreviewLines(result.data ?? []),
+        () => [],
+      ),
   )
 
   const currentSessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
@@ -265,11 +297,18 @@ export function DialogSessionList() {
     return [...pinned.map((id) => buildOption(id, "Pinned")).filter((x) => x !== undefined), ...remaining]
   })
 
+  createEffect(() => {
+    const first = options()[0]?.value
+    if (first && !highlighted()) setHighlighted(first)
+  })
+
   onMount(() => {
-    dialog.setSize("large")
+    dialog.setSize(showPreview() ? "xlarge" : "large")
   })
 
   return (
+    <box flexDirection="row">
+    <box flexGrow={1} minWidth={0}>
     <DialogSelect
       title="Sessions"
       options={options()}
@@ -277,8 +316,9 @@ export function DialogSessionList() {
       preserveSelection={true}
       current={currentSessionID()}
       onFilter={setSearch}
-      onMove={() => {
+      onMove={(option) => {
         setToDelete(undefined)
+        setHighlighted(option.value)
       }}
       onSelect={(option) => {
         route.navigate({
@@ -354,6 +394,35 @@ export function DialogSessionList() {
       ]}
       footerHints={quickSwitchFooterHints()}
     />
+    </box>
+    <Show when={showPreview()}>
+      <box width={42} flexShrink={0} paddingRight={2} paddingLeft={1} gap={1}>
+        <text fg={theme.textMuted} attributes={TextAttributes.BOLD}>
+          Preview
+        </text>
+        <Show
+          when={!preview.loading}
+          fallback={
+            <text fg={theme.textMuted}>…</text>
+          }
+        >
+          <Show
+            when={(preview() ?? []).length > 0}
+            fallback={<text fg={theme.textMuted}>No messages</text>}
+          >
+            <For each={preview() ?? []}>
+              {(line) => (
+                <box flexDirection="column">
+                  <text fg={line.role === "you" ? theme.accent : theme.textMuted}>{line.role}</text>
+                  <text fg={theme.text}>{Locale.truncate(line.text, 160)}</text>
+                </box>
+              )}
+            </For>
+          </Show>
+        </Show>
+      </box>
+    </Show>
+    </box>
   )
 }
 
