@@ -36,6 +36,8 @@ const models = [
   { name: "Kimi K2.7 Code", training: "go.faq.a5.notUsed", retention: "go.faq.a5.retention0" },
   { name: "Kimi K2.6", training: "go.faq.a5.notUsed", retention: "go.faq.a5.retention0" },
   { name: "LongCat-2.0", training: "go.faq.a5.notUsed", retention: "go.faq.a5.retention0" },
+  { name: "MiMo-V2.6-Pro", training: "go.faq.a5.notUsed", retention: "go.faq.a5.retention0" },
+  { name: "MiMo-V2.6-Flash", training: "go.faq.a5.notUsed", retention: "go.faq.a5.retention0" },
   { name: "MiMo-V2.5-Pro", training: "go.faq.a5.notUsed", retention: "go.faq.a5.retention0" },
   { name: "MiMo-V2.5", training: "go.faq.a5.notUsed", retention: "go.faq.a5.retention0" },
   { name: "Qwen3.8 Max", training: "go.faq.a5.notUsed", retention: "go.faq.a5.retention0" },
@@ -57,7 +59,7 @@ const models = [
 
 export default function Home() {
   const workspaceID = createAsync(() => checkLoggedIn())
-  const subscribeUrl = createMemo(() => (workspaceID() ? `/workspace/${workspaceID()}/go` : "/auth"))
+  const subscribeUrl = createMemo(() => "/console/go")
   const i18n = useI18n()
   const language = useLanguage()
   return (
