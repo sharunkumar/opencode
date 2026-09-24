@@ -308,120 +308,112 @@ export function DialogSessionList() {
 
   return (
     <box flexDirection="row">
-    <box flexGrow={1} minWidth={0}>
-    <DialogSelect
-      title="Sessions"
-      options={options()}
-      skipFilter={true}
-      preserveSelection={true}
-      current={currentSessionID()}
-      onFilter={setSearch}
-      onMove={(option) => {
-        setToDelete(undefined)
-        setHighlighted(option.value)
-      }}
-      onSelect={(option) => {
-        route.navigate({
-          type: "session",
-          sessionID: option.value,
-        })
-        dialog.clear()
-      }}
-      actions={[
-        {
-          command: "session.pin.toggle",
-          title: "pin/unpin",
-          onTrigger: (option: { value: string }) => {
-            local.session.togglePin(option.value)
-          },
-        },
-        {
-          command: "session.delete",
-          title: "delete",
-          onTrigger: async (option) => {
-            if (toDelete() === option.value) {
-              const session = sessions().find((item) => item.id === option.value)
-              const status = session?.workspaceID ? project.workspace.status(session.workspaceID) : undefined
+      <box flexGrow={1} minWidth={0}>
+        <DialogSelect
+          title="Sessions"
+          options={options()}
+          skipFilter={true}
+          preserveSelection={true}
+          current={currentSessionID()}
+          onFilter={setSearch}
+          onMove={(option) => {
+            setToDelete(undefined)
+            setHighlighted(option.value)
+          }}
+          onSelect={(option) => {
+            route.navigate({
+              type: "session",
+              sessionID: option.value,
+            })
+            dialog.clear()
+          }}
+          actions={[
+            {
+              command: "session.pin.toggle",
+              title: "pin/unpin",
+              onTrigger: (option: { value: string }) => {
+                local.session.togglePin(option.value)
+              },
+            },
+            {
+              command: "session.delete",
+              title: "delete",
+              onTrigger: async (option) => {
+                if (toDelete() === option.value) {
+                  const session = sessions().find((item) => item.id === option.value)
+                  const status = session?.workspaceID ? project.workspace.status(session.workspaceID) : undefined
 
-              try {
-                const result = await sdk.client.session.delete({
-                  sessionID: option.value,
-                })
-                if (result.error) {
-                  if (session?.workspaceID) {
-                    recover(session)
-                  } else {
-                    toast.show({
-                      variant: "error",
-                      title: "Failed to delete session",
-                      message: errorMessage(result.error),
+                  try {
+                    const result = await sdk.client.session.delete({
+                      sessionID: option.value,
                     })
+                    if (result.error) {
+                      if (session?.workspaceID) {
+                        recover(session)
+                      } else {
+                        toast.show({
+                          variant: "error",
+                          title: "Failed to delete session",
+                          message: errorMessage(result.error),
+                        })
+                      }
+                      setToDelete(undefined)
+                      return
+                    }
+                  } catch (err) {
+                    if (session?.workspaceID) {
+                      recover(session)
+                    } else {
+                      toast.show({
+                        variant: "error",
+                        title: "Failed to delete session",
+                        message: errorMessage(err),
+                      })
+                    }
+                    setToDelete(undefined)
+                    return
                   }
+                  if (status && status !== "connected") {
+                    await sync.session.refresh()
+                  }
+                  await refetchBrowse()
+                  if (search()) await refetch()
                   setToDelete(undefined)
                   return
                 }
-              } catch (err) {
-                if (session?.workspaceID) {
-                  recover(session)
-                } else {
-                  toast.show({
-                    variant: "error",
-                    title: "Failed to delete session",
-                    message: errorMessage(err),
-                  })
-                }
-                setToDelete(undefined)
-                return
-              }
-              if (status && status !== "connected") {
-                await sync.session.refresh()
-              }
-              await refetchBrowse()
-              if (search()) await refetch()
-              setToDelete(undefined)
-              return
-            }
-            setToDelete(option.value)
-          },
-        },
-        {
-          command: "session.rename",
-          title: "rename",
-          onTrigger: async (option) => {
-            dialog.replace(() => <DialogSessionRename session={option.value} />)
-          },
-        },
-      ]}
-      footerHints={quickSwitchFooterHints()}
-    />
-    </box>
-    <Show when={showPreview()}>
-      <box width={42} flexShrink={0} paddingRight={2} paddingLeft={1} gap={1}>
-        <text fg={theme.textMuted} attributes={TextAttributes.BOLD}>
-          Preview
-        </text>
-        <Show
-          when={!preview.loading}
-          fallback={
-            <text fg={theme.textMuted}>…</text>
-          }
-        >
-          <Show
-            when={(preview() ?? []).length > 0}
-            fallback={<text fg={theme.textMuted}>No messages</text>}
-          >
-            <For each={preview() ?? []}>
-              {(line) => (
-                <box flexDirection="column">
-                  <text fg={line.role === "you" ? theme.accent : theme.textMuted}>{line.role}</text>
-                  <text fg={theme.text}>{Locale.truncate(line.text, 160)}</text>
-                </box>
-              )}
-            </For>
-          </Show>
-        </Show>
+                setToDelete(option.value)
+              },
+            },
+            {
+              command: "session.rename",
+              title: "rename",
+              onTrigger: async (option) => {
+                dialog.replace(() => <DialogSessionRename session={option.value} />)
+              },
+            },
+          ]}
+          footerHints={quickSwitchFooterHints()}
+        />
       </box>
-    </Show>
+      <Show when={showPreview()}>
+        <box width={42} flexShrink={0} paddingRight={2} paddingLeft={1} gap={1}>
+          <text fg={theme.textMuted} attributes={TextAttributes.BOLD}>
+            Preview
+          </text>
+          <Show when={!preview.loading} fallback={<text fg={theme.textMuted}>…</text>}>
+            <Show when={(preview() ?? []).length > 0} fallback={<text fg={theme.textMuted}>No messages</text>}>
+              <For each={preview() ?? []}>
+                {(line) => (
+                  <box flexDirection="column">
+                    <text fg={line.role === "you" ? theme.accent : theme.textMuted}>{line.role}</text>
+                    <text fg={theme.text}>{Locale.truncate(line.text, 160)}</text>
+                  </box>
+                )}
+              </For>
+            </Show>
+          </Show>
+        </box>
+      </Show>
     </box>
   )
 }

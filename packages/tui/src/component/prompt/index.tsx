@@ -1526,11 +1526,7 @@ export function Prompt(props: PromptProps) {
                                   onMouseUp={() => local.agent.set(item.name)}
                                 >
                                   <text
-                                    fg={
-                                      active()
-                                        ? selectedForeground(theme, bg())
-                                        : fadeColor(bg(), agentMetaAlpha())
-                                    }
+                                    fg={active() ? selectedForeground(theme, bg()) : fadeColor(bg(), agentMetaAlpha())}
                                     attributes={active() ? TextAttributes.BOLD : undefined}
                                   >
                                     {Locale.titlecase(item.name)}

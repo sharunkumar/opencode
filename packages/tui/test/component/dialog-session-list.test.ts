@@ -43,7 +43,14 @@ describe("dialog session list", () => {
     expect(
       sessionPreviewLines([
         { info: { role: "user" }, parts: [{ type: "text", text: "fix the picker" }] },
-        { info: { role: "assistant" }, parts: [{ type: "text", text: "done", synthetic: true }, { type: "reasoning", text: "think" }, { type: "text", text: "updated the list" }] },
+        {
+          info: { role: "assistant" },
+          parts: [
+            { type: "text", text: "done", synthetic: true },
+            { type: "reasoning", text: "think" },
+            { type: "text", text: "updated the list" },
+          ],
+        },
       ] as never),
     ).toEqual([
       { role: "assistant", text: "updated the list" },
