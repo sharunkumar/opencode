@@ -164,6 +164,9 @@ export const Info = Schema.Struct({
       reserved: Schema.optional(NonNegativeInt).annotate({
         description: "Token buffer for compaction. Leaves enough window to avoid overflow during compaction.",
       }),
+      retitle: Schema.optional(Schema.Boolean).annotate({
+        description: "Regenerate the session title from the compaction summary after each compaction (default: true)",
+      }),
     }),
   ),
   experimental: Schema.optional(

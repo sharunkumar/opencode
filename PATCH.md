@@ -110,3 +110,7 @@ A `task_id` that isn't a real session id starts a new child session instead of t
 ## Session List Preview (TUI)
 
 The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.
+
+## Retitle After Compaction
+
+`compaction.retitle` (default: true) regenerates the session title from the compaction summary after every compaction; set it `false` to opt out.

@@ -21561,6 +21561,9 @@
               "reserved": {
                 "type": "integer",
                 "minimum": 0
+              },
+              "retitle": {
+                "type": "boolean"
               }
             },
             "additionalProperties": false

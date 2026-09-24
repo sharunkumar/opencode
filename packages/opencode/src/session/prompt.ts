@@ -10,7 +10,7 @@ import { Session } from "./session"
 import { Agent } from "../agent/agent"
 import { Provider } from "@/provider/provider"
 
-import { type Tool as AITool, tool, jsonSchema } from "ai"
+import { type Tool as AITool, type ModelMessage, tool, jsonSchema } from "ai"
 import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
 import { SystemPrompt } from "./system"
@@ -190,6 +190,51 @@ const layer = Layer.effect(
       return parts
     })
 
+    const resolveTitleModel = Effect.fnUntraced(function* (input: {
+      agent: Agent.Info
+      providerID: ProviderV2.ID
+      modelID: ModelV2.ID
+    }) {
+      return input.agent.model
+        ? yield* provider.getModel(input.agent.model.providerID, input.agent.model.modelID)
+        : ((yield* provider.getSmallModel(input.providerID)) ??
+            (yield* provider.getModel(input.providerID, input.modelID)))
+    })
+
+    const streamTitle = Effect.fnUntraced(function* (input: {
+      agent: Agent.Info
+      user: SessionV1.User
+      model: Provider.Model
+      sessionID: SessionID
+      messages: ModelMessage[]
+    }) {
+      const text = yield* llm
+        .stream({
+          agent: input.agent,
+          user: input.user,
+          system: [],
+          small: true,
+          tools: {},
+          model: input.model,
+          sessionID: input.sessionID,
+          retries: 2,
+          messages: input.messages,
+        })
+        .pipe(
+          Stream.filter(LLMEvent.is.textDelta),
+          Stream.map((e) => e.text),
+          Stream.mkString,
+          Effect.orDie,
+        )
+      const cleaned = text
+        .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
+        .split("\n")
+        .map((line) => line.trim())
+        .find((line) => line.length > 0)
+      if (!cleaned) return
+      return cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
+    })
+
     const title = Effect.fn("SessionPrompt.ensureTitle")(function* (input: {
       session: Session.Info
       history: SessionV1.WithParts[]
@@ -215,41 +260,57 @@ const layer = Layer.effect(
 
       const ag = yield* agents.get("title")
       if (!ag) return
-      const mdl = ag.model
-        ? yield* provider.getModel(ag.model.providerID, ag.model.modelID)
-        : ((yield* provider.getSmallModel(input.providerID)) ??
-          (yield* provider.getModel(input.providerID, input.modelID)))
+      const mdl = yield* resolveTitleModel({ agent: ag, providerID: input.providerID, modelID: input.modelID })
       const msgs = onlySubtasks
         ? [{ role: "user" as const, content: subtasks.map((p) => p.prompt).join("\n") }]
         : yield* MessageV2.toModelMessagesEffect(context, mdl)
-      const text = yield* llm
-        .stream({
-          agent: ag,
-          user: firstInfo,
-          system: [],
-          small: true,
-          tools: {},
-          model: mdl,
-          sessionID: input.session.id,
-          retries: 2,
-          messages: [{ role: "user", content: "Generate a title for this conversation:\n" }, ...msgs],
-        })
-        .pipe(
-          Stream.filter(LLMEvent.is.textDelta),
-          Stream.map((e) => e.text),
-          Stream.mkString,
-          Effect.orDie,
-        )
-      const cleaned = text
-        .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
-        .split("\n")
-        .map((line) => line.trim())
-        .find((line) => line.length > 0)
-      if (!cleaned) return
-      const t = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
+      const t = yield* streamTitle({
+        agent: ag,
+        user: firstInfo,
+        model: mdl,
+        sessionID: input.session.id,
+        messages: [{ role: "user", content: "Generate a title for this conversation:\n" }, ...msgs],
+      })
+      if (!t) return
       yield* sessions
         .setTitle({ sessionID: input.session.id, title: t })
         .pipe(Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })))
+    })
+
+    const retitle = Effect.fn("SessionPrompt.retitle")(function* (input: {
+      session: Session.Info
+      user: SessionV1.User
+    }) {
+      if ((yield* config.get()).compaction?.retitle === false) return
+      if (input.session.parentID) return
+
+      const ag = yield* agents.get("title")
+      if (!ag) return
+      const history = yield* sessions.messages({ sessionID: input.session.id }).pipe(Effect.orDie)
+      const latest = history.findLast(
+        (m) => m.info.role === "assistant" && m.info.summary === true && m.info.finish && !m.info.error,
+      )
+      const summary = latest && SessionCompaction.summaryText(latest)
+      if (!summary) return
+      const t = yield* streamTitle({
+        agent: ag,
+        user: input.user,
+        model: yield* resolveTitleModel({
+          agent: ag,
+          providerID: input.user.model.providerID,
+          modelID: input.user.model.modelID,
+        }),
+        sessionID: input.session.id,
+        messages: [{ role: "user", content: "Generate a title for this conversation:\n\n" + summary }],
+      })
+      if (!t) return
+      yield* sessions
+        .setTitle({ sessionID: input.session.id, title: t })
+        .pipe(
+          Effect.catchCause((cause) =>
+            Effect.logError("failed to retitle after compaction", { error: Cause.squash(cause) }),
+          ),
+        )
     })
 
     const handleSubtask = Effect.fn("SessionPrompt.handleSubtask")(function* (input: {
@@ -1140,6 +1201,7 @@ const layer = Layer.effect(
               overflow: task.overflow,
             })
             if (result === "stop") break
+            yield* retitle({ session, user: lastUser }).pipe(Effect.ignore, Effect.forkIn(scope))
             continue
           }
 
