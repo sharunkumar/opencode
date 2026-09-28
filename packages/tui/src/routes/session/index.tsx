@@ -696,6 +696,7 @@ export function Session() {
       title: showTimestamps() ? "Hide timestamps" : "Show timestamps",
       value: "session.toggle.timestamps",
       category: "Session",
+      hidden: true,
       slash: {
         name: "timestamps",
         aliases: ["toggle-timestamps"],

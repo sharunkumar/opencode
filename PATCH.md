@@ -103,6 +103,10 @@ Tab / Shift+Tab cycles agents and briefly shows a colored tab list of all primar
 
 Toggles the default shell timeout for the current session (`/timeouts`). Explicit `timeout` on a tool call still applies.
 
+## Hidden `/timestamps` Command
+
+`/timestamps` is hidden from the slash list and command palette; toggle it with the `session_toggle_timestamps` keybind (default `none`).
+
 ## Task Tool Invalid `task_id`
 
 A `task_id` that isn't a real session id starts a new child session instead of throwing.
