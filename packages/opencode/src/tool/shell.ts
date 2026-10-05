@@ -428,6 +428,17 @@ export const ShellTool = Tool.define(
       }
     })
 
+    const timeoutsDisabled = Effect.fnUntraced(function* (ctx: Tool.Context) {
+      const sessions = yield* Effect.serviceOption(Session.Service)
+      if (Option.isNone(sessions)) return false
+      return Session.shellTimeoutsDisabled(
+        (yield* sessions.value.get(ctx.sessionID).pipe(Effect.option)).pipe(
+          Option.map((info) => info.metadata),
+          Option.getOrUndefined,
+        ),
+      )
+    })
+
     const run = Effect.fn("ShellTool.run")(function* (
       input: {
         shell: string
@@ -435,6 +446,8 @@ export const ShellTool = Tool.define(
         cwd: string
         env: NodeJS.ProcessEnv
         timeout: number
+        // Session default only. An explicit tool `timeout` stays armed even if /timeouts flips mid-run.
+        cancellable: boolean
       },
       ctx: Tool.Context,
     ) {
@@ -540,12 +553,24 @@ export const ShellTool = Tool.define(
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
           })
 
-          const timeout = Effect.sleep(`${input.timeout + 100} millis`)
+          const timeout = Effect.sleep(`${input.timeout + 100} millis`).pipe(
+            Effect.andThen(
+              input.cancellable
+                ? timeoutsDisabled(ctx).pipe(Effect.map((disabled) => (disabled ? ("ignore" as const) : ("kill" as const))))
+                : Effect.succeed("kill" as const),
+            ),
+          )
 
           const exit = yield* Effect.raceAll([
             handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
             abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-            timeout.pipe(Effect.map(() => ({ kind: "timeout" as const, code: null }))),
+            timeout.pipe(
+              Effect.flatMap((action) =>
+                action === "kill"
+                  ? Effect.succeed({ kind: "timeout" as const, code: null })
+                  : Effect.never,
+              ),
+            ),
           ])
 
           if (exit.kind === "abort") {
@@ -618,16 +643,8 @@ export const ShellTool = Tool.define(
               if (params.timeout !== undefined && params.timeout < 0) {
                 throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)
               }
-              const sessions = yield* Effect.serviceOption(Session.Service)
-              const timeoutsDisabled = Option.isSome(sessions)
-                ? Session.shellTimeoutsDisabled(
-                    (yield* sessions.value.get(ctx.sessionID).pipe(Effect.option)).pipe(
-                      Option.map((info) => info.metadata),
-                      Option.getOrUndefined,
-                    ),
-                  )
-                : false
-              const timeout = params.timeout ?? (timeoutsDisabled ? Number.MAX_SAFE_INTEGER : defaultTimeoutMs)
+              const cancellable = params.timeout === undefined
+              const timeout = params.timeout ?? defaultTimeoutMs
               const ps = Shell.ps(shell)
               yield* Effect.scoped(
                 Effect.gen(function* () {
@@ -647,6 +664,7 @@ export const ShellTool = Tool.define(
                   cwd,
                   env: yield* shellEnv(ctx, cwd),
                   timeout,
+                  cancellable,
                 },
                 ctx,
               )

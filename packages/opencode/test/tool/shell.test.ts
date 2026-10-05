@@ -1,7 +1,7 @@
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { describe, expect } from "bun:test"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
-import { Cause, Effect, Exit, Layer } from "effect"
+import { Cause, Effect, Exit, Fiber, Layer, Ref } from "effect"
 import type * as Scope from "effect/Scope"
 import os from "os"
 import path from "path"
@@ -21,6 +21,7 @@ import { testEffect } from "../lib/effect"
 import { Tool } from "@/tool/tool"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { InstanceStore } from "@/project/instance-store"
+import { Session } from "@/session/session"
 
 const shellLayer = Layer.mergeAll(
   LayerNode.compile(
@@ -1085,6 +1086,37 @@ describe("tool.shell abort", () => {
           expect(result.output).toContain("retry with a larger timeout value in milliseconds")
         }),
       ),
+    15_000,
+  )
+
+  it.live(
+    "does not kill a running command when session timeouts are disabled before the default fires",
+    () =>
+      Effect.gen(function* () {
+        const disabled = yield* Ref.make(false)
+        const session = Layer.mock(Session.Service, {
+          get: () =>
+            Effect.gen(function* () {
+              const off = yield* Ref.get(disabled)
+              return { metadata: off ? { shellTimeouts: false } : {} } as any
+            }),
+        })
+        yield* runIn(
+          projectRoot,
+          Effect.gen(function* () {
+            const tool = yield* initShell()
+            const fiber = yield* Effect.forkChild(tool.execute({ command: `sleep 2 && echo still-alive` }, ctx))
+            yield* Effect.sleep("200 millis")
+            yield* Ref.set(disabled, true)
+            const done = yield* Fiber.join(fiber)
+            expect(done.output).toContain("still-alive")
+            expect(done.output).not.toContain("shell tool terminated command")
+          }),
+        ).pipe(
+          Effect.provide(session),
+          Effect.provide(RuntimeFlags.layer({ bashDefaultTimeoutMs: 400 })),
+        )
+      }),
     15_000,
   )
 

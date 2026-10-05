@@ -101,7 +101,7 @@ Tab / Shift+Tab cycles agents and briefly shows a colored tab list of all primar
 
 ## `/timeouts` Command
 
-Toggles the default shell timeout for the current session (`/timeouts`). Explicit `timeout` on a tool call still applies.
+Toggles the default shell timeout for the current session (`/timeouts`). Explicit `timeout` on a tool call still applies. Disabling timeouts while a bash command is already running skips the kill when the default timer fires; the process is left alone. Re-enabling does not re-arm a timer that already fired.
 
 ## Hidden `/timestamps` Command
 
