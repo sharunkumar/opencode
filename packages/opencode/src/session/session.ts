@@ -221,7 +221,7 @@ const Model = Schema.Struct({
 
 export const Metadata = Schema.Record(Schema.String, Schema.Any)
 
-export const shellTimeoutsDisabled = (metadata: typeof Metadata.Type | undefined) => metadata?.shellTimeouts === false
+export const shellTimeoutsDisabled = (metadata: typeof Metadata.Type | undefined) => metadata?.shellTimeouts !== true
 
 export const Info = Schema.Struct({
   id: SessionID,
@@ -523,7 +523,7 @@ const layer: Layer.Layer<
         title: input.title ?? (input.parentID ? childTitlePrefix : parentTitlePrefix) + new Date().toISOString(),
         agent: input.agent,
         model: input.model,
-        metadata: input.metadata,
+        metadata: { shellTimeouts: false, ...input.metadata },
         permission: input.permission ? [...input.permission] : undefined,
         cost: 0,
         tokens: EmptyTokens,

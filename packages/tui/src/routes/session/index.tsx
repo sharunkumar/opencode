@@ -724,7 +724,7 @@ export function Session() {
       },
     },
     {
-      title: session()?.metadata?.shellTimeouts === false ? "Enable shell timeouts" : "Disable shell timeouts",
+      title: session()?.metadata?.shellTimeouts === true ? "Disable shell timeouts" : "Enable shell timeouts",
       value: "session.toggle.timeouts",
       category: "Session",
       slash: {
@@ -733,7 +733,7 @@ export function Session() {
       run: () => {
         const current = session()
         if (!current) return
-        const enabled = current.metadata?.shellTimeouts !== false
+        const enabled = current.metadata?.shellTimeouts === true
         void sdk.client.session.update({
           sessionID: route.sessionID,
           metadata: { ...current.metadata, shellTimeouts: !enabled },

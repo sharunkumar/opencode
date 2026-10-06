@@ -1098,7 +1098,7 @@ describe("tool.shell abort", () => {
           get: () =>
             Effect.gen(function* () {
               const off = yield* Ref.get(disabled)
-              return { metadata: off ? { shellTimeouts: false } : {} } as any
+              return { metadata: off ? {} : { shellTimeouts: true } } as any
             }),
         })
         yield* runIn(
