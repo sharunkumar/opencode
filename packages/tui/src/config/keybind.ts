@@ -197,8 +197,8 @@ export const Definitions = {
   "prompt.editor_context.clear": keybind("none", "Clear editor context"),
   "prompt.images.view": keybind("<leader>i", "View image attachments"),
   "prompt.skills": keybind("none", "Open skill selector"),
-  "prompt.stash": keybind("none", "Stash prompt"),
-  "prompt.stash.pop": keybind("none", "Pop stashed prompt"),
+  "prompt.stash": keybind("ctrl+s", "Stash prompt"),
+  "prompt.stash.pop": keybind("ctrl+shift+s", "Pop stashed prompt"),
   "prompt.stash.list": keybind("none", "List stashed prompts"),
 
   "prompt.clear": keybind("ctrl+c", "Clear input field"),

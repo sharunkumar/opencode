@@ -72,10 +72,6 @@ Default keybinds: `ctrl+s` to stash the current prompt, `ctrl+shift+s` to pop th
 
 Session and plugin terminal titles use the bare title/id (no `OC |` prefix).
 
-## Leading `@subagent` Direct Invoke
-
-A prompt that starts with `@explore …` / `@general …` (etc.) skips the primary LLM and launches that subagent as a background subtask, so the parent stays idle for parallel invokes. Mid-prompt `@agent` still uses the synthetic task-tool hint.
-
 ## Bash Tool Syntax Highlighting (TUI)
 
 Bash/shell tool commands use tree-sitter bash highlighting.
@@ -99,10 +95,6 @@ Tab / Shift+Tab cycles agents and briefly shows a colored tab list of all primar
 ## `/timeouts` Command
 
 Plugin (`custom.shell.timeouts` + TUI `custom.timeouts`): foreground shell commands have no default timeout until `/timeouts` is toggled for the session. Explicit `timeout` on a call still applies; background calls are untouched. Contract in `packages/schema/src/custom-timeouts.ts`.
-
-## Hidden `/timestamps` Command
-
-`/timestamps` is hidden from the slash list and command palette; toggle it with the `session_toggle_timestamps` keybind (default `none`).
 
 ## Task Tool Invalid `task_id`
 
