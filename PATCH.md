@@ -10,13 +10,14 @@ Type `/` mid-prompt (after whitespace) to trigger skill-only autocomplete. Skill
 skills: {
   slash?: boolean     // Show skills as slash commands (default: true)
   inline?: boolean    // Inline full skill content on invocation (default: false)
-  auto_load?: string[] // Skill names injected into main-session system prompt; omitted from available_skills
 }
 ```
 
+`auto_load` is a plugin (`custom.skills.auto-load`): set `OPENCODE_AUTO_LOAD_SKILLS=a,b` to inject those skills into main-session system prompts and omit them from `available_skills`.
+
 ## `/skills` Command
 
-Browse and select skills via dialog. Hidden when `skills.slash` is enabled.
+Plugin (`custom.skills`, TUI): `/skills` opens a dialog to browse skills and invoke one in the current session. Always available; the v1 `skills.slash` gating no longer exists.
 
 ## UI Changes
 
@@ -59,10 +60,6 @@ Submitting while the assistant is working normally steers/queues the message (sh
 
 `ctrl+return` is removed from `input_newline` (now `shift+return,alt+return,ctrl+j`) so Ctrl+Enter is free. Ctrl+Enter is distinct from plain Enter only under the kitty keyboard protocol; without it, terminals collapse it into a newline. `super+return` (Cmd+Enter) was dropped because macOS terminals reserve Cmd.
 
-## Shell Tool Identity Env (OPENCODE / AGENT)
-
-Shells spawned by the bash/shell tool always expose `OPENCODE=1` and `AGENT=1` so prompts and scripts can detect they run inside opencode (upstream #1775). A plugin `shell.env` hook can add vars but cannot clobber these markers.
-
 ## Click-to-Toggle MCPs in TUI Sidebar
 
 Clicking an MCP in the sidebar enables or disables it. In-flight connections use status `pending` (upstream rename of `connecting`); the web UI still labels it "connecting". V1 servers that emit `connecting` are normalized to `pending` at the load boundary.
@@ -101,7 +98,7 @@ Tab / Shift+Tab cycles agents and briefly shows a colored tab list of all primar
 
 ## `/timeouts` Command
 
-Toggles the default shell timeout for the current session (`/timeouts`). New sessions start with timeouts off; `/timeouts` turns them on. Explicit `timeout` on a tool call still applies. Disabling timeouts while a bash command is already running skips the kill when the default timer fires; the process is left alone. Re-enabling does not re-arm a timer that already fired.
+Plugin (`custom.shell.timeouts` + TUI `custom.timeouts`): foreground shell commands have no default timeout until `/timeouts` is toggled for the session. Explicit `timeout` on a call still applies; background calls are untouched. Contract in `packages/schema/src/custom-timeouts.ts`.
 
 ## Hidden `/timestamps` Command
 
@@ -109,7 +106,7 @@ Toggles the default shell timeout for the current session (`/timeouts`). New ses
 
 ## Task Tool Invalid `task_id`
 
-A `task_id` that isn't a real session id starts a new child session instead of throwing.
+Plugin (`custom.tool.subagent.resume`): a subagent `sessionID` that is not a child of the current session starts a new subagent instead of failing.
 
 ## Session List Preview (TUI)
 
@@ -117,4 +114,4 @@ The session list (`<leader>l`) previews the highlighted session's latest message
 
 ## Retitle After Compaction
 
-`compaction.retitle` (default: true) regenerates the session title from the compaction summary after every compaction; set it `false` to opt out.
+Plugin (`custom.session.retitle`): regenerates the session title from the compaction summary after every compaction.

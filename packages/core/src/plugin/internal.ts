@@ -100,6 +100,7 @@ import { SkillPlugin } from "./skill.js"
 import { VcsHgPlugin } from "./vcs/hg.js"
 import { ToolInputRepairPlugin } from "./tool-input-repair.js"
 import { OptimizePlugin } from "./optimize.js"
+import { CustomPlugins } from "./custom/index.js"
 import { VcsGitPlugin } from "./vcs/git.js"
 import { VerbosityPlugin } from "./verbosity.js"
 import { WarmingPlugin } from "./warming.js"
@@ -247,6 +248,7 @@ const pre = [
   WebSearchTool.Plugin,
   WriteTool.Plugin,
   WarmingPlugin.Plugin,
+  ...CustomPlugins.Plugins,
 ] as const satisfies readonly InternalPlugin[]
 
 const post = [
