@@ -77,6 +77,10 @@ Plugin (`custom.shell.timeouts` + TUI `custom.timeouts`): foreground shell comma
 
 Plugin (`custom.tool.subagent.resume`): a subagent `sessionID` that is not a child of the current session starts a new subagent instead of failing.
 
+## Vertical Tabs Default
+
+Session tabs default to vertical in the TUI (`tabs.layout`) and desktop app (`appearance.tabLayout`).
+
 ## Session List Preview (TUI) [NOT MIGRATED]
 
 The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.
