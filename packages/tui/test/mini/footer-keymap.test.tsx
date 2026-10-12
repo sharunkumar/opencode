@@ -82,6 +82,7 @@ async function renderSubagent(interrupt: "ctrl+i" | "none") {
           onFormCancel={() => {}}
           onCycle={() => {}}
           onInterrupt={() => false}
+          onInterruptNow={() => {}}
           onEditorOpen={async () => undefined}
           onInputClear={() => {}}
           onExit={() => {}}

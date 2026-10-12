@@ -21,7 +21,7 @@ export function SidebarMcp(props: { context: Plugin.Context; sessionID: string }
     setLoading((prev) => new Set(prev).add(name))
     const input = { server: name, location: { directory: location.directory } }
     const call =
-      status === "connected" ? props.context.client.api.mcp.disconnect(input) : props.context.client.api.mcp.connect(input)
+      status === "connected" ? props.context.client.mcp.disconnect(input) : props.context.client.mcp.connect(input)
     void call
       .catch((error) =>
         props.context.ui.toast.show({ variant: "error", message: errorMessage(error) }),

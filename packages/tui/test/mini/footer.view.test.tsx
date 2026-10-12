@@ -209,6 +209,7 @@ async function renderFooter(
           onFormCancel={() => {}}
           onCycle={input.onCycle ?? (() => {})}
           onInterrupt={() => false}
+          onInterruptNow={() => {}}
           onQueuedPromptAction={input.onQueuedPromptAction}
           onEditorOpen={async () => undefined}
           onInputClear={() => {}}
