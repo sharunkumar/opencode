@@ -4,10 +4,6 @@
 
 `auto_load` is a plugin (`custom.skills.auto-load`): set `OPENCODE_AUTO_LOAD_SKILLS=a,b` to inject those skills into main-session system prompts and omit them from `available_skills`.
 
-## UI Changes [STALE: skill browser migrated as `/skills`; command-palette category NOT MIGRATED]
-
-Skill browser dialog and a skill category in the command palette.
-
 ## Disabled Workflows
 
 Upstream workflows disabled for this fork:
@@ -34,14 +30,6 @@ Deleted `.opencode/tool/github-pr-search.ts` and `github-triage.ts`: v1-style to
 ## Makefile
 
 Added `make build-single` (builds the single-file `opencode` binary from `packages/cli`) and `make generate` (regenerates the SDK and related files).
-
-## Startup Profiling [NOT MIGRATED, check if still needed]
-
-`OPENCODE_STARTUP_PROFILE=1` emits `[startup-profile] <phase> <ms>` lines to stderr for the lazy startup phases (MCP connect, skill discovery/load, command-list init, MCP prompt commands, and readiness marks). Trigger in-process via `opencode mcp list`, `opencode debug skill`, and `opencode debug command`.
-
-## Non-blocking MCP Prompt Commands [NOT MIGRATED, check if v2 still blocks]
-
-Building the command list no longer blocks on MCP connecting (previously ~11s with a single `npx …@latest` server), which left the TUI inline `/` skill autocomplete empty until MCP was ready. Commands now build synchronously and MCP prompt commands fold in on a background fiber, emitting a `command.changed` event the TUI refetches on. First `GET /command` dropped from ~11s to ~0.3s. Added `opencode debug command` to inspect this path.
 
 ## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`)
 
