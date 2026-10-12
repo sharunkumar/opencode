@@ -38,6 +38,10 @@ Kept: test, typecheck, generate
 
 Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-latest`) in `check` and `test`.
 
+## Removed Upstream Custom Tools
+
+Deleted `.opencode/tool/github-pr-search.ts` and `github-triage.ts`: v1-style tools (`import { tool } from "@opencode/plugin"`) that fail to load on v2 and break every prompt run in this repo.
+
 ## Fork Release Workflow
 
 `release.yml`: on push to `dev` (forks only), runs `bun run check`, builds all `packages/cli` targets, archives them as `opencode-<os>-<arch>[-baseline][-musl].{zip,tar.gz}`, and uploads to a datever GitHub Release.
