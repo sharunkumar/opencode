@@ -193,6 +193,7 @@ export const Definitions = {
   "session.toggle.thinking": keybind("none", "Toggle thinking blocks visibility"),
 
   "prompt.submit": keybind("none", "Submit prompt"),
+  "prompt.interrupt_submit": keybind("ctrl+return", "Abort the active run and submit"),
   "prompt.queue": keybind("<leader>return", "Queue prompt"),
   "prompt.editor_context.clear": keybind("none", "Clear editor context"),
   "prompt.images.view": keybind("<leader>i", "View image attachments"),
@@ -204,7 +205,7 @@ export const Definitions = {
   "prompt.clear": keybind("ctrl+c", "Clear input field"),
   "prompt.paste": keybind({ key: "ctrl+v", preventDefault: false }, "Paste from clipboard"),
   "input.submit": keybind("return", "Submit input"),
-  "input.newline": keybind("shift+return,ctrl+return,alt+return,ctrl+j", "Insert newline in input"),
+  "input.newline": keybind("shift+return,alt+return,ctrl+j", "Insert newline in input"),
   "input.move.left": keybind("left,ctrl+b", "Move cursor left in input"),
   "input.move.right": keybind("right,ctrl+f", "Move cursor right in input"),
   "input.move.up": keybind("up", "Move cursor up in input"),

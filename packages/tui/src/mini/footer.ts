@@ -358,6 +358,7 @@ export class RunFooter implements FooterApi {
               onFormCancel: footer.handleFormCancel,
               onCycle: footer.handleCycle,
               onInterrupt: footer.handleInterrupt,
+              onInterruptNow: () => options.onInterrupt?.(),
               onBackground: options.onBackground,
               onQueuedPromptAction: options.onQueuedPromptAction,
               onEditorOpen: (input) => {

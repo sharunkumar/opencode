@@ -133,6 +133,7 @@ type PromptInput = {
   onSubmit: (input: RunPrompt) => boolean | Promise<boolean>
   onCycle: () => void
   onInterrupt: () => boolean
+  onInterruptNow: () => void
   onEditorOpen: (input: { value: string }) => Promise<string | undefined>
   onInputClear: () => void
   onExitRequest?: () => boolean
@@ -1212,6 +1213,17 @@ export function createPromptState(input: PromptInput): PromptState {
         palette: true,
         run() {
           onSubmit("queue")
+        },
+      },
+      {
+        id: "prompt.interrupt_submit",
+        title: "Abort and submit",
+        group: "Prompt",
+        run() {
+          syncDraft()
+          if (!draft.text.trim() && !draft.parts.some((part) => part.type === "file")) return
+          if (input.state().phase === "running") input.onInterruptNow()
+          onSubmit()
         },
       },
     ],

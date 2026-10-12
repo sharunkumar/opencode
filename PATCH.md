@@ -58,7 +58,7 @@ Added `make build-single` (builds the single-file `opencode` binary from `packag
 
 Building the command list no longer blocks on MCP connecting (previously ~11s with a single `npx …@latest` server), which left the TUI inline `/` skill autocomplete empty until MCP was ready. Commands now build synchronously and MCP prompt commands fold in on a background fiber, emitting a `command.changed` event the TUI refetches on. First `GET /command` dropped from ~11s to ~0.3s. Added `opencode debug command` to inspect this path.
 
-## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`) [NOT MIGRATED]
+## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`)
 
 Submitting while the assistant is working normally steers/queues the message (shown with a `QUEUED` badge). The new `prompt_interrupt_submit` keybind (default `ctrl+return`, command `prompt.interrupt_submit`) instead aborts the active run and then submits, so the prompt starts a fresh run. No-op on an empty prompt; behaves like a normal submit when idle.
 

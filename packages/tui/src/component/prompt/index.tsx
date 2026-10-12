@@ -442,6 +442,24 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
+        title: "Abort and submit",
+        name: "prompt.interrupt_submit",
+        category: "Prompt",
+        run: async (_input: string | undefined, event?: KeyEvent) => {
+          event?.preventDefault()
+          event?.stopPropagation()
+          if (!input.focused) return
+          if (auto()?.visible && !auto()?.completeQueueableCommand()) return
+          if (!store.prompt.text.trim()) return
+          if (status() === "running" && props.sessionID) {
+            await client.api.session.interrupt({ sessionID: props.sessionID })
+          }
+          const handled = await submit()
+          if (!handled) return
+          dialog.clear()
+        },
+      },
+      {
         title: "Queue prompt",
         name: "prompt.queue",
         category: "Prompt",
@@ -645,7 +663,7 @@ export function Prompt(props: PromptProps) {
   Keymap.createLayer(() => ({
     priority: 1,
     enabled: !disabled(),
-    bindings: ["prompt.queue"],
+    bindings: ["prompt.queue", "prompt.interrupt_submit"],
   }))
 
   Keymap.createLayer(() => ({

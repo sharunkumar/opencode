@@ -109,6 +109,7 @@ type RunFooterViewProps = {
   onFormCancel: (input: FormCancel) => void | Promise<void>
   onCycle: () => void
   onInterrupt: () => boolean
+  onInterruptNow: () => void
   onBackground?: () => void
   onQueuedPromptAction?: (action: QueuedPromptAction, inboxID: string) => Promise<void>
   onEditorOpen: (input: { value: string }) => Promise<string | undefined>
@@ -386,6 +387,7 @@ export function RunFooterView(props: RunFooterViewProps) {
     onSubmit: props.onSubmit,
     onCycle: props.onCycle,
     onInterrupt: props.onInterrupt,
+    onInterruptNow: props.onInterruptNow,
     onEditorOpen: props.onEditorOpen,
     onInputClear: props.onInputClear,
     onExitRequest: props.onExitRequest,
