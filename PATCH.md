@@ -1,17 +1,12 @@
 # Fork Additions
 
-## Inline Skill Autocomplete [NOT MIGRATED]
+## Inline Skill Autocomplete
 
 Type `/` mid-prompt (after whitespace) to trigger skill-only autocomplete. Skills can be inserted inline without replacing the entire prompt.
 
-## Skill Configuration Options [`slash`/`inline` NOT MIGRATED; `auto_load` migrated]
+## Skill Configuration Options [`auto_load` migrated]
 
-```ts
-skills: {
-  slash?: boolean     // Show skills as slash commands (default: true)
-  inline?: boolean    // Inline full skill content on invocation (default: false)
-}
-```
+`skills.slash` and `skills.inline` are not ported. Inline `/` skill autocomplete is always on.
 
 `auto_load` is a plugin (`custom.skills.auto-load`): set `OPENCODE_AUTO_LOAD_SKILLS=a,b` to inject those skills into main-session system prompts and omit them from `available_skills`.
 

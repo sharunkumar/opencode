@@ -29,7 +29,7 @@ import { directoryAutocomplete, slashArgumentAutocomplete } from "../../prompt/d
 
 export type AutocompleteRef = {
   onInput: (value: string) => void
-  visible: false | "reference" | "command" | "directory"
+  visible: false | "reference" | "command" | "skill" | "directory"
   completeQueueableCommand: () => boolean
 }
 
@@ -543,7 +543,9 @@ export function Autocomplete(props: {
         ? [...skillOptions(), ...referenceAliasesValue, ...agentsValue]
         : store.index === 0
           ? [...commandsValue]
-          : []
+          : store.visible === "skill"
+            ? [...skillOptions()]
+            : []
 
     if (!searchValue) {
       return [...nonFileOptions, ...fileOptions]
@@ -562,7 +564,7 @@ export function Autocomplete(props: {
         scoreFn: (objResults) => {
           const displayResult = objResults[0]
           let score = objResults.score
-          const prefix = store.visible === "reference" ? "@" : store.visible === "command" ? "/" : ""
+          const prefix = store.visible === "reference" ? "@" : store.visible === "command" || store.visible === "skill" ? "/" : ""
           if (displayResult && displayResult.target.startsWith(prefix + searchValue)) {
             score *= 2
           }
@@ -803,8 +805,8 @@ export function Autocomplete(props: {
         if (offset === 0) return
 
         const slash = slashTriggerIndex(value, offset)
-        if (slash === 0) {
-          show("command")
+        if (slash !== undefined) {
+          show(slash === 0 ? "command" : "skill")
           setStore("index", slash)
           return
         }
@@ -832,6 +834,7 @@ export function Autocomplete(props: {
   const emptyMessage = createMemo(() => {
     const fileSearch = visibleFiles()
     if (store.visible === "command") return "No matching commands"
+    if (store.visible === "skill") return "No matching skills"
     if (store.visible === "directory") {
       if (files.loading) return "Searching…"
       if (fileSearch.failed) return "Could not search directories. Keep typing to try again."
