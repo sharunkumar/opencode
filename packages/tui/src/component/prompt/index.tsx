@@ -48,7 +48,7 @@ import { useConnected } from "../use-connected"
 import { useToast } from "../../ui/toast"
 import { createFadeIn } from "../../util/signal"
 import { DialogSkill } from "../dialog-skill"
-import { providerColor } from "../../theme/provider-color"
+import { keywordColor, providerColor } from "../../theme/provider-color"
 import { useConfig } from "../../config"
 import { usePromptMove } from "./move"
 import { resolvePastedAttachments } from "./local-attachment"
@@ -1860,6 +1860,8 @@ export function Prompt(props: PromptProps) {
                 model={promptDisplay().modelLabel}
                 provider={promptDisplay().providerLabel}
                 providerColor={currentProviderColor()}
+                keywords={config.model_keywords}
+                keywordColor={(keyword) => keywordColor(theme, keyword, data.location.provider.list(currentLocation.ref)?.length ?? 0)}
                 variant={promptDisplay().variant}
                 muted={!!muted()}
                 highlight={highlight()}

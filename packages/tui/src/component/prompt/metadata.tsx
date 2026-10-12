@@ -1,8 +1,9 @@
 import { RGBA, TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createMemo, Show } from "solid-js"
+import { createMemo, Show, type JSX } from "solid-js"
 import { useTheme } from "../../context/theme"
 import { Locale } from "../../util/locale"
+import { Keyword } from "../../util/keyword"
 import { stringWidth } from "../../util/string-width"
 
 export function PromptMetadataRow(props: {
@@ -12,6 +13,8 @@ export function PromptMetadataRow(props: {
   model: string
   provider: string
   providerColor?: RGBA
+  keywords?: readonly string[]
+  keywordColor?: (keyword: string) => RGBA
   variant?: string
   muted: boolean
   highlight: RGBA
@@ -58,7 +61,7 @@ export function PromptMetadataRow(props: {
               truncate
               fg={fade(props.muted ? theme.text.muted : theme.text.base, props.modelAlpha)}
             >
-              {layout().model}
+              {highlighted(layout().model, props.keywords ?? [], props.keywordColor, props.modelAlpha, props.muted)}
             </text>
             <Show when={layout().provider}>
               {(provider) => (
@@ -85,6 +88,28 @@ export function PromptMetadataRow(props: {
       </Show>
     </box>
   )
+}
+
+function highlighted(
+  text: string,
+  keywords: readonly string[],
+  color: ((keyword: string) => RGBA) | undefined,
+  alpha: number,
+  muted: boolean,
+) {
+  const spans = Keyword.match(text, keywords)
+  if (spans.length === 0 || !color || muted) return text
+  const parts: JSX.Element[] = []
+  let cursor = 0
+  for (const span of spans) {
+    if (span.start > cursor) parts.push(text.slice(cursor, span.start))
+    parts.push(
+      <span style={{ fg: fade(color(span.keyword), alpha), bold: true }}>{text.slice(span.start, span.end)}</span>,
+    )
+    cursor = span.end
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor))
+  return parts
 }
 
 function fade(color: RGBA, alpha: number) {

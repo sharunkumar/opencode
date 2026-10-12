@@ -69,9 +69,9 @@ Bash/shell tool commands use tree-sitter bash highlighting. The `$ ` marker rend
 
 Providers get stable theme colors (like agents/modes) in the model picker and prompt footer. `providerColor(theme, id)` hashes the provider id into the theme's `categorical` palette, the same role agents use; there are no per-provider brand hues. `DialogSelect` takes an optional `colorBy` callback so the widget stays domain-agnostic; the model dialog wires it for `{ providerID }` values.
 
-## Model Keyword Highlights (TUI) [NOT MIGRATED]
+## Model Keyword Highlights (TUI)
 
-`tui.json` `model_keywords: string[]` colorizes matching substrings in model names in the picker and prompt footer. Each entry is a case-insensitive regex (a plain string matches itself); first non-overlapping, longest matches win and only the matched span is tinted. Providers and keywords draw from one shared palette so their colors stay distinct until it wraps.
+`cli.json` `model_keywords: string[]` colorizes matching substrings in model names in the picker and prompt footer. Each entry is a case-insensitive regex (a plain string matches itself); first non-overlapping, longest matches win and only the matched span is tinted. Keyword colors are offset by the provider count in the same `categorical` palette so they stay distinct until it wraps. A v1 `tui.json` `model_keywords` entry is not read.
 
 ## Free Badge for Zero-Cost Models (TUI)
 

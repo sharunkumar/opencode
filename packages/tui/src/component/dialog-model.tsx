@@ -10,7 +10,9 @@ import { useData } from "../context/data"
 import { modelPreferenceKey } from "../model-preference"
 import { useLocation } from "../context/location"
 import { useTheme } from "../context/theme"
-import { providerColor } from "../theme/provider-color"
+import { keywordColor, providerColor } from "../theme/provider-color"
+import { useConfig } from "../config"
+import { Keyword } from "../util/keyword"
 
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
@@ -18,6 +20,7 @@ export function DialogModel(props: { providerID?: string }) {
   const dialog = useDialog()
   const location = useLocation()
   const theme = useTheme().surface("dialog")
+  const keywords = useConfig().data.model_keywords
   const [query, setQuery] = createSignal("")
   const favoritePriority = new Set(local.model.favorite().map(modelPreferenceKey))
 
@@ -145,6 +148,13 @@ export function DialogModel(props: { providerID?: string }) {
     <DialogSelect<ReturnType<typeof options>[number]["value"]>
       options={options()}
       colorBy={(value) => providerColor(theme, value.providerID)}
+      highlightTitle={(text) =>
+        Keyword.match(text, keywords).map((item) => ({
+          start: item.start,
+          end: item.end,
+          color: keywordColor(theme, item.keyword, providers().size),
+        }))
+      }
       actions={[
         {
           command: "model.dialog.provider",

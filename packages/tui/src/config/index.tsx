@@ -245,11 +245,18 @@ export const Info = Schema.Struct({
   }),
   animations: Schema.optional(Schema.Boolean).annotate({ description: "Enable interface animations" }),
   mouse: Schema.optional(Schema.Boolean).annotate({ description: "Enable terminal mouse capture" }),
+  model_keywords: Schema.optional(Schema.Array(Schema.String)).annotate({
+    description:
+      "Model-name patterns to colorize in the model picker and prompt footer. Each entry is a case-insensitive regex (a plain string matches itself); first non-overlapping, longest matches win",
+  }),
   cursor: Schema.optional(Cursor),
 })
 export type Info = Schema.Schema.Type<typeof Info>
 
-export type Resolved = Omit<Info, "attention" | "cursor" | "keybinds" | "leader" | "mouse" | "session" | "tabs"> & {
+export type Resolved = Omit<
+  Info,
+  "attention" | "cursor" | "keybinds" | "leader" | "model_keywords" | "mouse" | "session" | "tabs"
+> & {
   attention: {
     notifications: boolean
     sound: boolean
@@ -260,6 +267,7 @@ export type Resolved = Omit<Info, "attention" | "cursor" | "keybinds" | "leader"
   keybinds: TuiKeybind.BindingLookupView
   leader: { timeout: number }
   mouse: boolean
+  model_keywords: string[]
   cursor?: {
     style: "block" | "underline" | "line" | "default"
     blinking: boolean
@@ -276,6 +284,22 @@ export type Resolved = Omit<Info, "attention" | "cursor" | "keybinds" | "leader"
     layout: "horizontal" | "vertical"
     indicators: "status" | "numbers"
   }
+}
+
+const MODEL_KEYWORDS_CAP = 100
+
+function normalizeKeywords(input: readonly string[] | undefined) {
+  if (!input) return []
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const item of input) {
+    const value = item.trim()
+    if (!value || seen.has(value)) continue
+    seen.add(value)
+    result.push(value)
+    if (result.length >= MODEL_KEYWORDS_CAP) break
+  }
+  return result
 }
 
 export function resolve(
@@ -309,6 +333,7 @@ export function resolve(
     }),
     leader: { timeout: input.leader?.timeout ?? 2000 },
     mouse: input.mouse ?? true,
+    model_keywords: normalizeKeywords(input.model_keywords),
     cursor: input.cursor
       ? {
           style: input.cursor.style ?? "block",
