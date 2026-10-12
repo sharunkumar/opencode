@@ -1,0 +1,60 @@
+name: release
+
+on:
+  push:
+    branches:
+      - dev
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.repository != 'anomalyco/opencode'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Run checks
+        run: bun run check
+
+      - name: Compute version
+        id: version
+        run: echo "version=$(date -u +%Y.%-m.%-d)-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build binaries
+        run: bun run --cwd packages/cli build
+        env:
+          OPENCODE_VERSION: ${{ steps.version.outputs.version }}
+          OPENCODE_RELEASE: "1"
+          OPENCODE_CHANNEL: latest
+
+      - name: Archive binaries
+        working-directory: packages/cli/dist
+        run: |
+          mkdir -p ../release
+          for dir in cli-*; do
+            target="${dir#cli-}"
+            if [[ "$target" == linux-* ]]; then
+              tar -czf "../release/opencode-$target.tar.gz" -C "$dir/bin" opencode
+            else
+              exe=opencode; [[ "$target" == windows-* ]] && exe=opencode.exe
+              (cd "$dir/bin" && zip -q "$GITHUB_WORKSPACE/packages/cli/release/opencode-$target.zip" "$exe")
+            fi
+          done
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="v${{ steps.version.outputs.version }}"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --generate-notes --target "$GITHUB_SHA" --title "$tag" --latest
+          gh release upload "$tag" packages/cli/release/* --clobber
