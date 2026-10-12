@@ -1,10 +1,10 @@
 # Fork Additions
 
-## Inline Skill Autocomplete
+## Inline Skill Autocomplete [NOT MIGRATED]
 
 Type `/` mid-prompt (after whitespace) to trigger skill-only autocomplete. Skills can be inserted inline without replacing the entire prompt.
 
-## Skill Configuration Options
+## Skill Configuration Options [`slash`/`inline` NOT MIGRATED; `auto_load` migrated]
 
 ```ts
 skills: {
@@ -19,7 +19,7 @@ skills: {
 
 Plugin (`custom.skills`, TUI): `/skills` opens a dialog to browse skills and invoke one in the current session. Always available; the v1 `skills.slash` gating no longer exists.
 
-## UI Changes
+## UI Changes [STALE: skill browser migrated as `/skills`; command-palette category NOT MIGRATED]
 
 Skill browser dialog and a skill category in the command palette.
 
@@ -46,21 +46,21 @@ Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-late
 
 Added `make build-single` (builds the single-file `opencode` binary from `packages/cli`) and `make generate` (regenerates the SDK and related files).
 
-## Startup Profiling
+## Startup Profiling [NOT MIGRATED, check if still needed]
 
 `OPENCODE_STARTUP_PROFILE=1` emits `[startup-profile] <phase> <ms>` lines to stderr for the lazy startup phases (MCP connect, skill discovery/load, command-list init, MCP prompt commands, and readiness marks). Trigger in-process via `opencode mcp list`, `opencode debug skill`, and `opencode debug command`.
 
-## Non-blocking MCP Prompt Commands
+## Non-blocking MCP Prompt Commands [NOT MIGRATED, check if v2 still blocks]
 
 Building the command list no longer blocks on MCP connecting (previously ~11s with a single `npx …@latest` server), which left the TUI inline `/` skill autocomplete empty until MCP was ready. Commands now build synchronously and MCP prompt commands fold in on a background fiber, emitting a `command.changed` event the TUI refetches on. First `GET /command` dropped from ~11s to ~0.3s. Added `opencode debug command` to inspect this path.
 
-## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`)
+## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`) [NOT MIGRATED]
 
 Submitting while the assistant is working normally steers/queues the message (shown with a `QUEUED` badge). The new `prompt_interrupt_submit` keybind (default `ctrl+return`, command `prompt.interrupt_submit`) instead aborts the active run and then submits, so the prompt starts a fresh run. No-op on an empty prompt; behaves like a normal submit when idle.
 
 `ctrl+return` is removed from `input_newline` (now `shift+return,alt+return,ctrl+j`) so Ctrl+Enter is free. Ctrl+Enter is distinct from plain Enter only under the kitty keyboard protocol; without it, terminals collapse it into a newline. `super+return` (Cmd+Enter) was dropped because macOS terminals reserve Cmd.
 
-## Click-to-Toggle MCPs in TUI Sidebar
+## Click-to-Toggle MCPs in TUI Sidebar [NOT MIGRATED]
 
 Clicking an MCP in the sidebar enables or disables it. In-flight connections use status `pending` (upstream rename of `connecting`); the web UI still labels it "connecting". V1 servers that emit `connecting` are normalized to `pending` at the load boundary.
 
@@ -68,27 +68,27 @@ Clicking an MCP in the sidebar enables or disables it. In-flight connections use
 
 Default keybinds: `ctrl+s` to stash the current prompt, `ctrl+shift+s` to pop the last stashed prompt.
 
-## Terminal Title Without `OC |` Prefix
+## Terminal Title Without `OC |` Prefix [NOT MIGRATED]
 
 Session and plugin terminal titles use the bare title/id (no `OC |` prefix).
 
-## Bash Tool Syntax Highlighting (TUI)
+## Bash Tool Syntax Highlighting (TUI) [NOT MIGRATED]
 
 Bash/shell tool commands use tree-sitter bash highlighting.
 
-## Provider Colorization (TUI)
+## Provider Colorization (TUI) [NOT MIGRATED]
 
 Providers get stable theme colors (like agents/modes) in the model picker and prompt footer. `providerColor(theme, id)` maps common providers to brand hues and hashes the rest (palette excludes `error`). `DialogSelect` takes an optional `colorBy` callback so the widget stays domain-agnostic; the model dialog wires it for `{ providerID }` values and string provider ids.
 
-## Model Keyword Highlights (TUI)
+## Model Keyword Highlights (TUI) [NOT MIGRATED]
 
 `tui.json` `model_keywords: string[]` colorizes matching substrings in model names in the picker and prompt footer. Each entry is a case-insensitive regex (a plain string matches itself); first non-overlapping, longest matches win and only the matched span is tinted. Providers and keywords draw from one shared palette so their colors stay distinct until it wraps.
 
-## Free Badge for Zero-Cost Models (TUI)
+## Free Badge for Zero-Cost Models (TUI) [NOT MIGRATED]
 
 Model picker shows a `Free` footer for any model with `cost.input === 0`, not only `opencode` provider models.
 
-## Agent Cycle Tab Strip (TUI)
+## Agent Cycle Tab Strip (TUI) [NOT MIGRATED, needs spike]
 
 Tab / Shift+Tab cycles agents and briefly shows a colored tab list of all primary agents (agent color as background on the active tab). Settles back to the normal agent/model footer after 500ms idle.
 
@@ -100,7 +100,7 @@ Plugin (`custom.shell.timeouts` + TUI `custom.timeouts`): foreground shell comma
 
 Plugin (`custom.tool.subagent.resume`): a subagent `sessionID` that is not a child of the current session starts a new subagent instead of failing.
 
-## Session List Preview (TUI)
+## Session List Preview (TUI) [NOT MIGRATED]
 
 The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.
 
