@@ -1,11 +1,14 @@
-.PHONY: install-deps build-single generate
+.PHONY: install-deps typecheck build-single generate
 
 BUN := mise exec -- bun
 
 install-deps:
 	$(BUN) install
 
-build-single: install-deps
+typecheck: install-deps
+	$(BUN) run typecheck
+
+build-single: typecheck
 	$(BUN) run --cwd packages/cli build --single
 	mv packages/cli/dist/cli-*/bin/opencode packages/cli/dist/opencode2
 
