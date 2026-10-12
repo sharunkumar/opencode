@@ -2847,6 +2847,7 @@ function ShellDisplay(props: {
   error?: string
 }) {
   const theme = useTheme()
+  const { currentSyntax: syntax } = useThemes()
   const ctx = use()
   const client = useClient()
   const data = useData()
@@ -2935,7 +2936,7 @@ function ShellDisplay(props: {
   const maxLines = 10
   const maxChars = createMemo(() => maxLines * Math.max(20, ctx.width - 6 - (isRunning() ? 2 : 0)))
   const prefix = createMemo(() => (workdir() && workdir() !== "." ? `cd ${workdir()} && ` : ""))
-  const input = createMemo(() => (props.command ? `${isRunning() ? "" : "$ "}${prefix()}${props.command}` : ""))
+  const input = createMemo(() => (props.command ? `${prefix()}${props.command}` : ""))
   const collapsed = createMemo(() => collapseShellOutput(input(), output(), maxLines, maxChars()))
   const limitedInput = createMemo(() => (expanded() ? input() : collapsed().input))
   const limitedOutput = createMemo(() => (expanded() ? output() : collapsed().output))
@@ -2962,26 +2963,37 @@ function ShellDisplay(props: {
           <Show
             when={isRunning()}
             fallback={
-              <text
-                fg={theme.text.base}
-                wrapMode={expanded() ? "word" : "char"}
-                maxHeight={expanded() ? undefined : 2}
-              >
-                {limitedInput()}
-              </text>
+              <box flexDirection="row">
+                <text fg={theme.text.base} flexShrink={0}>
+                  {"$ "}
+                </text>
+                <code
+                  conceal={false}
+                  fg={theme.text.base}
+                  filetype="bash"
+                  syntaxStyle={syntax()}
+                  content={limitedInput()}
+                  wrapMode={expanded() ? "word" : "char"}
+                  maxHeight={expanded() ? undefined : 2}
+                  flexGrow={1}
+                  minWidth={0}
+                />
+              </box>
             }
           >
             <box flexDirection="row" gap={1}>
               <Spinner color={color()} />
-              <text
+              <code
+                conceal={false}
                 fg={color()}
+                filetype="bash"
+                syntaxStyle={syntax()}
+                content={limitedInput()}
                 wrapMode={expanded() ? "word" : "char"}
                 maxHeight={expanded() ? undefined : 2}
                 flexGrow={1}
                 minWidth={0}
-              >
-                {limitedInput()}
-              </text>
+              />
             </box>
           </Show>
           <Show when={limitedOutput()}>
