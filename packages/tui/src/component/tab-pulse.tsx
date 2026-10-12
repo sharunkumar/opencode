@@ -757,6 +757,7 @@ extend({ tab_pulse: TabPulseRenderable })
 
 export function TabPulse(props: {
   top?: number
+  bottom?: number
   width?: number
   edge?: "above" | "below"
   enabled?: boolean
@@ -786,6 +787,7 @@ export function TabPulse(props: {
     <tab_pulse
       position="absolute"
       top={props.top}
+      bottom={props.bottom}
       edge={props.edge}
       zIndex={0}
       width={props.width ?? "100%"}

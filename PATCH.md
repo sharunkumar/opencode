@@ -81,6 +81,10 @@ Plugin (`custom.tool.subagent.resume`): a subagent `sessionID` that is not a chi
 
 Session tabs default to vertical in the TUI (`tabs.layout`) and desktop app (`appearance.tabLayout`).
 
+## Vertical Tab Title Wrapping (TUI)
+
+Expanded vertical tab titles word-wrap onto as many rows as they need instead of cropping, and the tab grows to fit; the compact rail and project line still crop.
+
 ## Session List Preview (TUI) [NOT MIGRATED]
 
 The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.

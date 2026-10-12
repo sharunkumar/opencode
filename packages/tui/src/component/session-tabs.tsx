@@ -563,7 +563,6 @@ function VerticalSessionTabs(props: {
   const width = () => props.width ?? SESSION_SIDEBAR_WIDTH
   const compact = createMemo(() => width() < SESSION_TABS_COMPACT_BREAKPOINT)
   const tooltipWidth = () => Math.min(54, dimensions().width - width())
-  const stride = () => (compact() ? 2 : 3)
   const unreadColor = () => theme.hue.accent[200]
   const activeNumber = () => theme.hue.interactive[200]
   const idleNumber = () => tint(theme.text.formfield.base, background(), 0.55)
@@ -604,6 +603,16 @@ function VerticalSessionTabs(props: {
     return moveSessionTab(tabs.tabs(), pending.sessionID, pending.index)
   })
   const items = ordered
+  // Wrapped titles make tab heights vary, so positions come from the laid-out boxes.
+  const boxes = new Map<string, BoxRenderable>()
+  let addRow: BoxRenderable | undefined
+  const indexAt = (y: number) => {
+    const index = items().findIndex((tab) => {
+      const box = boxes.get(tab.sessionID)
+      return box !== undefined && y < box.screenY + box.height + 1
+    })
+    return index === -1 ? items().length - 1 : index
+  }
   const highlightColor = createMemo(() =>
     tint(background(), actionHovered(), actionHovered().a),
   )
@@ -611,7 +620,8 @@ function VerticalSessionTabs(props: {
     sessionID !== undefined && (activeID() === sessionID || hovered() === sessionID || dragging() === sessionID)
   const addHighlighted = () => newTab() || addHovered()
   const belowHighlighted = createMemo(() => {
-    const tab = items()[Math.floor(scrollTop() / stride())]
+    // Only the compact rail shows controls, and its tabs are a fixed two cells apart.
+    const tab = items()[Math.floor(scrollTop() / 2)]
     return tab ? highlighted(tab.sessionID) : addHighlighted()
   })
   createEffect(() => {
@@ -659,11 +669,14 @@ function VerticalSessionTabs(props: {
     dimensions()
     const index = newTab() ? items().length : items().findIndex((tab) => tab.sessionID === activeID())
     if (index === -1) return
-    const top = index * stride()
-    const height = compact() ? 3 : newTab() ? 1 : 2
     // Scroll after layout: newly opened tabs do not contribute to the scroll range yet.
     const reveal = () => {
       if (!scroll) return
+      const box = newTab() ? addRow : boxes.get(activeID()!)
+      if (!box) return
+      // Compact tabs also reveal the half rows drawn above and below them.
+      const top = box.screenY - scroll.content.screenY - (compact() ? 1 : 0)
+      const height = compact() ? 3 : box.height
       if (top < scroll.scrollTop) return scroll.scrollTo(top)
       if (top + height > scroll.scrollTop + scroll.viewport.height) {
         scroll.scrollTo(top + height - scroll.viewport.height)
@@ -693,10 +706,7 @@ function VerticalSessionTabs(props: {
       0,
       Math.min(
         tabs.tabs().length - 1,
-        Math.floor(
-          (event.y - (scroll?.viewport.screenY ?? rail.screenY + 1) - (compact() ? 1 : 0) + (scroll?.scrollTop ?? 0)) /
-            stride(),
-        ),
+        indexAt(event.y),
       ),
     )
     const sourceIndex = items().findIndex((item) => item.sessionID === source)
@@ -752,21 +762,7 @@ function VerticalSessionTabs(props: {
               const hoveredTitleWidth = () => Math.max(1, restingTitleWidth() - 1)
               const titleWidth = () => (hovered() === tab.sessionID ? hoveredTitleWidth() : restingTitleWidth())
               const title = () => (props.controller ? undefined : session()?.title) ?? tab.title ?? "Untitled session"
-              const scrolling = () => marquee.active() === tab.sessionID
-              const visibleTitleParts = createMemo(() =>
-                scrolling()
-                  ? marqueeTextParts(title(), titleWidth(), marquee.offset())
-                  : Locale.graphemes(Locale.takeWidth(title(), titleWidth())).map((value) => ({
-                      value,
-                      separator: false,
-                    })),
-              )
-              const visibleTitle = createMemo(() =>
-                visibleTitleParts()
-                  .map((part) => part.value)
-                  .join(""),
-              )
-              const titleFades = createMemo(() => marqueeOverflows(title(), titleWidth()) && titleWidth() > FADE_WIDTH)
+              const titleParts = createMemo(() => Locale.graphemes(title()))
               const tabDetail = createMemo(() => detail(tab.sessionID))
               const visibleDetail = createMemo(() => Locale.takeWidth(tabDetail(), titleWidth()))
               const visibleDetailParts = createMemo(() => Locale.graphemes(visibleDetail()))
@@ -861,33 +857,24 @@ function VerticalSessionTabs(props: {
               const separatorLowerColor = createMemo(() =>
                 tint(background(), glowHue(), 0.12 * glowLevel()),
               )
-              const titleColor = (index: number, separator: boolean) => {
+              const titleColor = (index: number) => {
                 const level = titleGlow.value().level
-                const color =
-                  level === 0
-                    ? foreground()
-                    : glowTextColor(foreground(), glowColor(), 1 + numberWidth() + index, width(), level)
-                const faded = titleFades()
-                  ? fadeTitleColor(
-                      color,
-                      pulseBackground(),
-                      index,
-                      visibleTitleParts().length,
-                      scrolling() ? marquee.leading() : 0,
-                    )
-                  : color
-                return separator ? tint(faded, pulseBackground(), 0.55) : faded
+                return level === 0
+                  ? foreground()
+                  : glowTextColor(foreground(), glowColor(), 1 + numberWidth() + index, width(), level)
               }
+              onCleanup(() => boxes.delete(tab.sessionID))
               return (
                 <box
-                  height={compact() ? 1 : 2}
+                  ref={(element: BoxRenderable) => boxes.set(tab.sessionID, element)}
+                  height={compact() ? 1 : undefined}
                   width="100%"
                   position="relative"
                   flexDirection="column"
                   backgroundColor={tabBackground()}
                   onMouseOver={(event) => {
                     setHoverY(event.y)
-                    marquee.enter(tab.sessionID, title(), compact() ? Infinity : hoveredTitleWidth())
+                    marquee.enter(tab.sessionID, title(), Infinity)
                   }}
                   onMouseOut={() => marquee.leave(tab.sessionID)}
                   onMouseDown={(event) => {
@@ -914,7 +901,7 @@ function VerticalSessionTabs(props: {
                       return
                     }
                     didDrag = false
-                    marquee.enter(tab.sessionID, title(), compact() ? Infinity : hoveredTitleWidth())
+                    marquee.enter(tab.sessionID, title(), Infinity)
                     setDragging(tab.sessionID)
                   }}
                 >
@@ -1000,7 +987,7 @@ function VerticalSessionTabs(props: {
                     />
                     <Show when={index() === items().length - 1}>
                       <TabPulse
-                        top={2}
+                        bottom={-1}
                         edge="below"
                         enabled={animations()}
                         active={runs()}
@@ -1025,7 +1012,7 @@ function VerticalSessionTabs(props: {
                         backgroundColor={background()}
                       />
                     </Show>
-                    <box height={1} width="100%" flexDirection="row" position="relative">
+                    <box width="100%" flexDirection="row" position="relative">
                       <TabPulse
                         enabled={animations()}
                         active={runs()}
@@ -1057,13 +1044,12 @@ function VerticalSessionTabs(props: {
                           attributes={selected() ? TextAttributes.BOLD : undefined}
                         />
                         <title_shimmer
-                          width={titleWidth()}
-                          height={1}
+                          width={hoveredTitleWidth()}
                           fg={foreground()}
                           rename={{ pending: status().renaming, title: title() }}
                           enabled={animations()}
                           backdrop={pulseBackground()}
-                          wrapMode="none"
+                          wrapMode="word"
                           selectable={false}
                           attributes={
                             status().renaming && !animations()
@@ -1073,14 +1059,9 @@ function VerticalSessionTabs(props: {
                                 : undefined
                           }
                         >
-                          <Show
-                            when={scrolling() || titleGlow.value().level > 0 || titleFades()}
-                            fallback={visibleTitle()}
-                          >
-                            <Index each={visibleTitleParts()}>
-                              {(part, index) => (
-                                <span style={{ fg: titleColor(index, part().separator) }}>{part().value}</span>
-                              )}
+                          <Show when={titleGlow.value().level > 0} fallback={title()}>
+                            <Index each={titleParts()}>
+                              {(part, index) => <span style={{ fg: titleColor(index) }}>{part()}</span>}
                             </Index>
                           </Show>
                         </title_shimmer>
@@ -1145,6 +1126,7 @@ function VerticalSessionTabs(props: {
               active new-session tab, instead of spawning a separate pseudo tab above itself. */}
           <Show when={tabs.add || newTab()}>
             <box
+              ref={(element: BoxRenderable) => (addRow = element)}
               height={1}
               width="100%"
               position="relative"

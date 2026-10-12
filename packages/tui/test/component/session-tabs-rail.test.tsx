@@ -123,3 +123,56 @@ test("compact rail renders and controls session tabs", async () => {
     app.renderer.destroy()
   }
 })
+
+test("expanded rail wraps long titles and keeps drag targets aligned", async () => {
+  const [items, setItems] = createSignal<SessionTab[]>([
+    { sessionID: "first", title: "Short" },
+    { sessionID: "second", title: "alpha bravo charlie delta echo foxtrot golf hotel india juliet" },
+    { sessionID: "third", title: "Third" },
+  ])
+  const controller = {
+    tabs: items,
+    current: () => "first",
+    add() {},
+    select() {},
+    close() {},
+    move(sessionID: string, index: number) {
+      setItems((items) => moveSessionTab(items, sessionID, index))
+    },
+    detail: () => "project",
+    status: () => EMPTY_SESSION_TAB_STATUS,
+  } satisfies SessionTabsController
+  const app = await testRender(
+    () => (
+      <TestTuiContexts>
+        <ConfigProvider config={createTuiResolvedConfig({ tabs: { indicators: "status" } })}>
+          <Keymap.Provider>
+            <ThemeProvider mode="dark" source={emptyThemeSource}>
+              <box width="100%" height="100%" flexDirection="row">
+                <SessionTabs controller={controller} orientation="vertical" animations={false} width={24} />
+              </box>
+            </ThemeProvider>
+          </Keymap.Provider>
+        </ConfigProvider>
+      </TestTuiContexts>
+    ),
+    { width: 40, height: 14 },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("Third"))
+    const rows = app.captureCharFrame().split("\n")
+    expect(rows[4]).toContain("alpha bravo charlie")
+    expect(rows[5]).toContain("delta echo foxtrot")
+    expect(rows[6]).toContain("golf hotel india")
+    expect(rows[7]).toContain("juliet")
+    expect(rows[8]).toContain("project")
+    expect(rows[10]).toContain("Third")
+
+    await app.mockMouse.drag(2, 10, 2, 1)
+    expect(items().map((tab) => tab.sessionID)).toEqual(["third", "first", "second"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
