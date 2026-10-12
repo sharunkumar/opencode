@@ -9,7 +9,6 @@ import Notifications from "../feature-plugins/system/notifications"
 import Plugins from "../feature-plugins/system/plugins"
 import Storybook from "../feature-plugins/system/storybook"
 import Stats from "../feature-plugins/system/stats"
-import CustomSkills from "../feature-plugins/custom/skills"
 import CustomTimeouts from "../feature-plugins/custom/timeouts"
 import Latex from "@opencode/latex/plugin"
 import Merman from "@opencode/merman/plugin"
@@ -30,6 +29,5 @@ export const builtins = [
   // normal launches and register it only for OPENCODE_STORY runs.
   ...(process.env.OPENCODE_STORY ? [Storybook] : []),
   DiffViewer,
-  CustomSkills,
   CustomTimeouts,
 ]
