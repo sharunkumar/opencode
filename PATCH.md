@@ -85,6 +85,10 @@ Session tabs default to vertical in the TUI (`tabs.layout`) and desktop app (`ap
 
 Expanded vertical tab titles word-wrap onto as many rows as they need instead of cropping, and the tab grows to fit; the compact rail and project line still crop.
 
+## Vertical Tab Project Groups (TUI)
+
+The expanded vertical rail groups tabs under project headers and nests child sessions under their parent tab; manual tab reordering is disabled while `tabs.layout` is vertical.
+
 ## Session List Preview (TUI) [NOT MIGRATED]
 
 The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.

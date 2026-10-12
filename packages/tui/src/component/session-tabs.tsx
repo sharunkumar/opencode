@@ -29,12 +29,14 @@ import {
   adaptiveSessionTabLayout,
   moveSessionTab,
   NEW_SESSION_TAB_TITLE,
+  sessionTabChildren,
   sessionTabComplete,
   sessionTabDetail,
   sessionTabNumberLabel,
   seedSessionTabMotion,
   sessionTabOverflowWidth,
   type SessionTab,
+  type SessionTabChild,
   type SessionTabUnread,
 } from "../context/session-tabs-model"
 import { createAnimatable, spring, tween } from "../ui/animation"
@@ -116,6 +118,10 @@ export type SessionTabsController = Pick<ContextController, "tabs" | "current" |
   recentlyClosed?: ContextController["recentlyClosed"]
   reopen?: ContextController["reopen"]
   detail?: (sessionID: string) => string | undefined
+  group?: (sessionID: string) => string | undefined
+  children?: (sessionID: string) => SessionTabChild[]
+  viewing?: ContextController["viewing"]
+  selectChild?: ContextController["selectChild"]
   rename?: (sessionID: string) => void
   search?: () => void
   status(sessionID: string): SessionTabsStatus
@@ -593,26 +599,30 @@ function VerticalSessionTabs(props: {
   }
   // OpenTUI captures the first drag target, which may differ from the tab pressed on a fast move.
   const [dragging, setDragging] = createSignal<string>()
-  const [preview, setPreview] = createSignal<{ sessionID: string; index: number }>()
   const [contextMenu, setContextMenu] = createSignal<TabContextMenuState>()
+  const group = (sessionID: string) => {
+    const fixture = tabs.group?.(sessionID)
+    if (fixture !== undefined) return fixture
+    const session = data?.session.get(sessionID)
+    return session ? projectName(data?.project.get(session.projectID), session.location.directory) : undefined
+  }
+  const children = (sessionID: string) => {
+    const fixture = tabs.children?.(sessionID)
+    if (fixture) return fixture
+    return sessionTabChildren(
+      sessionID,
+      data?.session
+        .family(sessionID)
+        .flatMap((id) => data?.session.get(id) ?? [])
+        .map((session) => ({ id: session.id, parentID: session.parentID, created: session.time.created })) ?? [],
+    )
+  }
   const newTab = () => tabs.newTab?.() ?? false
   const activeID = createMemo(() => (newTab() ? undefined : tabs.current()))
-  const ordered = createMemo(() => {
-    const pending = preview()
-    if (!pending) return tabs.tabs()
-    return moveSessionTab(tabs.tabs(), pending.sessionID, pending.index)
-  })
-  const items = ordered
+  const items = () => tabs.tabs()
   // Wrapped titles make tab heights vary, so positions come from the laid-out boxes.
   const boxes = new Map<string, BoxRenderable>()
   let addRow: BoxRenderable | undefined
-  const indexAt = (y: number) => {
-    const index = items().findIndex((tab) => {
-      const box = boxes.get(tab.sessionID)
-      return box !== undefined && y < box.screenY + box.height + 1
-    })
-    return index === -1 ? items().length - 1 : index
-  }
   const highlightColor = createMemo(() =>
     tint(background(), actionHovered(), actionHovered().a),
   )
@@ -658,13 +668,6 @@ function VerticalSessionTabs(props: {
   let suppressClick = false
 
   createEffect(() => {
-    const pending = preview()
-    if (!pending || dragging()) return
-    const index = tabs.tabs().findIndex((tab) => tab.sessionID === pending.sessionID)
-    if (index === -1 || index === Math.min(pending.index, tabs.tabs().length - 1)) setPreview(undefined)
-  })
-
-  createEffect(() => {
     if (!scroll) return
     dimensions()
     const index = newTab() ? items().length : items().findIndex((tab) => tab.sessionID === activeID())
@@ -692,25 +695,7 @@ function VerticalSessionTabs(props: {
     if (!source) return
     if (didDrag) suppressClick = true
     setDragging(undefined)
-    const pending = preview()
-    if (pending?.sessionID === source) tabs.move(pending.sessionID, pending.index)
     tabs.select(source)
-  }
-
-  const drag = (event: MouseEvent) => {
-    if (!rail) return
-    const source = dragging()
-    if (!source) return
-    didDrag = true
-    const target = Math.max(
-      0,
-      Math.min(
-        tabs.tabs().length - 1,
-        indexAt(event.y),
-      ),
-    )
-    const sourceIndex = items().findIndex((item) => item.sessionID === source)
-    if (target !== sourceIndex && preview()?.index !== target) setPreview({ sessionID: source, index: target })
   }
 
   return (
@@ -731,7 +716,9 @@ function VerticalSessionTabs(props: {
         didDrag = false
         queueMicrotask(() => (suppressClick = false))
       }}
-      onMouseDrag={drag}
+      onMouseDrag={() => {
+        if (dragging()) didDrag = true
+      }}
       onMouseDragEnd={release}
     >
       <Show when={compact()}>
@@ -864,176 +851,105 @@ function VerticalSessionTabs(props: {
                   : glowTextColor(foreground(), glowColor(), 1 + numberWidth() + index, width(), level)
               }
               onCleanup(() => boxes.delete(tab.sessionID))
+              const header = createMemo(() => {
+                const label = group(tab.sessionID)
+                const before = previous()
+                return label && label !== (before ? group(before.sessionID) : undefined) ? label : undefined
+              })
+              const childRows = createMemo(() => children(tab.sessionID))
               return (
-                <box
-                  ref={(element: BoxRenderable) => boxes.set(tab.sessionID, element)}
-                  height={compact() ? 1 : undefined}
-                  width="100%"
-                  position="relative"
-                  flexDirection="column"
-                  backgroundColor={tabBackground()}
-                  onMouseOver={(event) => {
-                    setHoverY(event.y)
-                    marquee.enter(tab.sessionID, title(), Infinity)
-                  }}
-                  onMouseOut={() => marquee.leave(tab.sessionID)}
-                  onMouseDown={(event) => {
-                    if (event.button === MIDDLE_MOUSE_BUTTON) {
-                      didDrag = false
-                      setDragging(undefined)
-                      tabs.close(tab.sessionID)
-                      event.preventDefault()
-                      event.stopPropagation()
-                      return
-                    }
-                    if (event.button === RIGHT_MOUSE_BUTTON) {
-                      didDrag = false
-                      setDragging(undefined)
-                      if (!rail) return
-                      setContextMenu({
-                        x: event.x,
-                        y: event.y,
-                        sessionID: tab.sessionID,
-                        title: tab.title,
-                      })
-                      event.preventDefault()
-                      event.stopPropagation()
-                      return
-                    }
-                    didDrag = false
-                    marquee.enter(tab.sessionID, title(), Infinity)
-                    setDragging(tab.sessionID)
-                  }}
-                >
-                  <Show when={compact()}>
-                    <Show when={highlighted(tab.sessionID)}>
-                      <SessionTabHalfRow
-                        top={-1}
-                        edge="top"
-                        width={width()}
-                        color={pulseBackground()}
-                        background={
-                          highlighted(items()[index() - 1]?.sessionID) ? highlightColor() : background()
-                        }
-                      />
-                      <SessionTabHalfRow
-                        top={1}
-                        edge="bottom"
-                        width={width()}
-                        color={pulseBackground()}
-                        background={
-                          (
-                            index() === items().length - 1
-                              ? addHighlighted()
-                              : highlighted(items()[index() + 1]?.sessionID)
-                          )
-                            ? highlightColor()
-                            : background()
-                        }
-                      />
-                    </Show>
-                    <box height={1} flexDirection="row" justifyContent="center">
-                      <TabIndicator
-                        centered
-                        selected={selected()}
-                        width={width()}
-                        status={status()}
-                        label={sessionTabNumberLabel(index())}
-                        idleLabel={Locale.graphemes(title().trimStart())[0] ?? "U"}
-                        color={
-                          selected()
-                            ? theme.text.base
-                            : props.numbers
-                              ? numberColor()
-                              : (tabFeedbackColor(status(), theme) ?? (runs() ? activeNumber() : foreground()))
-                        }
-                        unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
-                        backgroundColor={pulseBackground()}
-                        flashColor={theme.text.base}
-                        animations={animations()}
-                        numbers={props.numbers}
-                        spinner={props.spinner}
-                        unreadMarker={props.unreadMarker}
-                        attributes={selected() ? TextAttributes.BOLD : undefined}
-                      />
-                    </box>
+                <box flexDirection="column" width="100%">
+                  <Show when={!compact() && header()}>
+                    {(label) => (
+                      <box paddingLeft={1} paddingRight={1} marginBottom={1}>
+                        <text fg={theme.text.muted} wrapMode="none" selectable={false} attributes={TextAttributes.BOLD}>
+                          {Locale.truncateWidth(label(), width() - 2)}
+                        </text>
+                      </box>
+                    )}
                   </Show>
-                  <Show when={!compact()}>
-                    <TabPulse
-                      top={-1}
-                      edge="above"
-                      enabled={animations()}
-                      active={runs()}
-                      outerActive={previousRuns()}
-                      promptPulse={status().promptPulse}
-                      outerPromptPulse={previousStatus().promptPulse}
-                      complete={complete() && !status().attention}
-                      outerComplete={previousStatus().complete && !previousStatus().attention}
-                      glow={glows()}
-                      outerGlow={previousGlows()}
-                      color={separatorLowerPulseColor()}
-                      width={indicatorWidth}
-                      outerColor={separatorUpperPulseColor()}
-                      flashColor={tint(background(), theme.text.base, 0.22)}
-                      outerFlashColor={tint(background(), theme.text.base, 0.18)}
-                      flashTail={8}
-                      glowColor={separatorLowerColor()}
-                      outerGlowColor={separatorUpperColor()}
-                      glowTail={8}
-                      outerGlowTail={5}
-                      completionColor={separatorLowerColor()}
-                      outerCompletionColor={separatorUpperColor()}
-                      backgroundColor={background()}
-                    />
-                    <Show when={index() === items().length - 1}>
-                      <TabPulse
-                        bottom={-1}
-                        edge="below"
-                        enabled={animations()}
-                        active={runs()}
-                        outerActive={false}
-                        promptPulse={status().promptPulse}
-                        outerPromptPulse={0}
-                        complete={complete() && !status().attention}
-                        outerComplete={false}
-                        glow={glows()}
-                        outerGlow={false}
-                        color={tint(background(), theme.text.base, 0.04)}
-                        width={indicatorWidth}
-                        outerColor={tint(background(), theme.text.base, 0.006)}
-                        flashColor={tint(background(), theme.text.base, 0.18)}
-                        flashTail={8}
-                        glowColor={tint(background(), glowHue(), 0.1 * glowLevel())}
-                        outerGlowColor={background()}
-                        glowTail={8}
-                        outerGlowTail={5}
-                        completionColor={tint(background(), glowHue(), 0.1 * glowLevel())}
-                        outerCompletionColor={background()}
-                        backgroundColor={background()}
-                      />
-                    </Show>
-                    <box width="100%" flexDirection="row" position="relative">
-                      <TabPulse
-                        enabled={animations()}
-                        active={runs()}
-                        promptPulse={status().promptPulse}
-                        complete={complete() && !status().attention}
-                        glow={glows()}
-                        color={pulseColor()}
-                        width={indicatorWidth}
-                        glowColor={glowColor()}
-                        flashColor={flashColor()}
-                        flashTail={8}
-                        completionColor={glowColor()}
-                        backgroundColor={pulseBackground()}
-                        onLevel={setSweepLevel}
-                      />
-                      <box zIndex={1} width="100%" flexDirection="row" paddingRight={1}>
+                  <box
+                    ref={(element: BoxRenderable) => boxes.set(tab.sessionID, element)}
+                    height={compact() ? 1 : undefined}
+                    width="100%"
+                    position="relative"
+                    flexDirection="column"
+                    backgroundColor={tabBackground()}
+                    onMouseOver={(event) => {
+                      setHoverY(event.y)
+                      marquee.enter(tab.sessionID, title(), Infinity)
+                    }}
+                    onMouseOut={() => marquee.leave(tab.sessionID)}
+                    onMouseDown={(event) => {
+                      if (event.button === MIDDLE_MOUSE_BUTTON) {
+                        didDrag = false
+                        setDragging(undefined)
+                        tabs.close(tab.sessionID)
+                        event.preventDefault()
+                        event.stopPropagation()
+                        return
+                      }
+                      if (event.button === RIGHT_MOUSE_BUTTON) {
+                        didDrag = false
+                        setDragging(undefined)
+                        if (!rail) return
+                        setContextMenu({
+                          x: event.x,
+                          y: event.y,
+                          sessionID: tab.sessionID,
+                          title: tab.title,
+                        })
+                        event.preventDefault()
+                        event.stopPropagation()
+                        return
+                      }
+                      didDrag = false
+                      marquee.enter(tab.sessionID, title(), Infinity)
+                      setDragging(tab.sessionID)
+                    }}
+                  >
+                    <Show when={compact()}>
+                      <Show when={highlighted(tab.sessionID)}>
+                        <SessionTabHalfRow
+                          top={-1}
+                          edge="top"
+                          width={width()}
+                          color={pulseBackground()}
+                          background={
+                            highlighted(items()[index() - 1]?.sessionID) ? highlightColor() : background()
+                          }
+                        />
+                        <SessionTabHalfRow
+                          top={1}
+                          edge="bottom"
+                          width={width()}
+                          color={pulseBackground()}
+                          background={
+                            (
+                              index() === items().length - 1
+                                ? addHighlighted()
+                                : highlighted(items()[index() + 1]?.sessionID)
+                            )
+                              ? highlightColor()
+                              : background()
+                          }
+                        />
+                      </Show>
+                      <box height={1} flexDirection="row" justifyContent="center">
                         <TabIndicator
+                          centered
+                          selected={selected()}
+                          width={width()}
                           status={status()}
                           label={sessionTabNumberLabel(index())}
-                          width={numberWidth()}
-                          color={numberColor()}
+                          idleLabel={Locale.graphemes(title().trimStart())[0] ?? "U"}
+                          color={
+                            selected()
+                              ? theme.text.base
+                              : props.numbers
+                                ? numberColor()
+                                : (tabFeedbackColor(status(), theme) ?? (runs() ? activeNumber() : foreground()))
+                          }
                           unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
                           backgroundColor={pulseBackground()}
                           flashColor={theme.text.base}
@@ -1043,80 +959,199 @@ function VerticalSessionTabs(props: {
                           unreadMarker={props.unreadMarker}
                           attributes={selected() ? TextAttributes.BOLD : undefined}
                         />
-                        <title_shimmer
-                          width={hoveredTitleWidth()}
-                          fg={foreground()}
-                          rename={{ pending: status().renaming, title: title() }}
-                          enabled={animations()}
-                          backdrop={pulseBackground()}
-                          wrapMode="word"
-                          selectable={false}
-                          attributes={
-                            status().renaming && !animations()
-                              ? TextAttributes.DIM
-                              : selected()
-                                ? TextAttributes.BOLD
-                                : undefined
-                          }
-                        >
-                          <Show when={titleGlow.value().level > 0} fallback={title()}>
-                            <Index each={titleParts()}>
-                              {(part, index) => <span style={{ fg: titleColor(index) }}>{part()}</span>}
-                            </Index>
-                          </Show>
-                        </title_shimmer>
-                        <text
-                          position="absolute"
-                          right={1}
-                          zIndex={2}
-                          width={1}
-                          fg={closeHovered() ? theme.text.base : theme.text.muted}
-                          selectable={false}
-                          onMouseOver={() => setCloseHovered(true)}
-                          onMouseOut={() => setCloseHovered(false)}
-                          onMouseDown={(event) => {
-                            if (event.button === RIGHT_MOUSE_BUTTON || hovered() !== tab.sessionID) return
-                            didDrag = false
-                            event.stopPropagation()
-                          }}
-                          onMouseUp={(event) => {
-                            if (event.button === RIGHT_MOUSE_BUTTON) return
-                            if (suppressClick) return
-                            if (hovered() !== tab.sessionID) return
-                            event.stopPropagation()
-                            tabs.close(tab.sessionID)
-                          }}
-                        >
-                          {hovered() === tab.sessionID ? "✕" : ""}
-                        </text>
                       </box>
-                    </box>
-                    <box height={1} width="100%" position="relative" flexDirection="row">
+                    </Show>
+                    <Show when={!compact()}>
                       <TabPulse
+                        top={-1}
+                        edge="above"
                         enabled={animations()}
                         active={runs()}
+                        outerActive={previousRuns()}
                         promptPulse={status().promptPulse}
+                        outerPromptPulse={previousStatus().promptPulse}
                         complete={complete() && !status().attention}
+                        outerComplete={previousStatus().complete && !previousStatus().attention}
                         glow={glows()}
-                        color={detailPulseColor()}
+                        outerGlow={previousGlows()}
+                        color={separatorLowerPulseColor()}
                         width={indicatorWidth}
-                        glowColor={detailGlowColor()}
-                        glowTail={10}
-                        flashColor={detailFlashColor()}
+                        outerColor={separatorUpperPulseColor()}
+                        flashColor={tint(background(), theme.text.base, 0.22)}
+                        outerFlashColor={tint(background(), theme.text.base, 0.18)}
                         flashTail={8}
-                        completionColor={detailGlowColor()}
-                        backgroundColor={pulseBackground()}
+                        glowColor={separatorLowerColor()}
+                        outerGlowColor={separatorUpperColor()}
+                        glowTail={8}
+                        outerGlowTail={5}
+                        completionColor={separatorLowerColor()}
+                        outerCompletionColor={separatorUpperColor()}
+                        backgroundColor={background()}
                       />
-                      <box zIndex={1} width="100%" flexDirection="row" paddingLeft={prefixWidth()} paddingRight={2}>
-                        <text fg={detailColor()} wrapMode="none" selectable={false}>
-                          <Show when={detailFades()} fallback={visibleDetail()}>
-                            <For each={visibleDetailParts()}>
-                              {(character, index) => <span style={{ fg: detailTextColor(index()) }}>{character}</span>}
-                            </For>
-                          </Show>
-                        </text>
+                      <Show when={index() === items().length - 1 && childRows().length === 0}>
+                        <TabPulse
+                          bottom={-1}
+                          edge="below"
+                          enabled={animations()}
+                          active={runs()}
+                          outerActive={false}
+                          promptPulse={status().promptPulse}
+                          outerPromptPulse={0}
+                          complete={complete() && !status().attention}
+                          outerComplete={false}
+                          glow={glows()}
+                          outerGlow={false}
+                          color={tint(background(), theme.text.base, 0.04)}
+                          width={indicatorWidth}
+                          outerColor={tint(background(), theme.text.base, 0.006)}
+                          flashColor={tint(background(), theme.text.base, 0.18)}
+                          flashTail={8}
+                          glowColor={tint(background(), glowHue(), 0.1 * glowLevel())}
+                          outerGlowColor={background()}
+                          glowTail={8}
+                          outerGlowTail={5}
+                          completionColor={tint(background(), glowHue(), 0.1 * glowLevel())}
+                          outerCompletionColor={background()}
+                          backgroundColor={background()}
+                        />
+                      </Show>
+                      <box width="100%" flexDirection="row" position="relative">
+                        <TabPulse
+                          enabled={animations()}
+                          active={runs()}
+                          promptPulse={status().promptPulse}
+                          complete={complete() && !status().attention}
+                          glow={glows()}
+                          color={pulseColor()}
+                          width={indicatorWidth}
+                          glowColor={glowColor()}
+                          flashColor={flashColor()}
+                          flashTail={8}
+                          completionColor={glowColor()}
+                          backgroundColor={pulseBackground()}
+                          onLevel={setSweepLevel}
+                        />
+                        <box zIndex={1} width="100%" flexDirection="row" paddingRight={1}>
+                          <TabIndicator
+                            status={status()}
+                            label={sessionTabNumberLabel(index())}
+                            width={numberWidth()}
+                            color={numberColor()}
+                            unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
+                            backgroundColor={pulseBackground()}
+                            flashColor={theme.text.base}
+                            animations={animations()}
+                            numbers={props.numbers}
+                            spinner={props.spinner}
+                            unreadMarker={props.unreadMarker}
+                            attributes={selected() ? TextAttributes.BOLD : undefined}
+                          />
+                          <title_shimmer
+                            width={hoveredTitleWidth()}
+                            fg={foreground()}
+                            rename={{ pending: status().renaming, title: title() }}
+                            enabled={animations()}
+                            backdrop={pulseBackground()}
+                            wrapMode="word"
+                            selectable={false}
+                            attributes={
+                              status().renaming && !animations()
+                                ? TextAttributes.DIM
+                                : selected()
+                                  ? TextAttributes.BOLD
+                                  : undefined
+                            }
+                          >
+                            <Show when={titleGlow.value().level > 0} fallback={title()}>
+                              <Index each={titleParts()}>
+                                {(part, index) => <span style={{ fg: titleColor(index) }}>{part()}</span>}
+                              </Index>
+                            </Show>
+                          </title_shimmer>
+                          <text
+                            position="absolute"
+                            right={1}
+                            zIndex={2}
+                            width={1}
+                            fg={closeHovered() ? theme.text.base : theme.text.muted}
+                            selectable={false}
+                            onMouseOver={() => setCloseHovered(true)}
+                            onMouseOut={() => setCloseHovered(false)}
+                            onMouseDown={(event) => {
+                              if (event.button === RIGHT_MOUSE_BUTTON || hovered() !== tab.sessionID) return
+                              didDrag = false
+                              event.stopPropagation()
+                            }}
+                            onMouseUp={(event) => {
+                              if (event.button === RIGHT_MOUSE_BUTTON) return
+                              if (suppressClick) return
+                              if (hovered() !== tab.sessionID) return
+                              event.stopPropagation()
+                              tabs.close(tab.sessionID)
+                            }}
+                          >
+                            {hovered() === tab.sessionID ? "✕" : ""}
+                          </text>
+                        </box>
                       </box>
-                    </box>
+                      <box height={1} width="100%" position="relative" flexDirection="row">
+                        <TabPulse
+                          enabled={animations()}
+                          active={runs()}
+                          promptPulse={status().promptPulse}
+                          complete={complete() && !status().attention}
+                          glow={glows()}
+                          color={detailPulseColor()}
+                          width={indicatorWidth}
+                          glowColor={detailGlowColor()}
+                          glowTail={10}
+                          flashColor={detailFlashColor()}
+                          flashTail={8}
+                          completionColor={detailGlowColor()}
+                          backgroundColor={pulseBackground()}
+                        />
+                        <box zIndex={1} width="100%" flexDirection="row" paddingLeft={prefixWidth()} paddingRight={2}>
+                          <text fg={detailColor()} wrapMode="none" selectable={false}>
+                            <Show when={detailFades()} fallback={visibleDetail()}>
+                              <For each={visibleDetailParts()}>
+                                {(character, index) => (
+                                  <span style={{ fg: detailTextColor(index()) }}>{character}</span>
+                                )}
+                              </For>
+                            </Show>
+                          </text>
+                        </box>
+                      </box>
+                    </Show>
+                  </box>
+                  <Show when={!compact()}>
+                    <For each={childRows()}>
+                      {(child) => {
+                        const viewing = () => tabs.viewing?.() === child.sessionID
+                        const childTitle = () => data?.session.get(child.sessionID)?.title ?? "Untitled session"
+                        return (
+                          <box
+                            width="100%"
+                            paddingLeft={prefixWidth()}
+                            paddingRight={1}
+                            backgroundColor={viewing() ? actionSelected() : background()}
+                            onMouseUp={(event) => {
+                              if (event.button === RIGHT_MOUSE_BUTTON || suppressClick) return
+                              tabs.selectChild?.(child.sessionID)
+                            }}
+                          >
+                            <text
+                              fg={viewing() ? theme.text.base : theme.text.muted}
+                              wrapMode="none"
+                              selectable={false}
+                              attributes={viewing() ? TextAttributes.BOLD : undefined}
+                            >
+                              {Locale.truncateWidth(child.prefix + childTitle(), width() - prefixWidth() - 1)}
+                            </text>
+                          </box>
+                        )
+                      }}
+                    </For>
                   </Show>
                 </box>
               )

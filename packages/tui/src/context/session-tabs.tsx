@@ -18,6 +18,7 @@ import { anchorKey, type AnchorTarget } from "../routes/session/anchors"
 import {
   closeSessionTab,
   cycleSessionTab,
+  groupSessionTabs,
   moveSessionTab,
   moveSessionTabHistory,
   NEW_SESSION_TAB_TITLE,
@@ -136,6 +137,11 @@ export const { use: useSessionTabs, provider: SessionTabsProvider } = createSimp
       unread: {},
     })
     const current = () => (route.data.type === "session" ? root(route.data.sessionID) : undefined)
+    const grouped = () => config.tabs.layout === "vertical"
+    // The vertical rail renders project groups, so numbering, cycling, and selection follow that order.
+    const ordered = createMemo(() =>
+      grouped() ? groupSessionTabs(state().tabs, (id) => data.session.get(id)?.projectID) : state().tabs,
+    )
     createSessionRetention({
       session: data.session,
       current: () =>
@@ -335,7 +341,7 @@ export const { use: useSessionTabs, provider: SessionTabsProvider } = createSimp
       const previous = selected
         ? moveSessionTabHistory(recordSessionTabHistory(history, target), closed.tabs, target, -1)
         : { history, sessionID: undefined }
-      const next = previous.sessionID ?? closed.next
+      const next = previous.sessionID ?? closeSessionTab(ordered(), target).next
       history = previous.history
       update((draft) => {
         draft.tabs = closeSessionTab(draft.tabs, target).tabs
@@ -352,7 +358,14 @@ export const { use: useSessionTabs, provider: SessionTabsProvider } = createSimp
     return {
       enabled,
       tabs() {
-        return state().tabs
+        return ordered()
+      },
+      viewing() {
+        return route.data.type === "session" ? route.data.sessionID : undefined
+      },
+      selectChild(sessionID: string) {
+        if (!enabled()) return
+        route.navigate({ type: "session", sessionID })
       },
       recentlyClosed() {
         return closedTabs()
@@ -445,7 +458,7 @@ export const { use: useSessionTabs, provider: SessionTabsProvider } = createSimp
         route.navigate({ type: "session", sessionID: result.sessionID })
       },
       move(sessionID: string, index: number) {
-        if (!enabled()) return
+        if (!enabled() || grouped()) return
         const session = root(sessionID)
         if (moveSessionTab(state().tabs, session, index) === state().tabs) return
         update((draft) => {
@@ -454,19 +467,19 @@ export const { use: useSessionTabs, provider: SessionTabsProvider } = createSimp
       },
       cycle(direction: 1 | -1) {
         if (!enabled()) return
-        const tab = cycleSessionTab(state().tabs, current(), direction)
+        const tab = cycleSessionTab(ordered(), current(), direction)
         if (tab) route.navigate({ type: "session", sessionID: tab.sessionID })
       },
       cycleUnread(direction: 1 | -1) {
         if (!enabled()) return
-        const tab = cycleSessionTab(state().tabs, current(), direction, (tab) =>
+        const tab = cycleSessionTab(ordered(), current(), direction, (tab) =>
           Boolean(status(tab.sessionID).unread || status(tab.sessionID).attention),
         )
         if (tab) route.navigate({ type: "session", sessionID: tab.sessionID })
       },
       selectIndex(index: number) {
         if (!enabled()) return
-        const tab = state().tabs[index]
+        const tab = ordered()[index]
         if (tab) route.navigate({ type: "session", sessionID: tab.sessionID })
       },
     }

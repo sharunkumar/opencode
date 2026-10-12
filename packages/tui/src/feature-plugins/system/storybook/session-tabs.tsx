@@ -160,6 +160,9 @@ function SessionTabsStory(props: { context: Plugin.Context }) {
     detail(sessionID) {
       return FIXTURE_TABS.find((tab) => tab.sessionID === sessionID)?.project
     },
+    group(sessionID) {
+      return FIXTURE_TABS.find((tab) => tab.sessionID === sessionID)?.project
+    },
     status(sessionID) {
       return statuses()[sessionID] ?? EMPTY_SESSION_TAB_STATUS
     },

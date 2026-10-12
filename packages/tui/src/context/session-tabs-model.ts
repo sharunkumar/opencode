@@ -99,6 +99,33 @@ export function moveSessionTab(tabs: SessionTab[], sessionID: string, index: num
   return next
 }
 
+/** Keeps each group's tabs contiguous, ordering groups by their first tab and tabs by their stored order. */
+export function groupSessionTabs(tabs: SessionTab[], groupOf: (sessionID: string) => string | undefined) {
+  return [...Map.groupBy(tabs, (tab) => groupOf(tab.sessionID) ?? "").values()].flat()
+}
+
+export type SessionTabChild = { sessionID: string; prefix: string }
+
+/** Descendants of a tab's root session in creation order, with tree-guide prefixes such as "│  └─ ". */
+export function sessionTabChildren(
+  rootID: string,
+  sessions: readonly { id: string; parentID?: string; created: number }[],
+) {
+  const byParent = Map.groupBy(
+    sessions.filter((session) => session.parentID).toSorted((a, b) => a.created - b.created),
+    (session) => session.parentID,
+  )
+  const walk = (parentID: string, indent: string): SessionTabChild[] =>
+    (byParent.get(parentID) ?? []).flatMap((child, index, siblings) => {
+      const last = index === siblings.length - 1
+      return [
+        { sessionID: child.id, prefix: indent + (last ? "└─ " : "├─ ") },
+        ...walk(child.id, indent + (last ? "   " : "│  ")),
+      ]
+    })
+  return walk(rootID, "")
+}
+
 export function cycleSessionTab(
   tabs: readonly SessionTab[],
   active: string | undefined,

@@ -41,6 +41,8 @@ async function renderSessionTabs(
     newLocation?: "launch" | "inherit"
     launchDirectory?: string
     tabsEnabled?: boolean
+    layout?: "horizontal" | "vertical"
+    sessionProjects?: Record<string, string>
     viewFailures?: number
     experimental?: Record<string, boolean>
   },
@@ -120,7 +122,7 @@ async function renderSessionTabs(
       id: sessionID,
       parentID: options?.sessionParents?.[sessionID],
       title: sessionID === initialSessionID ? options?.title : undefined,
-      projectID: "project",
+      projectID: options?.sessionProjects?.[sessionID] ?? "project",
       location: { directory: options?.sessionDirectories?.[sessionID] ?? directory },
       cost: 0,
       tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
@@ -135,7 +137,10 @@ async function renderSessionTabs(
   let storage!: ReturnType<typeof useStorage>
   let config!: ReturnType<typeof useConfig>
   let configuration = {
-    tabs: { mode: options?.tabsEnabled === false ? ("off" as const) : ("on" as const) },
+    tabs: {
+      mode: options?.tabsEnabled === false ? ("off" as const) : ("on" as const),
+      layout: options?.layout,
+    },
     experimental: options?.experimental,
     session: { new_location: options?.newLocation ?? "launch" },
   }
@@ -266,7 +271,7 @@ test("loads VCS metadata for each persisted tab location", async () => {
 })
 
 test("opens a background tab without changing the current session", async () => {
-  const setup = await renderSessionTabs("first")
+  const setup = await renderSessionTabs("first", { layout: "horizontal" })
 
   try {
     await wait(() => setup.tabs.current() === "first" && setup.tabs.tabs().some((tab) => tab.sessionID === "first"))
@@ -276,6 +281,29 @@ test("opens a background tab without changing the current session", async () => 
     expect(setup.tabs.current()).toBe("first")
     setup.tabs.move("background", 0)
     await wait(() => setup.tabs.tabs()[0]?.sessionID === "background")
+  } finally {
+    await setup.destroy()
+  }
+})
+
+test("groups vertical tabs by project and ignores manual moves", async () => {
+  const setup = await renderSessionTabs("first", {
+    persisted: ["first", "second", "third"],
+    sessionProjects: { first: "web", second: "api", third: "web" },
+  })
+
+  try {
+    await wait(() => setup.data.session.get("third") !== undefined && setup.data.session.get("second") !== undefined)
+    await wait(
+      () =>
+        setup.tabs
+          .tabs()
+          .map((tab) => tab.sessionID)
+          .join() === "first,third,second",
+    )
+    setup.tabs.move("second", 0)
+    await Bun.sleep(50)
+    expect(setup.tabs.tabs().map((tab) => tab.sessionID)).toEqual(["first", "third", "second"])
   } finally {
     await setup.destroy()
   }

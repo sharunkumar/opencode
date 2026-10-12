@@ -3,6 +3,7 @@ import {
   adaptiveSessionTabLayout,
   closeSessionTab,
   cycleSessionTab,
+  groupSessionTabs,
   moveSessionTab,
   moveSessionTabHistory,
   openSessionTab,
@@ -10,6 +11,7 @@ import {
   recordSessionTabHistory,
   reopenSessionTab,
   seedSessionTabMotion,
+  sessionTabChildren,
   sessionTabComplete,
   sessionTabDetail,
   sessionTabOverflowWidth,
@@ -23,6 +25,27 @@ describe("session tabs", () => {
     expect(sessionTabDetail("opencode", "feature/sidebar", "main", false)).toBe("opencode")
     expect(sessionTabDetail("opencode", "main", "main", true)).toBe("opencode")
     expect(sessionTabDetail("opencode", undefined, "main", true)).toBe("opencode")
+  })
+
+  test("groups tabs by project in first-appearance order", () => {
+    const tabs = ["a", "b", "c", "d"].map((sessionID) => ({ sessionID }))
+    const project = { a: "web", b: "api", c: "web" } as Record<string, string>
+    expect(groupSessionTabs(tabs, (id) => project[id]).map((tab) => tab.sessionID)).toEqual(["a", "c", "b", "d"])
+  })
+
+  test("nests session descendants in creation order", () => {
+    expect(
+      sessionTabChildren("root", [
+        { id: "root", created: 0 },
+        { id: "late", parentID: "root", created: 3 },
+        { id: "early", parentID: "root", created: 1 },
+        { id: "grandchild", parentID: "early", created: 2 },
+      ]),
+    ).toEqual([
+      { sessionID: "early", prefix: "├─ " },
+      { sessionID: "grandchild", prefix: "│  └─ " },
+      { sessionID: "late", prefix: "└─ " },
+    ])
   })
 
   test("labels tabs by ordinal", () => {
