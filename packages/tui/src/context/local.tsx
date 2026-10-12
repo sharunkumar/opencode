@@ -63,7 +63,16 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       const [agentStore, setAgentStore] = createStore({
         current: undefined as string | undefined,
         draftBySession: {} as Record<string, { agent?: string } | undefined>,
+        picking: false,
       })
+      let settleTimer: ReturnType<typeof setTimeout> | undefined
+      const settle = () => {
+        if (settleTimer) clearTimeout(settleTimer)
+        settleTimer = setTimeout(() => {
+          setAgentStore("picking", false)
+          settleTimer = undefined
+        }, 500)
+      }
       onCleanup(event.on("session.deleted", (evt) => setAgentStore("draftBySession", evt.data.sessionID, undefined)))
       onCleanup(
         event.on("session.agent.selected", (evt) => {
@@ -94,6 +103,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               : agentStore.current
           return agents().find((agent) => agent.id === selected) ?? agents().at(0)
         },
+        picking() {
+          return agentStore.picking
+        },
         set(id: string) {
           if (!agents().some((agent) => agent.id === id))
             return toast.show({
@@ -101,6 +113,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               message: `Agent not found: ${id}`,
               duration: 3000,
             })
+          if (settleTimer) clearTimeout(settleTimer)
+          settleTimer = undefined
+          setAgentStore("picking", false)
           batch(() => {
             const changed = this.current()?.id !== id
             if (changed) model.remember()
@@ -120,7 +135,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (next >= agents().length) next = 0
             const value = agents()[next]
             this.set(value.id)
+            setAgentStore("picking", true)
           })
+          settle()
         },
         color(id: string) {
           const index = visibleAgents().findIndex((agent) => agent.id === id)

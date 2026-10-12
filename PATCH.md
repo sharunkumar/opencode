@@ -77,9 +77,9 @@ Providers get stable theme colors (like agents/modes) in the model picker and pr
 
 Model picker shows a `Free` footer for any model with `cost.input === 0`, not only `opencode` provider models.
 
-## Agent Cycle Tab Strip (TUI) [NOT MIGRATED, needs spike]
+## Agent Cycle Tab Strip (TUI)
 
-Tab / Shift+Tab cycles agents and briefly shows a colored tab list of all primary agents (agent color as background on the active tab). Settles back to the normal agent/model footer after 500ms idle.
+Tab / Shift+Tab cycles agents and briefly shows a colored tab list of visible agents (agent color as background on the active tab, black or white text by luminance). Settles back to the normal agent/model footer after 500ms idle. Clicking a tab selects it and closes the strip.
 
 ## `/timeouts` Command
 

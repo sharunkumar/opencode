@@ -1,6 +1,7 @@
 import {
   BoxRenderable,
   RGBA,
+  TextAttributes,
   TextareaRenderable,
   MouseEvent,
   PasteEvent,
@@ -1853,22 +1854,53 @@ export function Prompt(props: PromptProps) {
               syntaxStyle={syntax()}
             />
             <box flexDirection="row" flexShrink={0} paddingTop={1} gap={1} justifyContent="space-between">
-              <PromptMetadataRow
-                mode={store.mode}
-                agent={agentLabel()}
-                auto={local.permission.mode === "autoaccept"}
-                model={promptDisplay().modelLabel}
-                provider={promptDisplay().providerLabel}
-                providerColor={currentProviderColor()}
-                keywords={config.model_keywords}
-                keywordColor={(keyword) => keywordColor(theme, keyword, data.location.provider.list(currentLocation.ref)?.length ?? 0)}
-                variant={promptDisplay().variant}
-                muted={!!muted()}
-                highlight={highlight()}
-                agentAlpha={agentMetaAlpha()}
-                modelAlpha={modelMetaAlpha()}
-                variantAlpha={variantMetaAlpha()}
-              />
+              <Show
+                when={store.mode !== "shell" && local.agent.picking()}
+                fallback={
+                  <PromptMetadataRow
+                    mode={store.mode}
+                    agent={agentLabel()}
+                    auto={local.permission.mode === "autoaccept"}
+                    model={promptDisplay().modelLabel}
+                    provider={promptDisplay().providerLabel}
+                    providerColor={currentProviderColor()}
+                    keywords={config.model_keywords}
+                    keywordColor={(keyword) =>
+                      keywordColor(theme, keyword, data.location.provider.list(currentLocation.ref)?.length ?? 0)
+                    }
+                    variant={promptDisplay().variant}
+                    muted={!!muted()}
+                    highlight={highlight()}
+                    agentAlpha={agentMetaAlpha()}
+                    modelAlpha={modelMetaAlpha()}
+                    variantAlpha={variantMetaAlpha()}
+                  />
+                }
+              >
+                <box flexDirection="row" gap={1} flexShrink={0}>
+                  <For each={local.agent.list().filter((item) => !item.hidden)}>
+                    {(item) => {
+                      const active = () => item.id === local.agent.current()?.id
+                      const bg = () => local.agent.color(item.id)
+                      return (
+                        <box
+                          paddingLeft={1}
+                          paddingRight={1}
+                          backgroundColor={active() ? bg() : theme.background.raised.base}
+                          onMouseUp={() => local.agent.set(item.id)}
+                        >
+                          <text
+                            fg={active() ? readable(bg()) : bg()}
+                            attributes={active() ? TextAttributes.BOLD : undefined}
+                          >
+                            {Locale.titlecase(item.name)}
+                          </text>
+                        </box>
+                      )
+                    }}
+                  </For>
+                </box>
+              </Show>
             </box>
           </box>
         </box>
@@ -2034,4 +2066,9 @@ export function Prompt(props: PromptProps) {
       />
     </>
   )
+}
+
+function readable(bg: RGBA) {
+  const luminance = 0.299 * bg.r + 0.587 * bg.g + 0.114 * bg.b
+  return RGBA.fromInts(luminance > 0.6 ? 0 : 255, luminance > 0.6 ? 0 : 255, luminance > 0.6 ? 0 : 255)
 }
