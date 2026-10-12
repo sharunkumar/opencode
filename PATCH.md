@@ -61,13 +61,13 @@ Default keybinds: `ctrl+s` to stash the current prompt, `ctrl+shift+s` to pop th
 
 Session and plugin terminal titles use the bare title/id (no `OC |` prefix).
 
-## Bash Tool Syntax Highlighting (TUI) [NOT MIGRATED]
+## Bash Tool Syntax Highlighting (TUI)
 
-Bash/shell tool commands use tree-sitter bash highlighting.
+Bash/shell tool commands use tree-sitter bash highlighting. The `$ ` marker renders separately so the shell grammar only sees the command.
 
-## Provider Colorization (TUI) [NOT MIGRATED]
+## Provider Colorization (TUI)
 
-Providers get stable theme colors (like agents/modes) in the model picker and prompt footer. `providerColor(theme, id)` maps common providers to brand hues and hashes the rest (palette excludes `error`). `DialogSelect` takes an optional `colorBy` callback so the widget stays domain-agnostic; the model dialog wires it for `{ providerID }` values and string provider ids.
+Providers get stable theme colors (like agents/modes) in the model picker and prompt footer. `providerColor(theme, id)` hashes the provider id into the theme's `categorical` palette, the same role agents use; there are no per-provider brand hues. `DialogSelect` takes an optional `colorBy` callback so the widget stays domain-agnostic; the model dialog wires it for `{ providerID }` values.
 
 ## Model Keyword Highlights (TUI) [NOT MIGRATED]
 

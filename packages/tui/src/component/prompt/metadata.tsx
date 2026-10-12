@@ -11,6 +11,7 @@ export function PromptMetadataRow(props: {
   auto: boolean
   model: string
   provider: string
+  providerColor?: RGBA
   variant?: string
   muted: boolean
   highlight: RGBA
@@ -61,7 +62,7 @@ export function PromptMetadataRow(props: {
             </text>
             <Show when={layout().provider}>
               {(provider) => (
-                <text flexShrink={0} fg={fade(theme.text.muted, props.modelAlpha)}>
+                <text flexShrink={0} fg={fade(props.providerColor ?? theme.text.muted, props.modelAlpha)}>
                   {provider()}
                 </text>
               )}

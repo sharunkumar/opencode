@@ -33,6 +33,7 @@ export interface DialogSelectProps<T> {
   renderFilter?: boolean
   locked?: boolean
   preserveSelection?: boolean
+  colorBy?: (value: T) => RGBA | undefined
   actions?: DialogSelectAction<T>[]
   footerHints?: {
     title: string
@@ -208,6 +209,11 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     filtered()
     setFocusedAction(undefined)
   })
+
+  function headerColor(options: DialogSelectOption<T>[]) {
+    const colors = new Set(options.flatMap((option) => props.colorBy?.(option.value) ?? []))
+    return colors.size === 1 ? [...colors][0] : undefined
+  }
 
   const flatten = createMemo(() => props.search !== undefined || (props.flat && store.filter.length > 0))
 
@@ -746,7 +752,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                 <>
                   <Show when={category}>
                     <box paddingTop={index() > 0 ? 1 : 0} paddingLeft={3}>
-                      <text fg={theme.hue.accent[200]} attributes={TextAttributes.BOLD}>
+                      <text fg={headerColor(options) ?? theme.hue.accent[200]} attributes={TextAttributes.BOLD}>
                         {category}
                       </text>
                     </box>
@@ -755,6 +761,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                     {(option) => {
                       const active = createMemo(() => !props.locked && isDeepEqual(option.value, selected()?.value))
                       const current = createMemo(() => isDeepEqual(option.value, props.current))
+                      const tint = createMemo(() => props.colorBy?.(option.value))
                       return (
                         <box
                           flexDirection="column"
@@ -802,7 +809,8 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                               footer={
                                 flatten() ? (option.searchFooter ?? option.category ?? option.footer) : option.footer
                               }
-                              footerColor={option.footerColor}
+                              footerColor={option.footerColor ?? (flatten() && option.category ? tint() : undefined)}
+                              descriptionColor={tint()}
                               titleWidth={option.titleWidth}
                               truncateTitle={option.truncateTitle}
                               description={option.description !== category ? option.description : undefined}
@@ -851,6 +859,7 @@ function Option(props: {
   title: string
   titleView?: JSX.Element
   description?: string
+  descriptionColor?: RGBA
   active?: boolean
   current?: boolean
   muted?: boolean
@@ -897,7 +906,7 @@ function Option(props: {
               ? Locale.truncateLeft(props.title, props.titleWidth ?? 61)
               : Locale.truncate(props.title, props.titleWidth ?? 61))}
         <Show when={props.description}>
-          <span style={{ fg: props.active && !props.muted ? text() : theme.text.muted }}>
+          <span style={{ fg: props.active && !props.muted ? text() : (props.descriptionColor ?? theme.text.muted) }}>
             {" " + props.description}
           </span>
         </Show>

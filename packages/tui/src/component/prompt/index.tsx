@@ -48,6 +48,7 @@ import { useConnected } from "../use-connected"
 import { useToast } from "../../ui/toast"
 import { createFadeIn } from "../../util/signal"
 import { DialogSkill } from "../dialog-skill"
+import { providerColor } from "../../theme/provider-color"
 import { useConfig } from "../../config"
 import { usePromptMove } from "./move"
 import { resolvePastedAttachments } from "./local-attachment"
@@ -1585,6 +1586,10 @@ export function Prompt(props: PromptProps) {
     if (store.mode === "shell") return theme.text.action.primary.selected
     return promptDisplay().agentColor ?? theme.border.base
   })
+  const currentProviderColor = createMemo(() => {
+    const id = local.model.current()?.providerID
+    return id ? providerColor(theme, id) : undefined
+  })
   const agentLabel = createMemo(() => (store.mode === "shell" ? "Shell" : promptDisplay().agentLabel))
   const animateMetadata = !revealedPromptMetadata.has(local)
   const metadataAnimationsEnabled = () => animationsEnabled() && animateMetadata
@@ -1854,6 +1859,7 @@ export function Prompt(props: PromptProps) {
                 auto={local.permission.mode === "autoaccept"}
                 model={promptDisplay().modelLabel}
                 provider={promptDisplay().providerLabel}
+                providerColor={currentProviderColor()}
                 variant={promptDisplay().variant}
                 muted={!!muted()}
                 highlight={highlight()}

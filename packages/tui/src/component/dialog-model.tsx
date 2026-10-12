@@ -9,12 +9,15 @@ import { useConnected } from "./use-connected"
 import { useData } from "../context/data"
 import { modelPreferenceKey } from "../model-preference"
 import { useLocation } from "../context/location"
+import { useTheme } from "../context/theme"
+import { providerColor } from "../theme/provider-color"
 
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
   const data = useData()
   const dialog = useDialog()
   const location = useLocation()
+  const theme = useTheme().surface("dialog")
   const [query, setQuery] = createSignal("")
   const favoritePriority = new Set(local.model.favorite().map(modelPreferenceKey))
 
@@ -141,6 +144,7 @@ export function DialogModel(props: { providerID?: string }) {
   return (
     <DialogSelect<ReturnType<typeof options>[number]["value"]>
       options={options()}
+      colorBy={(value) => providerColor(theme, value.providerID)}
       actions={[
         {
           command: "model.dialog.provider",
