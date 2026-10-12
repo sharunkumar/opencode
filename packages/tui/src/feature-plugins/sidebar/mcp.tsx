@@ -1,6 +1,6 @@
 import { Plugin } from "@opencode/plugin/tui"
-import { createMemo, For, Match, Show, Switch } from "solid-js"
-import { DialogMcp } from "../../component/dialog-mcp"
+import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js"
+import { errorMessage } from "../../util/error"
 
 export function SidebarMcp(props: { context: Plugin.Context; sessionID: string }) {
   const [view, updateView] = props.context.storage.store("view", { initial: { open: true } })
@@ -11,6 +11,29 @@ export function SidebarMcp(props: { context: Plugin.Context; sessionID: string }
   const bad = createMemo(
     () => list().filter((item) => item.status.status === "failed" || item.status.status === "needs_auth").length,
   )
+
+  const [loading, setLoading] = createSignal<ReadonlySet<string>>(new Set())
+
+  const toggle = (name: string, status: string) => {
+    if (loading().has(name) || status === "pending") return
+    const location = session()?.location ?? props.context.location
+    if (!location) return
+    setLoading((prev) => new Set(prev).add(name))
+    const input = { server: name, location: { directory: location.directory } }
+    const call =
+      status === "connected" ? props.context.client.api.mcp.disconnect(input) : props.context.client.api.mcp.connect(input)
+    void call
+      .catch((error) =>
+        props.context.ui.toast.show({ variant: "error", message: errorMessage(error) }),
+      )
+      .finally(() =>
+      setLoading((prev) => {
+        const next = new Set(prev)
+        next.delete(name)
+        return next
+      }),
+    )
+  }
 
   const dot = (status: string) => {
     if (status === "connected") return theme.text.feedback.success.base
@@ -53,11 +76,7 @@ export function SidebarMcp(props: { context: Plugin.Context; sessionID: string }
                 flexDirection="row"
                 gap={1}
                 minWidth={0}
-                onMouseUp={() =>
-                  props.context.ui.dialog.show(() => (
-                    <DialogMcp initialServer={item.name} details={item.status.status === "failed"} />
-                  ))
-                }
+                onMouseUp={() => toggle(item.name, item.status.status)}
               >
                 <text
                   flexShrink={0}

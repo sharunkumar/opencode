@@ -64,7 +64,7 @@ Submitting while the assistant is working normally steers/queues the message (sh
 
 `ctrl+return` is removed from `input_newline` (now `shift+return,alt+return,ctrl+j`) so Ctrl+Enter is free. Ctrl+Enter is distinct from plain Enter only under the kitty keyboard protocol; without it, terminals collapse it into a newline. `super+return` (Cmd+Enter) was dropped because macOS terminals reserve Cmd.
 
-## Click-to-Toggle MCPs in TUI Sidebar [NOT MIGRATED]
+## Click-to-Toggle MCPs in TUI Sidebar
 
 Clicking an MCP in the sidebar enables or disables it. In-flight connections use status `pending` (upstream rename of `connecting`); the web UI still labels it "connecting". V1 servers that emit `connecting` are normalized to `pending` at the load boundary.
 
