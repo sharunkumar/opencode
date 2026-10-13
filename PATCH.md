@@ -117,6 +117,10 @@ Clicking a markdown link to a directory (trailing `/`, e.g. `[core](packages/cor
 
 Plugin (`custom.instructions` + TUI `custom.sidebar-instructions`): the sidebar lists ambient and session-injected instruction files for the current session. Two or fewer stay expanded; more collapse behind a click toggle.
 
+## Pull Request Sidebar
+
+Plugin (`custom.pull-requests` + TUI `custom.sidebar.pull-requests`): the sidebar lists pull requests linked in user messages and assistant replies (not tool calls, reasoning, or other transcript noise) as `owner/repo#n`; clicking one opens it. Only full `https://<host>/<owner>/<repo>/pull/<n>` URLs match. github.com is always recognized; add enterprise hosts with `{ "plugins": [{ "package": "custom.pull-requests", "options": { "hosts": ["ghe.example.com"] } }] }`. Two or fewer stay expanded; more collapse behind a click toggle.
+
 ## Instruction Filenames
 
 Auto-loaded instruction filenames are `InstructionDiscovery.filenames` (`AGENTS.md`, `CLAUDE.local.md`, `AGENTS.local.md`, `PATCH.md`), shared by the startup walk and the read-time walk.

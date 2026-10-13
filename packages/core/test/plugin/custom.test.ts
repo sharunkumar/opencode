@@ -1,10 +1,13 @@
 import { expect } from "bun:test"
 import { Agent } from "@opencode/core/agent"
+import { Model } from "@opencode/schema/model"
+import { Provider } from "@opencode/schema/provider"
 import { Plugin } from "@opencode/core/plugin"
 import { InstructionDiscovery } from "@opencode/core/instruction-discovery"
 import { Instructions } from "@opencode/core/instructions/index"
 import { CustomAutoLoadSkillsPlugin } from "@opencode/core/plugin/custom/auto-load-skills"
 import { CustomInstructionsPlugin } from "@opencode/core/plugin/custom/instructions"
+import { CustomPullRequestsPlugin } from "@opencode/core/plugin/custom/pull-requests"
 import { CustomTaskResumePlugin } from "@opencode/core/plugin/custom/task-resume"
 import { CustomTimeoutsPlugin } from "@opencode/core/plugin/custom/timeouts"
 import { PluginHooks } from "@opencode/core/plugin/hooks"
@@ -86,6 +89,74 @@ it.effect("collects instruction files without duplicates and flags unavailable d
       files: ["AGENTS.md", "packages/web/AGENTS.md"],
     })
     expect(CustomInstructionsPlugin.instructionFiles(project, [], [])).toEqual({ unavailable: false, files: [] })
+  }),
+)
+
+it.effect("normalizes pull request hosts and always includes github.com", () =>
+  Effect.sync(() => {
+    expect(CustomPullRequestsPlugin.hostList(undefined)).toEqual(["github.com"])
+    expect(
+      CustomPullRequestsPlugin.hostList({ hosts: ["https://GHE.example.com/", " ghe.example.com ", "github.com", ""] }),
+    ).toEqual(["github.com", "ghe.example.com"])
+    expect(CustomPullRequestsPlugin.hostList({ hosts: "nope" })).toEqual(["github.com"])
+  }),
+)
+
+it.effect("collects pull request links from the transcript without duplicates", () =>
+  Effect.sync(() => {
+    const user = (text: string, id: string) =>
+      SessionMessage.User.make({
+        id: SessionMessage.ID.make(id),
+        type: "user",
+        text,
+        files: [],
+        agents: [],
+        time: { created: DateTime.makeUnsafe(0) },
+      })
+    const history = [
+      user("see https://github.com/acme/app/pull/12 and https://GHE.example.com/team/svc/pull/7/files", "msg_a"),
+      user("again https://github.com/acme/app/pull/12, plus https://other.example.com/x/y/pull/1", "msg_b"),
+      user("an issue https://github.com/acme/app/issues/3", "msg_c"),
+      SessionMessage.Synthetic.make({
+        id: SessionMessage.ID.make("msg_hidden"),
+        type: "synthetic",
+        text: "https://github.com/acme/hidden/pull/9",
+        time: { created: DateTime.makeUnsafe(0) },
+      }),
+      SessionMessage.Assistant.make({
+        id: SessionMessage.ID.make("msg_reply"),
+        type: "assistant",
+        agent: Agent.ID.make("build"),
+        model: { id: Model.ID.make("model"), providerID: Provider.ID.make("provider") },
+        content: [
+          SessionMessage.AssistantReasoning.make({
+            type: "reasoning",
+            text: "https://github.com/acme/thought/pull/4",
+          }),
+          SessionMessage.AssistantText.make({
+            type: "text",
+            text: "opened https://github.com/acme/reply/pull/5",
+          }),
+          SessionMessage.AssistantTool.make({
+            type: "tool",
+            id: "call",
+            name: "read",
+            state: { status: "streaming", input: "https://github.com/acme/tool/pull/6" },
+            time: { created: DateTime.makeUnsafe(0) },
+          }),
+        ],
+        time: { created: DateTime.makeUnsafe(0) },
+      }),
+    ]
+    expect(CustomPullRequestsPlugin.pullRequests(["github.com", "ghe.example.com"], history)).toEqual([
+      { url: "https://github.com/acme/app/pull/12", label: "acme/app#12" },
+      { url: "https://ghe.example.com/team/svc/pull/7", label: "team/svc#7" },
+      { url: "https://github.com/acme/reply/pull/5", label: "acme/reply#5" },
+    ])
+    expect(CustomPullRequestsPlugin.pullRequests(["github.com"], history).map((pr) => pr.label)).toEqual([
+      "acme/app#12",
+      "acme/reply#5",
+    ])
   }),
 )
 
