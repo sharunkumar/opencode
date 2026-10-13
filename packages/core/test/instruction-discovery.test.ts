@@ -19,6 +19,12 @@ import { readInitial, readUpdate, state } from "./lib/instructions"
 import { testEffect } from "./lib/effect"
 import { host } from "./plugin/host"
 
+function watched(directories: string[]): Watcher.WatchInput[] {
+  return directories.flatMap((directory) =>
+    InstructionDiscovery.filenames.map((name) => ({ path: path.join(directory, name), type: "file" })),
+  )
+}
+
 const it = testEffect(Layer.empty)
 
 const instructionLayer = (input: {
@@ -185,14 +191,9 @@ describe("ConfigInstructionPlugin.Plugin", () => {
 
           const discovery = yield* start()
           const watcher = yield* Watcher.Test
-          expect(yield* watcher.subscriptions()).toEqual([
-            { path: globalFile, type: "file" },
-            { path: packageFile, type: "file" },
-            { path: path.join(project, "packages", "AGENTS.md"), type: "file" },
-            { path: projectFile, type: "file" },
-            { path: sharedFile, type: "file" },
-            { path: path.join(home, "AGENTS.md"), type: "file" },
-          ])
+          expect(yield* watcher.subscriptions()).toEqual(
+            watched([global, directory, path.join(project, "packages"), project, shared, home]),
+          )
           expect(yield* watcher.subscriptions()).not.toContainEqual({
             path: path.join(tmp.path, "AGENTS.md"),
             type: "file",
@@ -337,12 +338,9 @@ describe("ConfigInstructionPlugin.Plugin", () => {
           yield* Effect.promise(() => fs.mkdir(directory, { recursive: true }))
           yield* start()
           const watcher = yield* Watcher.Test
-          expect(yield* watcher.subscriptions()).toEqual([
-            { path: path.join(global, "AGENTS.md"), type: "file" },
-            { path: path.join(directory, "AGENTS.md"), type: "file" },
-            { path: path.join(project, "packages", "AGENTS.md"), type: "file" },
-            { path: path.join(project, "AGENTS.md"), type: "file" },
-          ])
+          expect(yield* watcher.subscriptions()).toEqual(
+            watched([global, directory, path.join(project, "packages"), project]),
+          )
         }).pipe(
           Effect.provide(
             instructionLayer({
@@ -534,7 +532,7 @@ describe("ConfigInstructionPlugin.Plugin", () => {
       )
 
       const repo = path.resolve("/repo")
-      expect(observed.values).toEqual([{ targets: ["AGENTS.md"], start: repo, stop: repo, type: "file" }])
+      expect(observed.values).toEqual([{ targets: [...InstructionDiscovery.filenames], start: repo, stop: repo, type: "file" }])
     }),
   )
 })

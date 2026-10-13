@@ -111,4 +111,4 @@ Clicking a markdown link to a directory (trailing `/`, e.g. `[core](packages/cor
 
 ## Instruction Filenames
 
-Auto-loaded instruction filenames are `InstructionDiscovery.filenames` (`["AGENTS.md"]`), shared by the startup walk and the read-time walk.
+Auto-loaded instruction filenames are `InstructionDiscovery.filenames` (`AGENTS.md`, `CLAUDE.local.md`, `AGENTS.local.md`, `PATCH.md`), shared by the startup walk and the read-time walk.
