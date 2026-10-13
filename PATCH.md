@@ -104,3 +104,7 @@ Plugin (`custom.session.retitle`): regenerates the session title from the compac
 ## Skill Mentions Use `/`
 
 Skills are mentioned and autocompleted as `/skill-id` (leading `/` menu in the TUI and app composer) instead of `@skill-id`; `@` stays for files, agents, and references.
+
+## Directory Links Open in Sublime Merge (TUI)
+
+Clicking a markdown link to a directory (trailing `/`, e.g. `[core](packages/core/)`) copies its absolute path and runs `smerge` on it; a missing path toasts an error. `make tests` runs the fork tests.
