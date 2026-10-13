@@ -583,7 +583,7 @@ function VerticalSessionTabs(props: {
   })
   const [hoverY, setHoverY] = createSignal(0)
   const [scrollTop, setScrollTop] = createSignal(0)
-  const detail = (sessionID: string) => {
+  const detail = (sessionID: string, includeProject = true) => {
     const fixture = tabs.detail?.(sessionID)
     if (fixture !== undefined) return fixture
     const session = data?.session.get(sessionID)
@@ -591,7 +591,7 @@ function VerticalSessionTabs(props: {
     const vcs = session ? data?.location.vcs.info(session.location) : undefined
     const location = session ? data?.location.info(session.location) : undefined
     return sessionTabDetail(
-      projectName(project, session?.location.directory) ?? "",
+      (includeProject ? projectName(project, session?.location.directory) : undefined) ?? "",
       vcs?.branch.current,
       vcs?.branch.default,
       !!location && location.project.directory !== location.project.canonical,
@@ -623,9 +623,7 @@ function VerticalSessionTabs(props: {
   // Wrapped titles make tab heights vary, so positions come from the laid-out boxes.
   const boxes = new Map<string, BoxRenderable>()
   let addRow: BoxRenderable | undefined
-  const highlightColor = createMemo(() =>
-    tint(background(), actionHovered(), actionHovered().a),
-  )
+  const highlightColor = createMemo(() => tint(background(), actionHovered(), actionHovered().a))
   const highlighted = (sessionID: string | undefined) =>
     sessionID !== undefined && (activeID() === sessionID || hovered() === sessionID || dragging() === sessionID)
   const addHighlighted = () => newTab() || addHovered()
@@ -735,7 +733,7 @@ function VerticalSessionTabs(props: {
         backgroundColor={background()}
         scrollbarOptions={{ visible: false }}
       >
-        <box flexShrink={0} flexDirection="column" gap={1} paddingY={compact() ? 1 : 0}>
+        <box flexShrink={0} flexDirection="column" paddingY={compact() ? 1 : 0}>
           <For each={items()}>
             {(tab, index) => {
               const selected = () => activeID() === tab.sessionID
@@ -749,7 +747,7 @@ function VerticalSessionTabs(props: {
               const titleWidth = () => (hovered() === tab.sessionID ? hoveredTitleWidth() : restingTitleWidth())
               const title = () => (props.controller ? undefined : session()?.title) ?? tab.title ?? "Untitled session"
               const titleParts = createMemo(() => Locale.graphemes(title()))
-              const tabDetail = createMemo(() => detail(tab.sessionID))
+              const tabDetail = createMemo(() => detail(tab.sessionID, compact() || !group(tab.sessionID)))
               const visibleDetail = createMemo(() => Locale.takeWidth(tabDetail(), titleWidth()))
               const visibleDetailParts = createMemo(() => Locale.graphemes(visibleDetail()))
               const detailFades = createMemo(
@@ -840,9 +838,7 @@ function VerticalSessionTabs(props: {
               const separatorUpperColor = createMemo(() =>
                 tint(background(), previousGlowHue(), 0.1 * previousGlowLevel()),
               )
-              const separatorLowerColor = createMemo(() =>
-                tint(background(), glowHue(), 0.12 * glowLevel()),
-              )
+              const separatorLowerColor = createMemo(() => tint(background(), glowHue(), 0.12 * glowLevel()))
               const titleColor = (index: number) => {
                 const level = titleGlow.value().level
                 return level === 0
@@ -856,8 +852,13 @@ function VerticalSessionTabs(props: {
                 return label && label !== (before ? group(before.sessionID) : undefined) ? label : undefined
               })
               const childRows = createMemo(() => children(tab.sessionID))
+              const sameGroup = createMemo(() => {
+                const before = previous()
+                const label = group(tab.sessionID)
+                return !compact() && !!before && !!label && label === group(before.sessionID)
+              })
               return (
-                <box flexDirection="column" width="100%">
+                <box flexDirection="column" width="100%" marginTop={index() > 0 && !sameGroup() ? 1 : 0}>
                   <Show when={!compact() && header()}>
                     {(label) => (
                       <box paddingLeft={1} paddingRight={1} marginBottom={1}>
@@ -914,9 +915,7 @@ function VerticalSessionTabs(props: {
                           edge="top"
                           width={width()}
                           color={pulseBackground()}
-                          background={
-                            highlighted(items()[index() - 1]?.sessionID) ? highlightColor() : background()
-                          }
+                          background={highlighted(items()[index() - 1]?.sessionID) ? highlightColor() : background()}
                         />
                         <SessionTabHalfRow
                           top={1}
@@ -961,32 +960,34 @@ function VerticalSessionTabs(props: {
                       </box>
                     </Show>
                     <Show when={!compact()}>
-                      <TabPulse
-                        top={-1}
-                        edge="above"
-                        enabled={animations()}
-                        active={runs()}
-                        outerActive={previousRuns()}
-                        promptPulse={status().promptPulse}
-                        outerPromptPulse={previousStatus().promptPulse}
-                        complete={complete() && !status().attention}
-                        outerComplete={previousStatus().complete && !previousStatus().attention}
-                        glow={glows()}
-                        outerGlow={previousGlows()}
-                        color={separatorLowerPulseColor()}
-                        width={indicatorWidth}
-                        outerColor={separatorUpperPulseColor()}
-                        flashColor={tint(background(), theme.text.base, 0.22)}
-                        outerFlashColor={tint(background(), theme.text.base, 0.18)}
-                        flashTail={8}
-                        glowColor={separatorLowerColor()}
-                        outerGlowColor={separatorUpperColor()}
-                        glowTail={8}
-                        outerGlowTail={5}
-                        completionColor={separatorLowerColor()}
-                        outerCompletionColor={separatorUpperColor()}
-                        backgroundColor={background()}
-                      />
+                      <Show when={!sameGroup()}>
+                        <TabPulse
+                          top={-1}
+                          edge="above"
+                          enabled={animations()}
+                          active={runs()}
+                          outerActive={previousRuns()}
+                          promptPulse={status().promptPulse}
+                          outerPromptPulse={previousStatus().promptPulse}
+                          complete={complete() && !status().attention}
+                          outerComplete={previousStatus().complete && !previousStatus().attention}
+                          glow={glows()}
+                          outerGlow={previousGlows()}
+                          color={separatorLowerPulseColor()}
+                          width={indicatorWidth}
+                          outerColor={separatorUpperPulseColor()}
+                          flashColor={tint(background(), theme.text.base, 0.22)}
+                          outerFlashColor={tint(background(), theme.text.base, 0.18)}
+                          flashTail={8}
+                          glowColor={separatorLowerColor()}
+                          outerGlowColor={separatorUpperColor()}
+                          glowTail={8}
+                          outerGlowTail={5}
+                          completionColor={separatorLowerColor()}
+                          outerCompletionColor={separatorUpperColor()}
+                          backgroundColor={background()}
+                        />
+                      </Show>
                       <Show when={index() === items().length - 1 && childRows().length === 0}>
                         <TabPulse
                           bottom={-1}
@@ -1034,6 +1035,7 @@ function VerticalSessionTabs(props: {
                           <TabIndicator
                             status={status()}
                             label={sessionTabNumberLabel(index())}
+                            idleLabel="•"
                             width={numberWidth()}
                             color={numberColor()}
                             unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
@@ -1069,34 +1071,36 @@ function VerticalSessionTabs(props: {
                           </title_shimmer>
                         </box>
                       </box>
-                      <box height={1} width="100%" position="relative" flexDirection="row">
-                        <TabPulse
-                          enabled={animations()}
-                          active={runs()}
-                          promptPulse={status().promptPulse}
-                          complete={complete() && !status().attention}
-                          glow={glows()}
-                          color={detailPulseColor()}
-                          width={indicatorWidth}
-                          glowColor={detailGlowColor()}
-                          glowTail={10}
-                          flashColor={detailFlashColor()}
-                          flashTail={8}
-                          completionColor={detailGlowColor()}
-                          backgroundColor={pulseBackground()}
-                        />
-                        <box zIndex={1} width="100%" flexDirection="row" paddingLeft={prefixWidth()} paddingRight={2}>
-                          <text fg={detailColor()} wrapMode="none" selectable={false}>
-                            <Show when={detailFades()} fallback={visibleDetail()}>
-                              <For each={visibleDetailParts()}>
-                                {(character, index) => (
-                                  <span style={{ fg: detailTextColor(index()) }}>{character}</span>
-                                )}
-                              </For>
-                            </Show>
-                          </text>
+                      <Show when={tabDetail()}>
+                        <box height={1} width="100%" position="relative" flexDirection="row">
+                          <TabPulse
+                            enabled={animations()}
+                            active={runs()}
+                            promptPulse={status().promptPulse}
+                            complete={complete() && !status().attention}
+                            glow={glows()}
+                            color={detailPulseColor()}
+                            width={indicatorWidth}
+                            glowColor={detailGlowColor()}
+                            glowTail={10}
+                            flashColor={detailFlashColor()}
+                            flashTail={8}
+                            completionColor={detailGlowColor()}
+                            backgroundColor={pulseBackground()}
+                          />
+                          <box zIndex={1} width="100%" flexDirection="row" paddingLeft={prefixWidth()} paddingRight={2}>
+                            <text fg={detailColor()} wrapMode="none" selectable={false}>
+                              <Show when={detailFades()} fallback={visibleDetail()}>
+                                <For each={visibleDetailParts()}>
+                                  {(character, index) => (
+                                    <span style={{ fg: detailTextColor(index()) }}>{character}</span>
+                                  )}
+                                </For>
+                              </Show>
+                            </text>
+                          </box>
                         </box>
-                      </box>
+                      </Show>
                     </Show>
                   </box>
                   <Show when={!compact()}>
@@ -1138,6 +1142,7 @@ function VerticalSessionTabs(props: {
             <box
               ref={(element: BoxRenderable) => (addRow = element)}
               height={1}
+              marginTop={1}
               width="100%"
               position="relative"
               flexDirection="row"

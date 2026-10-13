@@ -97,6 +97,10 @@ The hover `✕` is gone from vertical tabs (middle-click still closes); horizont
 
 The expanded vertical rail groups tabs under project headers and nests child sessions under their parent tab; manual tab reordering is disabled while `tabs.layout` is vertical.
 
+## Vertical Tab Compact Layout (TUI)
+
+In the expanded vertical rail, the project name shows only in the group header, not again on each tab's detail line; the detail row renders only when there is a worktree branch (`⎇ branch`). Tabs under the same project header sit directly under each other with no blank row (and no separator pulse between them), and idle tabs show a `•` in the status column. Compact rail, tooltips, and horizontal tabs are unchanged.
+
 ## Session List Preview (TUI) [NOT MIGRATED]
 
 The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.
