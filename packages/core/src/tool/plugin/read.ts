@@ -7,13 +7,13 @@ import { Effect, Schema } from "effect"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Location } from "../../location.js"
 import { FileAccess } from "../../file-access.js"
+import { InstructionDiscovery } from "../../instruction-discovery.js"
 import { SessionInstructions } from "../../session/instructions.js"
 import { AbsolutePath } from "../../schema.js"
 import { ReadToolFileSystem } from "../read-filesystem.js"
 import { Environment } from "../../environment/index.js"
 
 export const name = "read"
-const FILENAME = "AGENTS.md"
 const LocationInput = Schema.Struct({
   path: Schema.String.annotate({ description: "File or directory to read" }),
   offset: ReadToolFileSystem.PageInput.fields.offset.annotate({
@@ -91,7 +91,7 @@ export const Plugin = {
                 // The Location and its ancestors are already supplied by initial instructions,
                 // even when an upward walk from elsewhere in the project cannot reach root.
                 const discovered = yield* fs.up({
-                  targets: [FILENAME],
+                  targets: [...InstructionDiscovery.filenames],
                   start: result.content.type === "list-page" ? resolved : dirname(resolved),
                   stop: root,
                   type: "file",

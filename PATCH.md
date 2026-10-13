@@ -108,3 +108,7 @@ Skills are mentioned and autocompleted as `/skill-id` (leading `/` menu in the T
 ## Directory Links Open in Sublime Merge (TUI)
 
 Clicking a markdown link to a directory (trailing `/`, e.g. `[core](packages/core/)`) copies its absolute path and runs `smerge` on it; a missing path toasts an error. `make tests` runs the fork tests.
+
+## Instruction Filenames
+
+Auto-loaded instruction filenames are `InstructionDiscovery.filenames` (`["AGENTS.md"]`), shared by the startup walk and the read-time walk.

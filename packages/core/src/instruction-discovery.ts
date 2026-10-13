@@ -13,6 +13,9 @@ export class File extends Schema.Class<File>("InstructionDiscovery.File")({
   content: Schema.String,
 }) {}
 
+/** Filenames discovered as ambient and nested instruction files. */
+export const filenames = ["AGENTS.md"]
+
 const Files = Schema.Array(File)
 const key = Instructions.Key.make("core/instructions")
 
