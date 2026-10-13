@@ -29,6 +29,7 @@ const resolve = Effect.fn("PluginSupervisor.resolve")(function* (
   const definitions = [...pre, ...post]
   const enabled = new Set(definitions.map((plugin) => plugin.id))
   const packages = new Map<string, Plugin.Generation>()
+  const options = new Map<string, Record<string, unknown>>()
   const pending = new Set<string>()
   const failures = new Map<
     string,
@@ -53,6 +54,8 @@ const resolve = Effect.fn("PluginSupervisor.resolve")(function* (
       operation.target.startsWith("opencode.")
     if (selectsPlugins) {
       matched.forEach((plugin) => enabled.add(plugin.id))
+      // Exact ids only: a wildcard selector must not hand one options blob to every plugin it matches.
+      if (matched.some((plugin) => plugin.id === operation.target)) options.set(operation.target, operation.options)
       continue
     }
 
@@ -96,10 +99,21 @@ const resolve = Effect.fn("PluginSupervisor.resolve")(function* (
     enabled.add(plugin.id)
   }
 
+  // Config options reach definitions that were not loaded from a package. Folding them into the revision
+  // makes an options edit reload the plugin.
+  const configured = (plugin: Plugin.Generation): Plugin.Generation => {
+    const value = options.get(plugin.id)
+    if (!value || Object.keys(value).length === 0) return plugin
+    return {
+      ...plugin,
+      revision: JSON.stringify([plugin.revision, value]),
+      effect: (host) => plugin.effect({ ...host, options: value }),
+    }
+  }
   const ordered = [
-    ...pre.filter((plugin) => enabled.has(plugin.id)),
+    ...pre.filter((plugin) => enabled.has(plugin.id)).map(configured),
     ...[...packages.values()].filter((plugin) => enabled.has(plugin.id)),
-    ...post.filter((plugin) => enabled.has(plugin.id)),
+    ...post.filter((plugin) => enabled.has(plugin.id)).map(configured),
   ]
   // Registry activation dies on a duplicate ID, which would drop the whole generation including builtins.
   // Keep the first occurrence in boot order and report later ones like any other plugin setup failure.

@@ -2,8 +2,9 @@
 
 BUN := mise exec -- bun
 
-# Tests for changes made in this fork, relative to packages/tui.
-FORK_TESTS := test/ui/directory-link.test.ts
+# Tests for changes made in this fork, relative to each package.
+TUI_FORK_TESTS := test/ui/directory-link.test.ts
+CORE_FORK_TESTS := test/plugin/custom.test.ts test/plugin/supervisor.test.ts
 
 install-deps:
 	$(BUN) install
@@ -15,7 +16,8 @@ build-single: typecheck
 	$(BUN) run --cwd packages/cli build --single
 
 tests:
-	cd packages/tui && $(BUN) test $(FORK_TESTS)
+	cd packages/tui && $(BUN) test $(TUI_FORK_TESTS)
+	cd packages/core && $(BUN) test $(CORE_FORK_TESTS)
 
 generate: install-deps
 	./script/generate.ts

@@ -89,9 +89,11 @@ it.effect("collects instruction files without duplicates and flags unavailable d
   }),
 )
 
-it.effect("parses the auto-load skill list", () =>
+it.effect("reads the auto-load skill list from plugin options", () =>
   Effect.sync(() => {
-    expect(CustomAutoLoadSkillsPlugin.parse(" Foo, bar ,,")).toEqual(["foo", "bar"])
-    expect(CustomAutoLoadSkillsPlugin.parse(undefined)).toEqual([])
+    expect(CustomAutoLoadSkillsPlugin.names({ skills: [" Foo ", "bar", ""] })).toEqual(["foo", "bar"])
+    expect(CustomAutoLoadSkillsPlugin.names({ skills: [] })).toEqual([])
+    expect(CustomAutoLoadSkillsPlugin.names({})).toEqual([])
+    expect(CustomAutoLoadSkillsPlugin.names({ skills: "nope" })).toEqual([])
   }),
 )

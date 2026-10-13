@@ -2,7 +2,11 @@
 
 ## Skill Auto-Load
 
-`auto_load` is a plugin (`custom.skills.auto-load`): set `OPENCODE_AUTO_LOAD_SKILLS=a,b` to inject those skills into main-session system prompts and omit them from `available_skills`.
+`auto_load` is a plugin (`custom.skills.auto-load`): configure it with `{ "plugins": [{ "package": "custom.skills.auto-load", "options": { "skills": ["a", "b"] } }] }` to inject those skills into main-session system prompts and omit them from `available_skills`.
+
+## Builtin Plugin Options
+
+A `plugins` config entry whose `package` exactly matches a builtin (or SDK/instance) plugin id enables it and passes `options` as `ctx.options`; it is never installed as a package. Wildcard selectors (`custom.*`) do not pass options. Options are folded into the plugin revision, so editing them reloads the plugin. Plugins should decode `ctx.options` with a schema at their own boundary.
 
 ## Disabled Workflows
 

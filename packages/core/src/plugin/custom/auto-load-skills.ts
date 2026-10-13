@@ -3,22 +3,22 @@ export * as CustomAutoLoadSkillsPlugin from "./auto-load-skills.js"
 import { SystemPart } from "@opencode/ai"
 import { define } from "@opencode/plugin/effect/plugin"
 import type { SessionHooks } from "@opencode/plugin/effect/session"
-import { Effect } from "effect"
+import { Effect, Option, Schema } from "effect"
 
-export function parse(value: string | undefined) {
-  return (value ?? "")
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter((item) => item !== "")
+const Options = Schema.Struct({ skills: Schema.Array(Schema.String) })
+
+export function names(options: unknown) {
+  const configured = Option.getOrUndefined(Schema.decodeUnknownOption(Options)(options))
+  return (configured?.skills ?? []).map((item) => item.trim().toLowerCase()).filter((item) => item !== "")
 }
 
 export const Plugin = define({
   id: "custom.skills.auto-load",
   effect: Effect.fn("CustomAutoLoadSkillsPlugin")(function* (ctx) {
-    const names = parse(process.env.OPENCODE_AUTO_LOAD_SKILLS)
-    if (names.length === 0) return
+    const selection = names(ctx.options)
+    if (selection.length === 0) return
     const selected = <T extends { readonly id: string; readonly name: string }>(skill: T) =>
-      names.includes(skill.id.toLowerCase()) || names.includes(skill.name.toLowerCase())
+      selection.includes(skill.id.toLowerCase()) || selection.includes(skill.name.toLowerCase())
 
     yield* ctx.skill.transform((editor) => {
       editor

@@ -202,6 +202,46 @@ describe("PluginSupervisor", () => {
     }),
   )
 
+  it.effect("passes config options to a plugin selected by exact id and not by wildcard", () =>
+    Effect.gen(function* () {
+      const sdk = yield* SdkPlugins.Service
+      const configurable = (plugin: string) =>
+        define({
+          id: plugin,
+          effect: (ctx) =>
+            ctx.command
+              .transform((editor) =>
+                editor.add({ name: `${plugin}-${String(ctx.options.name)}`, execute: () => Effect.void }),
+              )
+              .pipe(Effect.asVoid),
+        })
+      yield* sdk.register(configurable("custom.exact"))
+      yield* sdk.register(configurable("custom.wild"))
+      source.operations = [
+        { type: "add", target: "custom.exact", options: { name: "set" } },
+        { type: "add", target: "custom.*", options: { name: "leaked" } },
+      ]
+      const directory = yield* tmpdirScoped()
+      const locations = yield* LocationServiceMap.Service
+      yield* Effect.gen(function* () {
+        const plugins = yield* Plugin.Service
+        const commands = yield* Command.Service
+        yield* plugins.awaitActivation
+        expect(yield* commands.get("custom.exact-set")).toBeDefined()
+        expect(yield* commands.get("custom.wild-undefined")).toBeDefined()
+        expect(yield* commands.get("custom.wild-leaked")).toBeUndefined()
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory.path) }))),
+        Effect.ensuring(
+          Effect.sync(() => {
+            source.operations = []
+          }),
+        ),
+      )
+    }),
+  )
+
   for (const targets of [["opencode.config.policy", "opencode.provider.opencode", "opencode.config.agent"], ["*"]]) {
     it.effect(`keeps policy enforcement and the Console connection through plugin removals: ${targets}`, () =>
       Effect.gen(function* () {
