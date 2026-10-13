@@ -741,7 +741,6 @@ function VerticalSessionTabs(props: {
               const selected = () => activeID() === tab.sessionID
               const status = createMemo(() => itemStatus(tab))
               const [sweepLevel, setSweepLevel] = createSignal(0)
-              const [closeHovered, setCloseHovered] = createSignal(false)
               const session = createMemo(() => data?.session.get(tab.sessionID))
               const numberWidth = () => Math.max(2, String(items().length).length)
               const prefixWidth = () => numberWidth() + 1
@@ -1068,30 +1067,6 @@ function VerticalSessionTabs(props: {
                               </Index>
                             </Show>
                           </title_shimmer>
-                          <text
-                            position="absolute"
-                            right={1}
-                            zIndex={2}
-                            width={1}
-                            fg={closeHovered() ? theme.text.base : theme.text.muted}
-                            selectable={false}
-                            onMouseOver={() => setCloseHovered(true)}
-                            onMouseOut={() => setCloseHovered(false)}
-                            onMouseDown={(event) => {
-                              if (event.button === RIGHT_MOUSE_BUTTON || hovered() !== tab.sessionID) return
-                              didDrag = false
-                              event.stopPropagation()
-                            }}
-                            onMouseUp={(event) => {
-                              if (event.button === RIGHT_MOUSE_BUTTON) return
-                              if (suppressClick) return
-                              if (hovered() !== tab.sessionID) return
-                              event.stopPropagation()
-                              tabs.close(tab.sessionID)
-                            }}
-                          >
-                            {hovered() === tab.sessionID ? "✕" : ""}
-                          </text>
                         </box>
                       </box>
                       <box height={1} width="100%" position="relative" flexDirection="row">
