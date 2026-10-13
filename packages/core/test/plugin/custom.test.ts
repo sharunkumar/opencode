@@ -80,15 +80,31 @@ it.effect("collects context files without duplicates and flags unavailable disco
       }),
     ]
     const ambient = [new InstructionDiscovery.File({ path: AbsolutePath.make(`${project}/AGENTS.md`), content: "root" })]
-    expect(CustomContextPlugin.contextFiles(project, ambient, history)).toEqual({
+    const home = "/home/user"
+    const config = `${home}/.config/opencode`
+    expect(CustomContextPlugin.contextFiles(project, home, config, config, ambient, history)).toEqual({
       unavailable: false,
       files: ["AGENTS.md", "packages/web/AGENTS.md"],
     })
-    expect(CustomContextPlugin.contextFiles(project, Instructions.unavailable, history)).toEqual({
+    expect(CustomContextPlugin.contextFiles(project, home, config, config, Instructions.unavailable, history)).toEqual({
       unavailable: true,
       files: ["AGENTS.md", "packages/web/AGENTS.md"],
     })
-    expect(CustomContextPlugin.contextFiles(project, [], [])).toEqual({ unavailable: false, files: [] })
+    expect(CustomContextPlugin.contextFiles(project, home, config, config, [], [])).toEqual({
+      unavailable: false,
+      files: [],
+    })
+    const linked = `${home}/dotfiles/.config/opencode`
+    const global = [
+      new InstructionDiscovery.File({
+        path: AbsolutePath.make(`${linked}/AGENTS.md`),
+        content: "global",
+      }),
+    ]
+    expect(CustomContextPlugin.contextFiles(project, home, config, linked, global, [])).toEqual({
+      unavailable: false,
+      files: ["~/.config/opencode/AGENTS.md"],
+    })
   }),
 )
 
