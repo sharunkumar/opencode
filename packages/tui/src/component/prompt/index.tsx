@@ -607,7 +607,7 @@ export function Prompt(props: PromptProps) {
               location={currentLocation.ref}
               onSelect={(skill) => {
                 if (store.prompt.skills?.some((item) => item.id === skill)) return
-                const text = `@${skill}`
+                const text = `/${skill}`
                 const start = input.cursorOffset
                 input.insertText(text + " ")
                 const extmarkId = input.extmarks.create({

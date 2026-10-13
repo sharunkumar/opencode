@@ -108,6 +108,22 @@ function ComposerStory(props: {
           title: `Run example ${index}`,
         }))
       : []),
+    {
+      id: "skill:effect",
+      kind: "skill",
+      label: "/effect",
+      trigger: "effect",
+      title: "Effect",
+      description: "Build Effect applications",
+      mention: {
+        type: "skill",
+        id: Skill.ID.make("effect"),
+        name: Skill.Name.make("Effect"),
+        content: "/effect",
+        start: 0,
+        end: 0,
+      },
+    },
   ]
 
   const context: ComposerSuggestion[] = [
@@ -123,20 +139,6 @@ function ComposerStory(props: {
       kind: "agent",
       label: "@review",
       mention: { type: "agent", name: "review", content: "@review", start: 0, end: 0 },
-    },
-    {
-      id: "skill:effect",
-      kind: "skill",
-      label: "@effect",
-      description: "Build Effect applications",
-      mention: {
-        type: "skill",
-        id: Skill.ID.make("effect"),
-        name: Skill.Name.make("Effect"),
-        content: "@effect",
-        start: 0,
-        end: 0,
-      },
     },
   ]
 
@@ -267,7 +269,7 @@ export const MixedAttachments = {
           type: "skill",
           id: Skill.ID.make("effect"),
           name: Skill.Name.make("Effect"),
-          content: "@effect",
+          content: "/effect",
           start: 37,
           end: 44,
         },
@@ -401,9 +403,9 @@ export const DemoFirstClassSkillIDs = {
   render: () => (
     <DemoFrame
       title="First-class skill IDs"
-      description="Choose @effect, then Send. The output shows the durable skill ID sent to the prompt API."
+      description="Choose /effect, then Send. The output shows the durable skill ID sent to the prompt API."
     >
-      <ComposerStory suggestions="context" inspectRequest label="Select a skill from the context menu" />
+      <ComposerStory suggestions="command" inspectRequest label="Select a skill from the slash menu" />
     </DemoFrame>
   ),
 }
@@ -427,7 +429,7 @@ export const DemoStructuredCustomCommand = {
             type: "skill",
             id: Skill.ID.make("effect"),
             name: Skill.Name.make("Effect"),
-            content: "@effect",
+            content: "/effect",
             start: 29,
             end: 36,
           },

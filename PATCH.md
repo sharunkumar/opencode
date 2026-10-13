@@ -96,3 +96,7 @@ The session list (`<leader>l`) previews the highlighted session's latest message
 ## Retitle After Compaction
 
 Plugin (`custom.session.retitle`): regenerates the session title from the compaction summary after every compaction.
+
+## Skill Mentions Use `/`
+
+Skills are mentioned and autocompleted as `/skill-id` (leading `/` menu in the TUI and app composer) instead of `@skill-id`; `@` stays for files, agents, and references.

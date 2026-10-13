@@ -144,7 +144,7 @@ export function extractPromptFromMessage(
     const mention = attached.mention
     const part = { type: "skill" as const, id: Skill.ID.make(attached.id), name: Skill.Name.make(attached.name) }
 
-    if (!mention) trailing.push({ ...part, start: -1, end: -1, value: `@${attached.id}` })
+    if (!mention) trailing.push({ ...part, start: -1, end: -1, value: `/${attached.id}` })
 
     if (mention) inline.push({ ...part, start: mention.start, end: mention.end, value: mention.text })
   }

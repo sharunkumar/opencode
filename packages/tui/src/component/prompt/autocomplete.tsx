@@ -163,7 +163,7 @@ export function Autocomplete(props: {
 
     const charAfterCursor = displayCharAt(props.value, currentCursorOffset)
     const needsSpace = charAfterCursor !== " "
-    const prefix = "@"
+    const prefix = part.type === "skill" ? "/" : "@"
     const append = prefix + text + (needsSpace ? " " : "")
 
     input.cursorOffset = store.index
@@ -427,7 +427,7 @@ export function Autocomplete(props: {
   const skillOptions = createMemo(() =>
     (data.location.skill.list(location.current) ?? []).map(
       (skill): AutocompleteOption => ({
-        display: "@" + skill.id,
+        display: "/" + skill.id,
         description: skill.description,
         kind: "skill",
         onSelect: () => {
@@ -540,9 +540,9 @@ export function Autocomplete(props: {
     const fileOptions: AutocompleteOption[] = store.visible === "reference" ? fileSearch.options : []
     const nonFileOptions: AutocompleteOption[] =
       store.visible === "reference"
-        ? [...skillOptions(), ...referenceAliasesValue, ...agentsValue]
+        ? [...referenceAliasesValue, ...agentsValue]
         : store.index === 0
-          ? [...commandsValue]
+          ? [...commandsValue, ...skillOptions()]
           : store.visible === "skill"
             ? [...skillOptions()]
             : []
@@ -833,7 +833,7 @@ export function Autocomplete(props: {
   const scrollAcceleration = createMemo(() => getScrollAcceleration(config))
   const emptyMessage = createMemo(() => {
     const fileSearch = visibleFiles()
-    if (store.visible === "command") return "No matching commands"
+    if (store.visible === "command") return "No matching commands or skills"
     if (store.visible === "skill") return "No matching skills"
     if (store.visible === "directory") {
       if (files.loading) return "Searching…"

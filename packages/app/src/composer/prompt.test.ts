@@ -144,7 +144,7 @@ describe("extractPromptFromMessage", () => {
       { type: "text", content: " " },
       { type: "agent", content: "@plan", name: "plan" },
       { type: "text", content: " " },
-      { type: "skill", content: "@review", id: "review" },
+      { type: "skill", content: "/review", id: "review" },
       { type: "image", filename: "empty.txt", mime: "text/plain", blob: { url: "data:text/plain;base64," } },
       { type: "path", filename: "report.zip", path: "/repo/report.zip" },
     ])

@@ -189,20 +189,6 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
 
   const context = createMemo<ComposerSuggestion[]>(() => [
     ...references(),
-    ...skills().map((skill) => ({
-      id: `skill:${skill.id}`,
-      kind: "skill" as const,
-      label: `@${skill.id}`,
-      description: skill.description,
-      mention: {
-        type: "skill" as const,
-        id: Skill.ID.make(skill.id),
-        name: Skill.Name.make(skill.name),
-        content: `@${skill.id}`,
-        start: 0,
-        end: 0,
-      },
-    })),
     ...adapter
       .controls()
       .agents.available.filter((agent) => !agent.hidden && agent.mode !== "primary")
@@ -251,6 +237,22 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
       title: item.title,
       description: item.description,
       keybind: command.keybindParts(item.id),
+    })),
+    ...skills().map((skill) => ({
+      id: `skill:${skill.id}`,
+      kind: "skill" as const,
+      label: `/${skill.id}`,
+      trigger: skill.id,
+      title: skill.name,
+      description: skill.description,
+      mention: {
+        type: "skill" as const,
+        id: Skill.ID.make(skill.id),
+        name: Skill.Name.make(skill.name),
+        content: `/${skill.id}`,
+        start: 0,
+        end: 0,
+      },
     })),
   ])
 
