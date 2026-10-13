@@ -1,4 +1,4 @@
-export * as CustomInstructions from "./custom-instructions.js"
+export * as CustomContext from "./custom-context.js"
 
 import { Schema } from "effect"
 import { Rpc } from "./rpc.js"
@@ -10,7 +10,7 @@ const Output = Schema.toStandardSchemaV1(
 )
 
 export const Contract = Rpc.define({
-  id: "custom-instructions",
+  id: "custom-context",
   methods: {
     list: { input: Input, output: Output },
   },

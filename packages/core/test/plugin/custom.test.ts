@@ -6,7 +6,7 @@ import { Plugin } from "@opencode/core/plugin"
 import { InstructionDiscovery } from "@opencode/core/instruction-discovery"
 import { Instructions } from "@opencode/core/instructions/index"
 import { CustomAutoLoadSkillsPlugin } from "@opencode/core/plugin/custom/auto-load-skills"
-import { CustomInstructionsPlugin } from "@opencode/core/plugin/custom/instructions"
+import { CustomContextPlugin } from "@opencode/core/plugin/custom/context"
 import { CustomPullRequestsPlugin } from "@opencode/core/plugin/custom/pull-requests"
 import { CustomTaskResumePlugin } from "@opencode/core/plugin/custom/task-resume"
 import { CustomTimeoutsPlugin } from "@opencode/core/plugin/custom/timeouts"
@@ -67,7 +67,7 @@ it.effect("disables the default shell timeout until a session opts in", () =>
   }),
 )
 
-it.effect("collects instruction files without duplicates and flags unavailable discovery", () =>
+it.effect("collects context files without duplicates and flags unavailable discovery", () =>
   Effect.sync(() => {
     const project = AbsolutePath.make("/repo")
     const history = [
@@ -80,15 +80,15 @@ it.effect("collects instruction files without duplicates and flags unavailable d
       }),
     ]
     const ambient = [new InstructionDiscovery.File({ path: AbsolutePath.make(`${project}/AGENTS.md`), content: "root" })]
-    expect(CustomInstructionsPlugin.instructionFiles(project, ambient, history)).toEqual({
+    expect(CustomContextPlugin.contextFiles(project, ambient, history)).toEqual({
       unavailable: false,
       files: ["AGENTS.md", "packages/web/AGENTS.md"],
     })
-    expect(CustomInstructionsPlugin.instructionFiles(project, Instructions.unavailable, history)).toEqual({
+    expect(CustomContextPlugin.contextFiles(project, Instructions.unavailable, history)).toEqual({
       unavailable: true,
       files: ["AGENTS.md", "packages/web/AGENTS.md"],
     })
-    expect(CustomInstructionsPlugin.instructionFiles(project, [], [])).toEqual({ unavailable: false, files: [] })
+    expect(CustomContextPlugin.contextFiles(project, [], [])).toEqual({ unavailable: false, files: [] })
   }),
 )
 

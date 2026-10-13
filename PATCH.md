@@ -113,9 +113,9 @@ Skills are mentioned and autocompleted as `/skill-id` (leading `/` menu in the T
 
 Clicking a markdown link to a directory (trailing `/`, e.g. `[core](packages/core/)`) copies its absolute path and runs `smerge` on it; a missing path toasts an error. `make tests` runs the fork tests.
 
-## Instruction Sidebar
+## Context Sidebar
 
-Plugin (`custom.instructions` + TUI `custom.sidebar-instructions`): the sidebar lists ambient and session-injected instruction files for the current session. Two or fewer stay expanded; more collapse behind a click toggle.
+Plugin (`custom.context` + TUI `custom.sidebar.context`): the sidebar lists ambient and session-injected context files for the current session. Two or fewer stay expanded; more collapse behind a click toggle.
 
 ## Pull Request Sidebar
 
