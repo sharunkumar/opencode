@@ -1,15 +1,19 @@
 import { expect } from "bun:test"
 import { Agent } from "@opencode/core/agent"
 import { Plugin } from "@opencode/core/plugin"
+import { InstructionDiscovery } from "@opencode/core/instruction-discovery"
+import { Instructions } from "@opencode/core/instructions/index"
 import { CustomAutoLoadSkillsPlugin } from "@opencode/core/plugin/custom/auto-load-skills"
+import { CustomInstructionsPlugin } from "@opencode/core/plugin/custom/instructions"
 import { CustomTaskResumePlugin } from "@opencode/core/plugin/custom/task-resume"
 import { CustomTimeoutsPlugin } from "@opencode/core/plugin/custom/timeouts"
 import { PluginHooks } from "@opencode/core/plugin/hooks"
 import { PluginHost } from "@opencode/core/plugin/host"
+import { AbsolutePath } from "@opencode/core/schema"
 import { Session } from "@opencode/core/session"
 import { Tool } from "@opencode/schema/tool"
 import { SessionMessage } from "@opencode/schema/session-message"
-import { Effect } from "effect"
+import { DateTime, Effect } from "effect"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -57,6 +61,31 @@ it.effect("disables the default shell timeout until a session opts in", () =>
     const background = before("shell", sessionID, { command: "sleep 1", background: true })
     yield* hooks.trigger("tool", "execute.before", background)
     expect(background.input).toEqual({ command: "sleep 1", background: true })
+  }),
+)
+
+it.effect("collects instruction files without duplicates and flags unavailable discovery", () =>
+  Effect.sync(() => {
+    const project = AbsolutePath.make("/repo")
+    const history = [
+      SessionMessage.Synthetic.make({
+        id: SessionMessage.ID.make("msg_nested"),
+        type: "synthetic",
+        text: "nested",
+        metadata: { instruction: { paths: [`${project}/AGENTS.md`, `${project}/packages/web/AGENTS.md`] } },
+        time: { created: DateTime.makeUnsafe(0) },
+      }),
+    ]
+    const ambient = [new InstructionDiscovery.File({ path: AbsolutePath.make(`${project}/AGENTS.md`), content: "root" })]
+    expect(CustomInstructionsPlugin.instructionFiles(project, ambient, history)).toEqual({
+      unavailable: false,
+      files: ["AGENTS.md", "packages/web/AGENTS.md"],
+    })
+    expect(CustomInstructionsPlugin.instructionFiles(project, Instructions.unavailable, history)).toEqual({
+      unavailable: true,
+      files: ["AGENTS.md", "packages/web/AGENTS.md"],
+    })
+    expect(CustomInstructionsPlugin.instructionFiles(project, [], [])).toEqual({ unavailable: false, files: [] })
   }),
 )
 
