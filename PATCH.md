@@ -115,7 +115,7 @@ Clicking a markdown link to a directory (trailing `/`, e.g. `[core](packages/cor
 
 ## Context Sidebar
 
-Plugin (`custom.context` + TUI `custom.sidebar.context`): the sidebar lists ambient and session-injected context files for the current session. Two or fewer stay expanded; more collapse behind a click toggle.
+Plugin (`custom.context` + TUI `custom.sidebar.context`): the sidebar lists the current session's context in two subsections: **Instructions** (ambient and session-injected instruction files; home paths show as `~`, and a symlinked global config dir shows the configured path) and **Skills** (by name: mentions, `skill` messages, and completed `skill` tool calls in the post-compaction window, plus skills from `custom.skills.auto-load` via `custom-auto-load-skills`). Empty subsections are hidden; neither collapses.
 
 ## Pull Request Sidebar
 

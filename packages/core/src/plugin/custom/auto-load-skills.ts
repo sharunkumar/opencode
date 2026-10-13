@@ -3,6 +3,7 @@ export * as CustomAutoLoadSkillsPlugin from "./auto-load-skills.js"
 import { SystemPart } from "@opencode/ai"
 import { define } from "@opencode/plugin/effect/plugin"
 import type { SessionHooks } from "@opencode/plugin/effect/session"
+import { CustomAutoLoadSkills } from "@opencode/schema/custom-auto-load-skills"
 import { Effect, Option, Schema } from "effect"
 
 const Options = Schema.Struct({ skills: Schema.Array(Schema.String) })
@@ -16,9 +17,22 @@ export const Plugin = define({
   id: "custom.skills.auto-load",
   effect: Effect.fn("CustomAutoLoadSkillsPlugin")(function* (ctx) {
     const selection = names(ctx.options)
-    if (selection.length === 0) return
     const selected = <T extends { readonly id: string; readonly name: string }>(skill: T) =>
       selection.includes(skill.id.toLowerCase()) || selection.includes(skill.name.toLowerCase())
+
+    // Backs the TUI context sidebar; registered even when nothing is configured so the call never fails.
+    yield* ctx.rpc
+      .register(CustomAutoLoadSkills.Contract, {
+        list: (input) =>
+          Effect.gen(function* () {
+            const session = yield* ctx.session.get({ sessionID: input.sessionID })
+            if (session.parentID) return { skills: [] }
+            return { skills: (yield* ctx.skill.list()).data.filter(selected).map((skill) => skill.name) }
+          }).pipe(Effect.orDie),
+      })
+      .pipe(Effect.orDie)
+
+    if (selection.length === 0) return
 
     yield* ctx.skill.transform((editor) => {
       editor

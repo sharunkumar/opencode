@@ -14,6 +14,7 @@ import { PluginHooks } from "@opencode/core/plugin/hooks"
 import { PluginHost } from "@opencode/core/plugin/host"
 import { AbsolutePath } from "@opencode/core/schema"
 import { Session } from "@opencode/core/session"
+import { Skill } from "@opencode/schema/skill"
 import { Tool } from "@opencode/schema/tool"
 import { SessionMessage } from "@opencode/schema/session-message"
 import { DateTime, Effect } from "effect"
@@ -105,6 +106,69 @@ it.effect("collects context files without duplicates and flags unavailable disco
       unavailable: false,
       files: ["~/.config/opencode/AGENTS.md"],
     })
+  }),
+)
+
+it.effect("collects loaded skills from mentions, skill messages, and completed skill tool calls", () =>
+  Effect.sync(() => {
+    const time = { created: DateTime.makeUnsafe(0) }
+    const tool = (id: string, status: "completed" | "error", name?: string) =>
+      SessionMessage.AssistantTool.make({
+        type: "tool",
+        id,
+        name: "skill",
+        state:
+          status === "completed"
+            ? SessionMessage.ToolStateCompleted.make({
+                status,
+                input: {},
+                content: [{ type: "text", text: "ok" }],
+                metadata: name === undefined ? undefined : { name },
+              })
+            : SessionMessage.ToolStateError.make({
+                status,
+                input: {},
+                error: { type: "tool", message: "failed" },
+              }),
+        time,
+      })
+    const history = [
+      SessionMessage.User.make({
+        id: SessionMessage.ID.make("msg_user"),
+        type: "user",
+        text: "use it",
+        skills: [{ id: Skill.ID.make("alpha"), name: Skill.Name.make("alpha") }],
+        time,
+      }),
+      SessionMessage.Skill.make({
+        id: SessionMessage.ID.make("msg_skill"),
+        type: "skill",
+        skill: Skill.ID.make("beta"),
+        name: Skill.Name.make("beta"),
+        text: "beta body",
+        time,
+      }),
+      SessionMessage.Assistant.make({
+        id: SessionMessage.ID.make("msg_assistant"),
+        type: "assistant",
+        agent: Agent.ID.make("build"),
+        model: { id: Model.ID.make("sonnet"), providerID: Provider.ID.make("anthropic") },
+        content: [tool("call_1", "completed", "gamma"), tool("call_2", "error"), tool("call_3", "completed", "alpha")],
+        time,
+      }),
+    ]
+    const compacted = SessionMessage.CompactionCompleted.make({
+      id: SessionMessage.ID.make("msg_compaction"),
+      type: "compaction",
+      status: "completed",
+      reason: "auto",
+      summary: "[Skill activated: ignored]",
+      recent: "[Skill activated: delta]\ndelta body\n\n[User]: hi\n[Skill activated: alpha]\nalpha body",
+      time,
+    })
+    expect(CustomContextPlugin.contextSkills(history)).toEqual(["alpha", "beta", "gamma"])
+    expect(CustomContextPlugin.contextSkills([compacted, ...history])).toEqual(["delta", "alpha", "beta", "gamma"])
+    expect(CustomContextPlugin.contextSkills([])).toEqual([])
   }),
 )
 

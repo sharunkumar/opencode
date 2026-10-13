@@ -29,7 +29,10 @@ export const Plugin = define({
           Effect.gen(function* () {
             const loaded = yield* discovery.list()
             const history = yield* ctx.session.context({ sessionID: input.sessionID })
-            return contextFiles(location.project.directory, global.home, config, configReal, loaded, history)
+            return {
+              ...contextFiles(location.project.directory, global.home, config, configReal, loaded, history),
+              skills: contextSkills(history),
+            }
           }).pipe(Effect.orDie),
       })
       .pipe(Effect.orDie)
@@ -57,6 +60,27 @@ export function contextFiles(
     unavailable: !Array.isArray(loaded),
     files: [...new Set([...ambient, ...nested])].map((file) => display(root, home, config, configReal, file)),
   }
+}
+
+// History is the post-compaction window, so skills summarized away no longer count. Skills enter it as
+// user-message mentions, `skill` messages, or completed `skill` tool calls.
+export function contextSkills(history: ReadonlyArray<SessionMessage.Info>) {
+  const names = history.flatMap((message) => {
+    // Text compaction renders skills in its recent section as `[Skill activated: name]` (see messageToText).
+    if (message.type === "compaction")
+      return message.status === "completed"
+        ? Array.from(message.recent.matchAll(/^\[Skill activated: (.+)\]$/gm), (match) => match[1])
+        : []
+    if (message.type === "user") return message.skills?.map((skill) => skill.name) ?? []
+    if (message.type === "skill") return [message.name]
+    if (message.type !== "assistant") return []
+    return message.content.flatMap((part) => {
+      if (part.type !== "tool" || part.name !== "skill" || part.state.status !== "completed") return []
+      const name = part.state.metadata?.name
+      return typeof name === "string" ? [name] : []
+    })
+  })
+  return [...new Set(names)]
 }
 
 // Discovery stores real paths, so a config dir that is a symlink shows its target.

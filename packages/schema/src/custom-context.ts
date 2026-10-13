@@ -6,7 +6,11 @@ import { Session } from "./session.js"
 
 const Input = Schema.toStandardSchemaV1(Schema.Struct({ sessionID: Session.ID }))
 const Output = Schema.toStandardSchemaV1(
-  Schema.Struct({ files: Schema.Array(Schema.String), unavailable: Schema.Boolean }),
+  Schema.Struct({
+    files: Schema.Array(Schema.String),
+    skills: Schema.Array(Schema.String),
+    unavailable: Schema.Boolean,
+  }),
 )
 
 export const Contract = Rpc.define({
