@@ -5,6 +5,7 @@ import { Locale } from "./locale"
 type SessionNode = {
   id: string
   parentID?: string | null
+  time?: { created: number }
 }
 
 export function sessionFamily<T extends SessionNode>(sessions: readonly T[], sessionID: string) {
@@ -13,7 +14,7 @@ export function sessionFamily<T extends SessionNode>(sessions: readonly T[], ses
   if (!current) return []
 
   const children = new Map<string, T[]>()
-  sessions.forEach((session) => {
+  sessions.toSorted((a, b) => (a.time?.created ?? 0) - (b.time?.created ?? 0)).forEach((session) => {
     if (!session.parentID) return
     const group = children.get(session.parentID)
     if (group) group.push(session)

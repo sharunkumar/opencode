@@ -22,4 +22,14 @@ describe("util.session", () => {
       { session: sessions[6], prefix: "└─ " },
     ])
   })
+
+  test("orders siblings by creation time", () => {
+    const sessions = [
+      { id: "root", time: { created: 0 } },
+      { id: "late", parentID: "root", time: { created: 2 } },
+      { id: "early", parentID: "root", time: { created: 1 } },
+    ]
+
+    expect(sessionFamily(sessions, "late").map((row) => row.session.id)).toEqual(["early", "late"])
+  })
 })

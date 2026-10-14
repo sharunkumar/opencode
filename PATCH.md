@@ -101,6 +101,10 @@ The expanded vertical rail groups tabs under project headers and nests child ses
 
 In the expanded vertical rail, the project name shows only in the group header, not again on each tab's detail line; the detail row renders only when there is a worktree branch (`⎇ branch`). Tabs under the same project header sit directly under each other with no blank row (and no separator pulse between them), and idle tabs show a `•` in the status column. Compact rail, tooltips, and horizontal tabs are unchanged.
 
+## Subagent List Order (TUI)
+
+The vertical tab subtree and the subagent picker both list children oldest-first by `time.created`.
+
 ## Session List Preview (TUI) [NOT MIGRATED]
 
 The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.
