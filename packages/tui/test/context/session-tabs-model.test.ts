@@ -11,6 +11,7 @@ import {
   recordSessionTabHistory,
   reopenSessionTab,
   seedSessionTabMotion,
+  openSessionDescendants,
   sessionTabChildren,
   sessionTabComplete,
   sessionTabDetail,
@@ -31,6 +32,21 @@ describe("session tabs", () => {
     const tabs = ["a", "b", "c", "d"].map((sessionID) => ({ sessionID }))
     const project = { a: "web", b: "api", c: "web" } as Record<string, string>
     expect(groupSessionTabs(tabs, (id) => project[id]).map((tab) => tab.sessionID)).toEqual(["a", "c", "b", "d"])
+  })
+
+  test("drops resolved descendants and keeps the path to an open one", () => {
+    const sessions = [
+      { id: "root", created: 0 },
+      { id: "done", parentID: "root", created: 1 },
+      { id: "parent", parentID: "root", created: 2 },
+      { id: "running", parentID: "parent", created: 3 },
+    ]
+    const open = new Set(["running"])
+    expect(openSessionDescendants("root", sessions, (session) => open.has(session.id)).map((session) => session.id)).toEqual([
+      "root",
+      "parent",
+      "running",
+    ])
   })
 
   test("nests session descendants in creation order", () => {

@@ -29,6 +29,7 @@ import {
   adaptiveSessionTabLayout,
   moveSessionTab,
   NEW_SESSION_TAB_TITLE,
+  openSessionDescendants,
   sessionTabChildren,
   sessionTabComplete,
   sessionTabDetail,
@@ -609,12 +610,22 @@ function VerticalSessionTabs(props: {
   const children = (sessionID: string) => {
     const fixture = tabs.children?.(sessionID)
     if (fixture) return fixture
-    return sessionTabChildren(
-      sessionID,
+    const listed =
       data?.session
         .family(sessionID)
-        .flatMap((id) => data?.session.get(id) ?? [])
-        .map((session) => ({ id: session.id, parentID: session.parentID, created: session.time.created })) ?? [],
+        .flatMap((id) => data.session.get(id) ?? [])
+        .map((session) => ({ id: session.id, parentID: session.parentID, created: session.time.created })) ?? []
+    const viewing = tabs.viewing?.()
+    return sessionTabChildren(
+      sessionID,
+      openSessionDescendants(sessionID, listed, (session) => {
+        if (session.id === viewing) return true
+        if (!data) return false
+        if (data.session.status(session.id) === "running") return true
+        if (data.session.pending.list(session.id).some((item) => item.type !== "synthetic")) return true
+        if ((data.session.permission.list(session.id)?.length ?? 0) > 0) return true
+        return (data.session.form.list(session.id)?.length ?? 0) > 0
+      }),
     )
   }
   const newTab = () => tabs.newTab?.() ?? false

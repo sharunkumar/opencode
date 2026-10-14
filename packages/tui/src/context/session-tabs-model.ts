@@ -106,6 +106,25 @@ export function groupSessionTabs(tabs: SessionTab[], groupOf: (sessionID: string
 
 export type SessionTabChild = { sessionID: string; prefix: string }
 
+/** Sessions that are open, plus ancestors needed to reach them from the root. */
+export function openSessionDescendants<T extends { id: string; parentID?: string }>(
+  rootID: string,
+  sessions: readonly T[],
+  open: (session: T) => boolean,
+) {
+  const byID = new Map(sessions.map((session) => [session.id, session]))
+  const keep = new Set<string>()
+  for (const session of sessions) {
+    if (!open(session)) continue
+    let current: string | undefined = session.id
+    while (current && current !== rootID) {
+      if (!keep.add(current)) break
+      current = byID.get(current)?.parentID
+    }
+  }
+  return sessions.filter((session) => session.id === rootID || keep.has(session.id))
+}
+
 /** Descendants of a tab's root session in creation order, with tree-guide prefixes such as "│  └─ ". */
 export function sessionTabChildren(
   rootID: string,

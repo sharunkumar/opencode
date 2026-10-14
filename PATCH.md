@@ -103,7 +103,7 @@ In the expanded vertical rail, the project name shows only in the group header, 
 
 ## Subagent List Order (TUI)
 
-The vertical tab subtree and the subagent picker both list children oldest-first by `time.created`.
+The vertical tab subtree lists unresolved children (running, pending, permission, or question), the child being viewed, and ancestors of those, oldest-first by `time.created`. The subagent picker lists children oldest-first by `time.created`.
 
 ## Message Actions Jump (TUI)
 
