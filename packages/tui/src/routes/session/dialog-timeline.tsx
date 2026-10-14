@@ -29,7 +29,7 @@ export function DialogTimeline(props: {
         footer: Locale.time(message.time.created),
         onSelect: (dialog) => {
           dialog.replace(() => (
-            <DialogMessage messageID={message.id} sessionID={props.sessionID} setPrompt={props.setPrompt} />
+            <DialogMessage jump messageID={message.id} sessionID={props.sessionID} setPrompt={props.setPrompt} />
           ))
         },
       })

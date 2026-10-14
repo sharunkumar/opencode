@@ -1,6 +1,6 @@
 import { createMemo } from "solid-js"
 import { useData } from "../../context/data"
-import { DialogSelect } from "../../ui/dialog-select"
+import { DialogSelect, type DialogSelectOption } from "../../ui/dialog-select"
 import { useClipboard } from "../../context/clipboard"
 import { useToast } from "../../ui/toast"
 import { useClient } from "../../context/client"
@@ -13,23 +13,25 @@ export function DialogMessage(props: {
   messageID: string
   sessionID: string
   setPrompt?: (prompt: PromptInfo) => void
+  jump?: boolean
 }) {
   const data = useData()
   const clipboard = useClipboard()
   const toast = useToast()
   const client = useClient()
   const message = createMemo(() => data.session.message.get(props.sessionID, props.messageID))
+  const jumpOption: DialogSelectOption = {
+    title: "Jump to",
+    value: "message.jump",
+    description: "view message in session",
+    onSelect: (dialog) => dialog.clear(),
+  }
 
   return (
     <DialogSelect
       title="Message Actions"
       options={[
-        {
-          title: "Jump to",
-          value: "message.jump",
-          description: "view message in session",
-          onSelect: (dialog) => dialog.clear(),
-        },
+        ...(props.jump ? [jumpOption] : []),
         {
           title: "Revert",
           value: "session.revert",

@@ -105,6 +105,10 @@ In the expanded vertical rail, the project name shows only in the group header, 
 
 The vertical tab subtree and the subagent picker both list children oldest-first by `time.created`.
 
+## Message Actions Jump (TUI)
+
+Clicking a message hides Jump to in Message Actions. The timeline still shows it.
+
 ## Session List Preview (TUI) [NOT MIGRATED]
 
 The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.
