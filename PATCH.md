@@ -125,6 +125,10 @@ Plugin (`custom.context` + TUI `custom.sidebar.context`): the sidebar lists the 
 
 Plugin (`custom.pull-requests` + TUI `custom.sidebar.pull-requests`): the sidebar lists pull requests linked in user messages and assistant replies (not tool calls, reasoning, or other transcript noise) as `owner/repo#n`; clicking one opens it. Only full `https://<host>/<owner>/<repo>/pull/<n>` URLs match. github.com is always recognized; add enterprise hosts with `{ "plugins": [{ "package": "custom.pull-requests", "options": { "hosts": ["ghe.example.com"] } }] }`. Two or fewer stay expanded; more collapse behind a click toggle.
 
+## Cancel Tool
+
+`cancel` tool: agents cancel a background `shell` or `subagent` they started by passing the shell ID or subagent `sessionID` from its `background: true` result (which now names the id); jobs owned by another session are refused.
+
 ## Instruction Filenames
 
 Auto-loaded instruction filenames are `InstructionDiscovery.filenames` (`AGENTS.md`, `CLAUDE.local.md`, `AGENTS.local.md`, `PATCH.md`), shared by the startup walk and the read-time walk.

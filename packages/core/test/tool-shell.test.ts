@@ -1579,7 +1579,7 @@ describe("ShellTool", () => {
             expect(settled.content).toEqual([
               {
                 type: "text",
-                text: `Command moved to the background (shell ID: ${shellID}).\nOutput is streaming to: ${info.file}`,
+                text: `Command moved to the background (shell ID: ${shellID}).\nOutput is streaming to: ${info.file}\nCancel it with the cancel tool, passing id ${shellID}.`,
               },
               {
                 type: "text",
@@ -1845,7 +1845,7 @@ describe("ShellTool", () => {
             const info = yield* shell.get(id)
             expect(settled.content?.[0]).toEqual({
               type: "text",
-              text: `Command moved to the background (shell ID: ${shellID}).\nOutput is streaming to: ${info.file}`,
+              text: `Command moved to the background (shell ID: ${shellID}).\nOutput is streaming to: ${info.file}\nCancel it with the cancel tool, passing id ${shellID}.`,
             })
             expect(settled.content?.[1]).toEqual({
               type: "text",

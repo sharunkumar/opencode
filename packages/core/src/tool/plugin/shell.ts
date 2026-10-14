@@ -42,7 +42,7 @@ const description = (shell?: string) =>
     "When output is large, the full result is saved to a file and a truncated preview is returned.",
     "Rely on automatic truncation unless filtering the output is more useful.",
     "Commands accept an optional timeout, background commands have no timeout by default.",
-    "Background commands return immediately, and you will be notified when they complete.",
+    "Background commands return immediately with a shell ID. Cancel one with the cancel tool. You will be notified when it completes.",
   ].join(" ")
 
 export const Input = Schema.Struct({
@@ -56,7 +56,7 @@ export const Input = Schema.Struct({
   }),
   background: Schema.optionalKey(Schema.Boolean).annotate({
     description:
-      "Run the command in the background and return immediately (useful for dev servers and long-running builds). You do not need to use '&' at the end of the command when using this parameter. You will be notified when it completes. DO NOT poll for completion.",
+      "Run the command in the background and return immediately (useful for dev servers and long-running builds). The result includes a shell ID. Cancel that command with the cancel tool. You do not need to use '&' at the end of the command when using this parameter. You will be notified when it completes. DO NOT poll for completion.",
   }),
 })
 
@@ -94,7 +94,7 @@ const toolResult = (output: Output) => {
 }
 
 const backgroundResult = (shellID: string, file: string) => ({
-  output: `Command moved to the background (shell ID: ${shellID}).\nOutput is streaming to: ${file}`,
+  output: `Command moved to the background (shell ID: ${shellID}).\nOutput is streaming to: ${file}\nCancel it with the cancel tool, passing id ${shellID}.`,
   shellID,
   truncated: false,
   status: "running" as const,

@@ -48,7 +48,7 @@ const make: Effect.Effect<Interface, never, Session.Service | Job.Service | Scop
           id: recovery.childSessionID,
           type: "subagent",
           title: recovery.description,
-          metadata: {},
+          metadata: { sessionID: recovery.parentSessionID },
           recovery,
           run: Effect.gen(function* () {
             yield* sessions.resume(recovery.childSessionID)
