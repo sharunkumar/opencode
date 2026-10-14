@@ -7,10 +7,12 @@ import type { ClipboardService } from "../context/clipboard"
 
 const run = promisify(execFile)
 
-/** A directory link is a relative, absolute, or `~/` path with a trailing slash, such as `packages/core/`. */
+/** A directory link is an absolute or `~/` path, or a relative path with a trailing slash such as `packages/core/`. */
 export function directoryLinkPath(href: string, base: string) {
-  if (!href.endsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(href)) return
-  return path.resolve(href.startsWith("~/") ? os.homedir() : base, href.startsWith("~/") ? href.slice(2) : href)
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return
+  const home = href.startsWith("~/")
+  if (!home && !href.startsWith("/") && !href.endsWith("/")) return
+  return path.resolve(home ? os.homedir() : base, home ? href.slice(2) : href)
 }
 
 /** Copies the directory path, then opens it in Sublime Merge. Rejects when it is not an existing directory. */

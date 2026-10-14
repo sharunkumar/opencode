@@ -11,6 +11,7 @@ import { createSyntaxStyleMemo, useTheme, useThemes } from "../../context/theme"
 import { reasoningSummary } from "../../context/thinking"
 import { usePlugin } from "../../plugin/context"
 import { SplitBorder } from "../../ui/border"
+import { linkDirectoryMarkdown } from "../../ui/directory-markdown"
 import { Locale } from "../../util/locale"
 import { use } from "./render-context"
 import { generateThinkingSyntax } from "./thinking-syntax"
@@ -180,6 +181,7 @@ export function TextPart(props: {
       <box paddingLeft={3} flexShrink={0}>
         {/* Configure custom nodes before parsing; apply content before streaming so completion keeps the final tokens. */}
         <markdown
+          ref={linkDirectoryMarkdown}
           syntaxStyle={syntax()}
           renderNode={plugins.markdown()}
           content={props.part.text.trim()}

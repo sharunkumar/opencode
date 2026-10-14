@@ -32,7 +32,9 @@ test.each([
   ["parent", "../shared/", "/work/app", "/work/shared"],
   ["absolute", "/etc/hosts.d/", "/work", "/etc/hosts.d"],
   ["home", "~/src/", "/work", path.join(os.homedir(), "src")],
-  ["no trailing slash", "packages/core", "/work", undefined],
+  ["absolute without trailing slash", "/var/folders/x/worktree", "/work", "/var/folders/x/worktree"],
+  ["home without trailing slash", "~/src", "/work", path.join(os.homedir(), "src")],
+  ["relative without trailing slash", "packages/core", "/work", undefined],
   ["web link", "https://example.com/docs/", "/work", undefined],
   ["file url", "file:///tmp/", "/work", undefined],
 ])("directory link path: %s", (_name, href, base, expected) => {

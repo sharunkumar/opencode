@@ -3,7 +3,7 @@
 BUN := mise exec -- bun
 
 # Tests for changes made in this fork, relative to each package.
-TUI_FORK_TESTS := test/ui/directory-link.test.ts
+TUI_FORK_TESTS := test/ui/directory-link.test.ts test/ui/directory-markdown.test.tsx
 CORE_FORK_TESTS := test/plugin/custom.test.ts test/plugin/supervisor.test.ts
 
 install-deps:
