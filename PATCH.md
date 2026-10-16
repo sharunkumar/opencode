@@ -127,7 +127,7 @@ Clicking a markdown link to a directory (trailing `/`, e.g. `[core](packages/cor
 
 ## Context Sidebar
 
-Plugin (`custom.context` + TUI `custom.sidebar.context`): the sidebar lists the current session's context in two subsections: **Instructions** (ambient and session-injected instruction files; home paths show as `~`, and a symlinked global config dir shows the configured path) and **Skills** (by name: mentions, `skill` messages, and completed `skill` tool calls in the post-compaction window, plus skills from `custom.skills.auto-load` via `custom-auto-load-skills`). Empty subsections are hidden; neither collapses.
+Plugin (`custom.context` + TUI `custom.sidebar.context`): the sidebar lists the current session's context as **Instructions** (ambient and session-injected instruction files; home paths show as `~`, and a symlinked global config dir shows the configured path), **Skills** (by name: mentions, `skill` messages, and completed `skill` tool calls in the post-compaction window, plus skills from `custom.skills.auto-load` via `custom-auto-load-skills`), and one node per session root. The backend groups each session root's own Instructions (instruction files walked up to the root's project root, minus files the primary directory or global config already lists) and Skills (skills found under the root's `.opencode/skill(s)`, `.claude/skills`, and `.agents/skills`) and sends them with the primary lists. Each root renders as a top-level node next to Instructions and Skills, labelled with its directory (displayed like other paths: project-relative, else `~`); there is no explicit "Roots" header. Empty subsections are hidden; none collapse.
 
 ## Pull Request Sidebar
 
