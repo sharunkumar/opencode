@@ -131,16 +131,19 @@ it.effect("groups a root's instructions and skills under its own directory", () 
         ["review", "deploy"],
       ),
     ).toEqual({
+      path: `${home}/src/cmux`,
       directory: "~/src/cmux",
       files: ["AGENTS.md", "web/AGENTS.md", "~/src/AGENTS.md"],
       skills: ["review", "deploy"],
     })
     expect(CustomContextPlugin.contextRoot("/repo", "/opt/shared", home, config, config, [], [])).toEqual({
+      path: "/opt/shared",
       directory: "/opt/shared",
       files: [],
       skills: [],
     })
     expect(CustomContextPlugin.contextRoot("/repo", "/repo/packages/web", home, config, config, [], [])).toEqual({
+      path: "/repo/packages/web",
       directory: "packages/web",
       files: [],
       skills: [],

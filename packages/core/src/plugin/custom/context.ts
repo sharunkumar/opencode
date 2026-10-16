@@ -108,6 +108,7 @@ export function contextRoot(
   skills: ReadonlyArray<string>,
 ) {
   return {
+    path: directory,
     directory: display(project, home, config, configReal, directory),
     files: [...new Set(files)].map((file) => display(directory, home, config, configReal, file)),
     skills: [...skills],

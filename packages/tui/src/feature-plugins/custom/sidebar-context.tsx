@@ -3,6 +3,8 @@ import { CustomAutoLoadSkills } from "@opencode/schema/custom-auto-load-skills"
 import { CustomContext } from "@opencode/schema/custom-context"
 import { createMemo, createResource, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
+import { useClipboard } from "../../context/clipboard"
+import { useToast } from "../../ui/toast"
 
 type Node = { label: string; children?: readonly Node[] }
 
@@ -40,6 +42,8 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
   const session = createMemo(() => props.context.data.session.get(props.sessionID))
   const directory = createMemo(() => (session()?.location ?? props.context.location)?.directory)
   const roots = createMemo(() => (session()?.roots ?? []).join("\0"))
+  const clipboard = useClipboard()
+  const toast = useToast()
   const [open, setOpen] = createStore<Record<string, boolean>>({})
   // Edited instructions, nested loads, and skill loads land in the transcript as system, synthetic, user, or
   // skill messages, or as a completed skill tool call inside an assistant message that already exists.
@@ -86,6 +90,7 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
   ])
   const rootNodes = createMemo(() =>
     (result()?.roots ?? []).map((root) => ({
+      path: root.path,
       label: root.directory,
       children: [...group("Instructions", root.files), ...group("Skills", root.skills)],
     })),
@@ -101,12 +106,20 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
         <For each={rootNodes()}>
           {(root) => (
             <>
-              <box onMouseDown={() => setOpen(root.label, !open[root.label])}>
-                <text fg={theme.text.base} wrapMode="none" truncate>
+              <box
+                onMouseDown={() => {
+                  setOpen(root.path, !open[root.path])
+                  void clipboard.write(root.path).then(
+                    () => toast.show({ message: "Path copied to clipboard", variant: "info" }),
+                    toast.error,
+                  )
+                }}
+              >
+                <text fg={theme.text.base} wrapMode="none" selectable={false} truncate>
                   {root.label}
                 </text>
               </box>
-              <Show when={open[root.label]}>
+              <Show when={open[root.path]}>
                 <Tree context={props.context} nodes={root.children} prefix="" />
               </Show>
             </>
