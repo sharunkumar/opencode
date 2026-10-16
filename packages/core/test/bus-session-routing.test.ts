@@ -137,6 +137,36 @@ describe("Bus Session routing", () => {
     }),
   )
 
+  it.effect("routes a fork into another directory to both locations, then only to its destination", () =>
+    Effect.gen(function* () {
+      yield* seed()
+      const bus = yield* Bus.Service
+      const database = yield* Database.Service
+      yield* bus.publish(SessionEvent.Synthetic, { sessionID: id, text: "Fork boundary" })
+      const boundary = yield* database.db
+        .select({ id: SessionMessageTable.id })
+        .from(SessionMessageTable)
+        .where(eq(SessionMessageTable.session_id, id))
+        .get()
+      if (!boundary) return yield* Effect.die("Missing fork boundary")
+      const child = SessionID.create()
+      const first = yield* watch(bus, a)
+      const second = yield* watch(bus, b)
+
+      const forked = yield* bus.publish(SessionEvent.Forked, {
+        sessionID: child,
+        parentID: id,
+        boundary: { type: "through", messageID: boundary.id },
+        destination: { location: b, projectID: Project.ID.global },
+      })
+      const after = yield* bus.publish(SessionEvent.Execution.Succeeded, { sessionID: child })
+      const done = yield* bus.publish(Done, {})
+
+      expect((yield* Fiber.join(first)).map((event) => event.id)).toEqual([forked.id, done.id])
+      expect((yield* Fiber.join(second)).map((event) => event.id)).toEqual([forked.id, after.id, done.id])
+    }),
+  )
+
   it.effect("routes existing Sessions without changing public events or global delivery", () =>
     Effect.gen(function* () {
       yield* seed()

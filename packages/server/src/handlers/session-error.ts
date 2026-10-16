@@ -1,6 +1,11 @@
 import { Session } from "@opencode/core/session"
 import type { Snapshot } from "@opencode/core/snapshot"
-import { MessageNotFoundError, SessionNotFoundError, UnknownError } from "@opencode/protocol/errors"
+import {
+  InvalidRequestError,
+  MessageNotFoundError,
+  SessionNotFoundError,
+  UnknownError,
+} from "@opencode/protocol/errors"
 import { Effect } from "effect"
 
 export function missingSession(error: Session.NotFoundError) {
@@ -16,6 +21,18 @@ export function missingMessage(error: Session.MessageNotFoundError) {
     messageID: error.messageID,
     message: `Message not found: ${error.messageID}`,
   })
+}
+
+export function invalidDestination(
+  error: Session.DestinationNotFoundError | Session.DestinationNotDirectoryError | Session.DestinationUnavailableError,
+) {
+  const reason =
+    error._tag === "Session.DestinationNotFoundError"
+      ? "Directory does not exist"
+      : error._tag === "Session.DestinationNotDirectoryError"
+        ? "Not a directory"
+        : "Directory is unavailable"
+  return new InvalidRequestError({ message: `${reason}: ${error.directory}` })
 }
 
 export function failedMessageDecode(error: Session.MessageDecodeError) {

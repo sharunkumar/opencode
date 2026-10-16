@@ -6,8 +6,6 @@ import { Bus } from "@opencode/core/bus"
 import { WebSearch } from "@opencode/core/websearch"
 import { Session } from "@opencode/schema/session"
 import { SessionEvent } from "@opencode/schema/session-event"
-import { Project } from "@opencode/schema/project"
-import { AbsolutePath } from "@opencode/schema/schema"
 import { testEffect } from "./lib/effect"
 import { TestWebSearch } from "./lib/websearch"
 
@@ -537,54 +535,46 @@ describe("WebSearch", () => {
       expect(parallel.calls).toEqual([])
     }),
   )
-  ;["delete", "move"].forEach((operation) => {
-    it.effect(`forgets affinity on session ${operation} without retaining it through an in-flight query`, () =>
-      Effect.gen(function* () {
-        const exa = yield* register("exa")
-        const websearch = yield* WebSearch.Service
-        const bus = yield* Bus.Service
-        yield* websearch.select("random")
-        yield* websearch.query({ query: "seed" }, { sessionID: firstSession })
-        const started = yield* Deferred.make<void>()
-        const release = yield* Deferred.make<void>()
-        const pending = yield* websearch
-          .query(
-            { query: "pending" },
-            {
-              sessionID: firstSession,
-              onProvider: (provider) =>
-                provider.id === exa.providerID
-                  ? Deferred.succeed(started, undefined).pipe(Effect.andThen(Deferred.await(release)))
-                  : Effect.void,
-            },
-          )
-          .pipe(Effect.forkChild)
-        yield* Deferred.await(started)
-        yield* operation === "delete"
-          ? bus.publish(SessionEvent.Deleted, { sessionID: firstSession })
-          : bus.publish(SessionEvent.Moved, {
-              sessionID: firstSession,
-              location: { directory: AbsolutePath.make("/moved") },
-              projectID: Project.ID.global,
-            })
-        yield* Effect.yieldNow
-        yield* exa.dispose
-        const parallel = yield* register("parallel")
-        expect((yield* websearch.query({ query: "new affinity" }, { sessionID: firstSession })).providerID).toBe(
-          parallel.providerID,
+  it.effect("forgets affinity on session delete without retaining it through an in-flight query", () =>
+    Effect.gen(function* () {
+      const exa = yield* register("exa")
+      const websearch = yield* WebSearch.Service
+      const bus = yield* Bus.Service
+      yield* websearch.select("random")
+      yield* websearch.query({ query: "seed" }, { sessionID: firstSession })
+      const started = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      const pending = yield* websearch
+        .query(
+          { query: "pending" },
+          {
+            sessionID: firstSession,
+            onProvider: (provider) =>
+              provider.id === exa.providerID
+                ? Deferred.succeed(started, undefined).pipe(Effect.andThen(Deferred.await(release)))
+                : Effect.void,
+          },
         )
-        yield* parallel.dispose
-        const tavily = yield* register("tavily")
-        exa.failure.cause = TestWebSearch.httpError()
-        yield* Deferred.succeed(release, undefined)
-        expect((yield* Fiber.join(pending)).providerID).toBe(tavily.providerID)
-        yield* register("parallel")
-        expect((yield* websearch.query({ query: "still new affinity" }, { sessionID: firstSession })).providerID).toBe(
-          parallel.providerID,
-        )
-      }),
-    )
-  })
+        .pipe(Effect.forkChild)
+      yield* Deferred.await(started)
+      yield* bus.publish(SessionEvent.Deleted, { sessionID: firstSession })
+      yield* Effect.yieldNow
+      yield* exa.dispose
+      const parallel = yield* register("parallel")
+      expect((yield* websearch.query({ query: "new affinity" }, { sessionID: firstSession })).providerID).toBe(
+        parallel.providerID,
+      )
+      yield* parallel.dispose
+      const tavily = yield* register("tavily")
+      exa.failure.cause = TestWebSearch.httpError()
+      yield* Deferred.succeed(release, undefined)
+      expect((yield* Fiber.join(pending)).providerID).toBe(tavily.providerID)
+      yield* register("parallel")
+      expect((yield* websearch.query({ query: "still new affinity" }, { sessionID: firstSession })).providerID).toBe(
+        parallel.providerID,
+      )
+    }),
+  )
 
   it.effect("fails when web search is explicitly disabled", () =>
     Effect.gen(function* () {

@@ -46,8 +46,8 @@ export function useWorkingDirectoryActions(input: { directory: () => string | un
             ? [
                 {
                   title: "Workspaces",
-                  value: "session.move",
-                  description: "to another working directory",
+                  value: "session.workspaces",
+                  description: "manage worktrees and session directories",
                   onSelect: () => void input.onMove?.(),
                 },
               ]

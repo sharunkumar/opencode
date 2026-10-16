@@ -39,8 +39,10 @@ import type {
   SessionSwitchModelOutput,
   SessionUpdateInput,
   SessionUpdateOutput,
-  SessionMoveInput,
-  SessionMoveOutput,
+  SessionRootAddInput,
+  SessionRootAddOutput,
+  SessionRootRemoveInput,
+  SessionRootRemoveOutput,
   SessionPromptInput,
   SessionPromptOutput,
   SessionCommandInput,
@@ -658,7 +660,7 @@ export function make(options: ClientOptions) {
           {
             method: "POST",
             path: `/api/session/${encodeURIComponent(input.sessionID)}/fork`,
-            body: { before: input["before"] },
+            body: { before: input["before"], directory: input["directory"] },
             successStatus: 200,
             declaredStatuses: [400, 401, 404],
             empty: false,
@@ -701,18 +703,32 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
-      move: (input: SessionMoveInput, requestOptions?: RequestOptions) =>
-        request<SessionMoveOutput>(
-          {
-            method: "POST",
-            path: `/api/session/${encodeURIComponent(input.sessionID)}/move`,
-            body: { directory: input["directory"], delivery: input["delivery"] },
-            successStatus: 204,
-            declaredStatuses: [400, 401, 404],
-            empty: true,
-          },
-          requestOptions,
-        ),
+      root: {
+        add: (input: SessionRootAddInput, requestOptions?: RequestOptions) =>
+          request<{ readonly data: SessionRootAddOutput }>(
+            {
+              method: "POST",
+              path: `/api/session/${encodeURIComponent(input.sessionID)}/root`,
+              body: { directory: input["directory"] },
+              successStatus: 200,
+              declaredStatuses: [400, 401, 404],
+              empty: false,
+            },
+            requestOptions,
+          ).then((value) => value.data),
+        remove: (input: SessionRootRemoveInput, requestOptions?: RequestOptions) =>
+          request<{ readonly data: SessionRootRemoveOutput }>(
+            {
+              method: "DELETE",
+              path: `/api/session/${encodeURIComponent(input.sessionID)}/root`,
+              query: { directory: input["directory"] },
+              successStatus: 200,
+              declaredStatuses: [400, 401, 404],
+              empty: false,
+            },
+            requestOptions,
+          ).then((value) => value.data),
+      },
       prompt: (input: SessionPromptInput, requestOptions?: RequestOptions) =>
         request<{ readonly data: SessionPromptOutput }>(
           {

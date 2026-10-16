@@ -312,7 +312,10 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
     .add(
       HttpApiEndpoint.post("session.fork", "/api/session/:sessionID/fork", {
         params: { sessionID: Session.ID },
-        payload: Schema.Struct({ before: SessionMessage.ID.pipe(Schema.optional) }),
+        payload: Schema.Struct({
+          before: SessionMessage.ID.pipe(Schema.optional),
+          directory: Schema.String.pipe(Schema.optional),
+        }),
         success: Schema.Struct({ data: PublicSessionInfo }),
         error: [SessionNotFoundError, MessageNotFoundError, InvalidRequestError],
       })
@@ -322,7 +325,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
             identifier: "session.fork",
             summary: "Fork session",
             description:
-              "Create a child session by copying projected history before a message. Omit before to copy the full history.",
+              "Create a child session by copying projected history before a message. Omit before to copy the full history. Set directory to place the fork in another directory, resolved relative to the session's directory.",
           }),
         ),
     )
@@ -379,18 +382,38 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
         ),
     )
     .add(
-      HttpApiEndpoint.post("session.move", "/api/session/:sessionID/move", {
+      HttpApiEndpoint.post("session.root.add", "/api/session/:sessionID/root", {
         params: { sessionID: Session.ID },
-        payload: Schema.Struct({ ...Location.PublicRef.fields, delivery: SessionInbox.Delivery.pipe(Schema.optional) }),
-        success: HttpApiSchema.NoContent,
+        payload: Schema.Struct({ directory: Schema.String }),
+        success: Schema.Struct({ data: Schema.Struct({ directory: AbsolutePath }) }),
         error: [SessionNotFoundError, InvalidRequestError],
-      }).annotateMerge(
-        OpenApi.annotations({
-          identifier: "session.move",
-          summary: "Move session",
-          description: "Move a session to another project directory at the requested delivery boundary.",
-        }),
-      ),
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.root.add",
+            summary: "Add session root",
+            description:
+              "Add an existing directory to the session's roots, resolved relative to the session's directory. The session's working directory does not change.",
+          }),
+        ),
+    )
+    .add(
+      HttpApiEndpoint.delete("session.root.remove", "/api/session/:sessionID/root", {
+        params: { sessionID: Session.ID },
+        query: Schema.Struct({ directory: Schema.String }),
+        success: Schema.Struct({ data: Schema.Struct({ directory: AbsolutePath }) }),
+        error: SessionNotFoundError,
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.root.remove",
+            summary: "Remove session root",
+            description:
+              "Remove a directory from the session's roots. Removing a directory that is not a root is a no-op.",
+          }),
+        ),
     )
     .add(
       HttpApiEndpoint.post("session.prompt", "/api/session/:sessionID/prompt", {

@@ -48,6 +48,7 @@ export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.In
       directory: AbsolutePath.make(row.directory),
       workspaceID: row.workspace_id ? Workspace.ID.make(row.workspace_id) : undefined,
     }),
+    roots: row.roots?.length ? row.roots : undefined,
     subpath: row.path ? RelativePath.make(row.path) : undefined,
     metadata: row.metadata ?? undefined,
     permissions: row.permission ?? undefined,

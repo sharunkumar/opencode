@@ -144,7 +144,7 @@ it.live(
 )
 
 it.live(
-  "qualifies application keys by workspace and reselects a moved Session",
+  "qualifies application keys by workspace",
   () =>
     Effect.gen(function* () {
       const directory = yield* tmpdirScoped()
@@ -219,18 +219,6 @@ it.live(
       }
       expect(configured).toEqual(["same-thread", "same-thread"])
       expect(placements.map((location) => location.workspaceID)).toEqual([firstWorkspace, secondWorkspace])
-
-      yield* opencode.sessions.move({
-        sessionID: first.id,
-        directory: AbsolutePath.make(directory.path),
-        workspaceID: secondWorkspace,
-      })
-      yield* opencode.sessions.wait({ sessionID: first.id })
-      const moved = yield* opencode.sessions.get({ sessionID: first.id })
-      expect(moved.location.workspaceID).toBe(secondWorkspace)
-      const admitted = yield* opencode.sessions.prompt({ sessionID: first.id, text: "Moved", resume: false })
-      expect(admitted.payload.text).toBe(`Moved:${secondWorkspace}`)
-      expect(configured).toEqual(["same-thread", "same-thread"])
     }),
   15_000,
 )

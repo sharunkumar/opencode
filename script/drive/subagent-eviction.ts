@@ -1,6 +1,5 @@
 import { Deferred, Effect, Stream } from "effect"
 import { Llm, OpenCodeDriver } from "opencode-drive"
-import { AbsolutePath } from "../../packages/schema/src/schema"
 import { Database } from "bun:sqlite"
 
 const label = process.env.DEMO_LABEL ?? "AFTER"
@@ -81,12 +80,8 @@ export default OpenCodeDriver.use(
       const child = (yield* opencode.session.list({ parentID: parent.id })).data[0]
       if (!child) return yield* Effect.fail(new Error("Child missing"))
       const hold = yield* tools.take("call_hold")
-      yield* opencode.session.move({ sessionID: child.id, directory: AbsolutePath.make(`${artifacts}/files/child`) })
       yield* hold.finish({ structured: {}, content: [{ type: "text", text: "Fixture ready" }] })
       yield* Deferred.await(held).pipe(Effect.timeout("30 seconds"))
-      const moved = yield* opencode.session.get({ sessionID: child.id })
-      if (moved.location.directory !== `${artifacts}/files/child`)
-        return yield* Effect.fail(new Error("Child did not move"))
       yield* opencode.session.wait({ sessionID: parent.id })
       if (evict) {
         yield* opencode.debug.location.evict({ location: { directory: parent.location.directory } })

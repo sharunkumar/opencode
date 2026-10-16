@@ -223,12 +223,14 @@ The `opencode` Code Mode namespace contains session utilities:
 
 - `session_rename` changes the title of the current session, or another session
   selected by `sessionID`.
-- `session_move` moves the current session, or another selected session, to a
-  relative or absolute `directory`. The move takes effect at a safe boundary,
-  so destination-dependent work belongs in a later call.
+- `session_root_add` adds a relative or absolute `directory` to the current
+  session's roots, or another session selected by `sessionID`. Roots are in
+  scope like the working directory: reading and editing them needs no
+  `external_directory` approval. Commands still run in the working directory.
+- `session_root_remove` removes a directory from the session's roots.
 
 ```text
-Rename this session to "Timeout cleanup", then move it to the new worktree.
+Rename this session to "Timeout cleanup", then add the new worktree to it.
 ```
 
 These utilities do not request a built-in permission action.
@@ -245,7 +247,7 @@ The same namespace manages worktrees for the session's project:
   `force` to discard uncommitted changes.
 
 ```text
-Create a worktree named "login" and move this session into it.
+Create a worktree named "login" and add it to this session.
 ```
 
 `worktree_remove` uses the `edit` permission with the worktree directory as its

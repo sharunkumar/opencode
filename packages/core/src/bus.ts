@@ -245,6 +245,12 @@ export function configured(options?: Options) {
               resolved.set(event, ref ? [ref, event.data.location] : [event.data.location])
               continue
             }
+            if (event.type === "session.forked" && event.data.destination) {
+              // The parent's location sees the fork; the child lives at the destination.
+              updates.set(id, event.data.destination.location)
+              resolved.set(event, ref ? [ref, event.data.destination.location] : [event.data.destination.location])
+              continue
+            }
             if (event.type === "session.forked") updates.set(id, ref)
             resolved.set(event, event.location ? [event.location] : ref ? [ref] : [])
             if (event.type === "session.deleted") updates.set(id, undefined)

@@ -41,6 +41,7 @@ const CompactionItem = Schema.Struct({
   payload: CompactionPayload,
   delivery: Delivery,
 })
+// Replay-only: older releases admitted moves as inbox controls. The runner delivers them as no-ops.
 const MoveItem = Schema.Struct({ type: Schema.tag("move"), payload: MovePayload, delivery: Delivery })
 
 export const Item = Schema.Union([UserItem, SyntheticItem, CompactionItem, MoveItem]).pipe(

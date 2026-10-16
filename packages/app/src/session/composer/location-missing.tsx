@@ -4,17 +4,20 @@ import { DockShell, DockTray } from "@opencode/ui/dock-surface"
 import { Icon } from "@opencode/ui/icon"
 import { Menu } from "@opencode/ui/menu"
 import { getFilename, sameDirectory } from "@opencode/util/path"
+import { useNavigate } from "@solidjs/router"
 import { useMutation } from "@tanstack/solid-query"
 import { createEffect, createResource, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useData, useServer } from "@/runtime/server/current"
+import { sessionHref } from "@/shell/routes/session"
 import { showToast } from "@/shell/notifications/toast"
 import { createWorktree } from "@/workspaces/create"
 import { useDirectoryPicker } from "@/workspaces/selection/picker"
 
 export function SessionLocationMissing(props: { sessionID: string; projectID: string; directory: string }) {
   const language = useLanguage()
+  const navigate = useNavigate()
   const server = useServer()
   const data = useData()
   const dialog = useDialog()
@@ -41,7 +44,7 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
 
   let button: HTMLButtonElement | undefined
 
-  const move = useMutation(() => ({
+  const fork = useMutation(() => ({
     mutationFn: async (input: { directory?: string }) => {
       // The missing worktree cannot resolve its own Location, so create from the project's saved checkout.
       const current = project()
@@ -57,7 +60,9 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
           })))
 
       if (!destination) return
-      await server.ctx.sdk.api.session.move({ sessionID: props.sessionID, directory: destination })
+      const forked = await server.ctx.sdk.api.session.fork({ sessionID: props.sessionID, directory: destination })
+      data.session.remember(forked)
+      navigate(sessionHref(server.key, forked.id))
     },
     onError: (error) => {
       setState("restoreFocus", true)
@@ -70,20 +75,20 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
   }))
 
   createEffect(() => {
-    if (!state.restoreFocus || move.isPending || dialog.active) return
+    if (!state.restoreFocus || fork.isPending || dialog.active) return
     setState("restoreFocus", false)
     button?.focus()
   })
 
   function choose() {
-    if (move.isPending) return
+    if (fork.isPending) return
     pickDirectory({
       server: server.conn,
       title: language.t("session.location.choose"),
       onSelect: (result) => {
         const selected = Array.isArray(result) ? result[0] : result
 
-        if (selected) move.mutate({ directory: selected })
+        if (selected) fork.mutate({ directory: selected })
 
         if (!selected) setState("restoreFocus", true)
       },
@@ -105,12 +110,12 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
       <DockTray attach="top" class="flex flex-wrap justify-end gap-2 p-2 pt-[22px]">
         <Show when={project()?.vcs === "git"}>
           <Menu placement="top-end" onOpenChange={(open) => setState("worktreesOpen", open)}>
-            <Menu.Trigger as={Button} variant="neutral" disabled={move.isPending}>
+            <Menu.Trigger as={Button} variant="neutral" disabled={fork.isPending}>
               {language.t("session.location.worktree")}
             </Menu.Trigger>
             <Menu.Portal>
               <Menu.Content class="max-h-80 max-w-[calc(100vw-32px)] overflow-y-auto">
-                <Menu.Item onSelect={() => move.mutate({})} disabled={move.isPending}>
+                <Menu.Item onSelect={() => fork.mutate({})} disabled={fork.isPending}>
                   <Icon name="workspace-new" />
                   {language.t("workspace.new")}
                 </Menu.Item>
@@ -121,8 +126,8 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
                   {(worktree) => (
                     <Menu.Item
                       title={worktree.directory}
-                      onSelect={() => move.mutate({ directory: worktree.directory })}
-                      disabled={move.isPending}
+                      onSelect={() => fork.mutate({ directory: worktree.directory })}
+                      disabled={fork.isPending}
                     >
                       <Icon name="workspace-isolated" />
                       <span class="truncate">{getFilename(worktree.directory)}</span>
@@ -133,8 +138,8 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
             </Menu.Portal>
           </Menu>
         </Show>
-        <Button ref={button} variant="contrast" onClick={choose} disabled={move.isPending}>
-          {language.t(move.isPending ? "session.location.moving" : "session.location.choose")}
+        <Button ref={button} variant="contrast" onClick={choose} disabled={fork.isPending}>
+          {language.t(fork.isPending ? "session.location.moving" : "session.location.choose")}
         </Button>
       </DockTray>
     </div>

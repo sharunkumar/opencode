@@ -89,10 +89,10 @@ test("resolves overrides without mutating input", () => {
   expect(input.keybinds).toEqual({ session_list: "ctrl+l" })
 })
 
-test("resolves a session move keybind", () => {
+test("drops a removed session move keybind", () => {
   const config = resolve({ keybinds: { session_move: "ctrl+o" } }, { terminalSuspend: true })
 
-  expect(config.keybinds.get("session.move")).toMatchObject([{ key: "ctrl+o" }])
+  expect(config.keybinds.get("session.move")).toEqual([])
 })
 
 test("resolves message navigation defaults", () => {

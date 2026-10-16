@@ -744,27 +744,17 @@ export function createData(config: CreateDataInput) {
         if (store.session.info[event.data.sessionID])
           setStore("session", "info", event.data.sessionID, "permissions", event.data.permissions)
         return
-      case "session.moved": {
-        const current = store.session.info[event.data.sessionID]
-        if (current) {
-          const previous = {
-            location: { ...current.location },
-            projectID: current.projectID,
-            subpath: current.subpath,
-          }
-          setStore("session", "info", event.data.sessionID, "location", event.data.location)
-          if (event.data.projectID) setStore("session", "info", event.data.sessionID, "projectID", event.data.projectID)
-          setStore("session", "info", event.data.sessionID, "subpath", event.data.subpath)
-          message.insert(event.data.sessionID, {
-            id: messageIDFromEvent(event.id),
-            type: "location-switched",
-            location: event.data.location,
-            projectID: event.data.projectID,
-            subpath: event.data.subpath,
-            previous,
-            time: { created: event.created },
-          })
-        }
+      case "session.root.added": {
+        const roots = store.session.info[event.data.sessionID]?.roots ?? []
+        if (store.session.info[event.data.sessionID] && !roots.includes(event.data.directory))
+          setStore("session", "info", event.data.sessionID, "roots", [...roots, event.data.directory])
+        return
+      }
+      case "session.root.removed": {
+        const roots = store.session.info[event.data.sessionID]?.roots
+        if (!roots) return
+        const next = roots.filter((root) => root !== event.data.directory)
+        setStore("session", "info", event.data.sessionID, "roots", next.length ? next : undefined)
         return
       }
       case "worktree.resolved": {

@@ -1,7 +1,10 @@
 import { describe, expect } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
-import { Effect } from "effect"
+import { DateTime, Effect, Layer } from "effect"
+import { Money } from "@opencode/schema/money"
+import { Project } from "@opencode/core/project"
+import { SessionStore } from "@opencode/core/session/store"
 import { FileAccess } from "@opencode/core/file-access"
 import { Location } from "@opencode/core/location"
 import { Permission } from "@opencode/core/permission"
@@ -23,10 +26,30 @@ const invocation = {
 }
 const slash = (file: string) => file.replaceAll("\\", "/")
 
-function provide(requests: Permission.AssertInput[], denied?: string) {
+function provide(requests: Permission.AssertInput[], denied?: string, roots?: readonly string[]) {
   return Effect.provide(
     AppNodeBuilder.build(LayerNode.group([FileAccess.node, Location.node]), [
       Location.node.replace(tempLocationLayer),
+      ...(roots
+        ? [
+            SessionStore.node.replace(
+              Layer.mock(SessionStore.Service)({
+                get: (sessionID) =>
+                  Effect.succeed(
+                    Session.Info.make({
+                      id: sessionID,
+                      projectID: Project.ID.global,
+                      cost: Money.USD.make(0),
+                      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+                      time: { created: DateTime.makeUnsafe(0), updated: DateTime.makeUnsafe(0) },
+                      location: { directory: AbsolutePath.make("/project") },
+                      roots: roots.map((root) => AbsolutePath.make(root)),
+                    }),
+                  ),
+              }),
+            ),
+          ]
+        : []),
       Permission.node.replace(
         permissionLayer({
           assert: (input) =>
@@ -174,5 +197,28 @@ describe("FileAccess.authorizeRead", () => {
       expect(requests[1].resources).toEqual([slash(path.join(git, "nested", "*"))])
       expect(Object.hasOwn(requests[1], "metadata")).toBe(false)
     }).pipe(provide(requests))
+  })
+
+  it.live("skips external approval for targets inside session roots", () => {
+    const requests: Permission.AssertInput[] = []
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const root = yield* tmpdirScoped()
+        const outside = yield* tmpdirScoped()
+        yield* Effect.gen(function* () {
+          const access = yield* FileAccess.Service
+          const inside = yield* access.resolve({ path: path.join(root.path, "nested", "a.txt"), kind: "file" })
+          const directory = yield* access.resolve({ path: root.path, kind: "directory" })
+          const external = yield* access.resolve({ path: path.join(outside.path, "b.txt"), kind: "file" })
+
+          yield* access.authorizeExternal([inside, directory], invocation)
+          expect(requests).toEqual([])
+          yield* access.authorizeExternal([inside, external], invocation)
+          expect(requests).toMatchObject([
+            { action: "external_directory", resources: [slash(path.join(outside.path, "*"))] },
+          ])
+        }).pipe(provide(requests, undefined, [root.path]))
+      }),
+    )
   })
 })

@@ -160,11 +160,16 @@ const projectFork = Effect.fn("SessionProjector.projectFork")(function* (
       parent_id: null,
       fork_session_id: event.data.parentID,
       fork_boundary: event.data.boundary,
-      project_id: parent.project_id,
-      workspace_id: parent.workspace_id,
+      project_id: event.data.destination?.projectID ?? parent.project_id,
+      workspace_id: event.data.destination
+        ? event.data.destination.location.workspaceID
+          ? Workspace.ID.make(event.data.destination.location.workspaceID)
+          : null
+        : parent.workspace_id,
       slug: Slug.create(),
-      directory: parent.directory,
-      path: parent.path,
+      directory: event.data.destination?.location.directory ?? parent.directory,
+      path: event.data.destination ? event.data.destination.subpath : parent.path,
+      roots: parent.roots,
       title: forkTitle(parent.title ?? undefined),
       agent: parent.agent,
       model: parent.model,
@@ -456,6 +461,7 @@ const layer = Layer.effectDiscard(
             slug: event.data.slug,
             directory: event.data.location.directory,
             path: event.data.subpath,
+            roots: event.data.roots?.length ? event.data.roots : null,
             title: event.data.title,
             agent: event.data.agent,
             model: event.data.model,
@@ -573,6 +579,32 @@ const layer = Layer.effectDiscard(
           .run()
           .pipe(Effect.orDie)
       }),
+    )
+    const updateRoots = (
+      event: typeof SessionEvent.RootAdded.Type | typeof SessionEvent.RootRemoved.Type,
+      next: (roots: readonly AbsolutePath[]) => readonly AbsolutePath[],
+    ) =>
+      Effect.gen(function* () {
+        const row = yield* db
+          .select({ roots: SessionTable.roots })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, event.data.sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        if (!row) return
+        const roots = next(row.roots ?? [])
+        yield* db
+          .update(SessionTable)
+          .set({ roots: roots.length ? roots : null, time_updated: event.created })
+          .where(eq(SessionTable.id, event.data.sessionID))
+          .run()
+          .pipe(Effect.orDie)
+      })
+    yield* bus.project(SessionEvent.RootAdded, (event) =>
+      updateRoots(event, (roots) => (roots.includes(event.data.directory) ? roots : [...roots, event.data.directory])),
+    )
+    yield* bus.project(SessionEvent.RootRemoved, (event) =>
+      updateRoots(event, (roots) => roots.filter((root) => root !== event.data.directory)),
     )
     yield* bus.project(SessionEvent.Renamed, (event) =>
       db

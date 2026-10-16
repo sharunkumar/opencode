@@ -8,6 +8,7 @@ import { and, desc, eq } from "drizzle-orm"
 import { Project } from "./project.js"
 import { Model } from "@opencode/schema/model"
 import { Location } from "./location.js"
+import { FileAccess } from "./file-access.js"
 import type { FileSystem } from "./filesystem.js"
 import { SessionMessage } from "./session/message.js"
 import { PromptInput } from "@opencode/schema/prompt-input"
@@ -17,7 +18,7 @@ import { Database } from "./database/database.js"
 import { SessionProjector } from "./session/projector.js"
 import { SessionMessageTable } from "./session/sql.js"
 import { SessionSchema } from "./session/schema.js"
-import { RelativePath } from "./schema.js"
+import { AbsolutePath, RelativePath } from "./schema.js"
 import { Agent } from "@opencode/schema/agent"
 import type { Permission } from "@opencode/schema/permission"
 import { App } from "./app.js"
@@ -47,11 +48,11 @@ import { InstructionState } from "./session/instruction-state.js"
 import { SessionGenerate } from "./session/generate.js"
 import { SessionCommand } from "./session/command.js"
 import {
-  SessionMove,
+  SessionDestination,
   DestinationNotFoundError,
   DestinationNotDirectoryError,
   DestinationUnavailableError,
-} from "./session/move.js"
+} from "./session/destination.js"
 import { SessionModelTransport } from "./session/model-transport.js"
 import { llmClient } from "./effect/app-node-platform.js"
 import { Snapshot } from "./snapshot.js"
@@ -96,7 +97,11 @@ type CompactInput = Parameters<Session.Handle["compact"]>[0] & { sessionID: Sess
 type ForkInput = {
   sessionID: SessionSchema.ID
   before?: SessionMessage.ID
+  /** Places the fork in another directory, resolved relative to the parent's directory. */
+  directory?: string
 }
+
+type RootInput = { sessionID: SessionSchema.ID; directory: string }
 
 export {
   AttachmentError,
@@ -122,7 +127,15 @@ export interface Interface {
   readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info, NotFoundError>
   readonly fork: (
     input: ForkInput,
-  ) => Effect.Effect<SessionSchema.Info, NotFoundError | MessageNotFoundError | ForkEmptyError>
+  ) => Effect.Effect<
+    SessionSchema.Info,
+    | NotFoundError
+    | MessageNotFoundError
+    | ForkEmptyError
+    | DestinationNotFoundError
+    | DestinationNotDirectoryError
+    | DestinationUnavailableError
+  >
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info, NotFoundError>
   readonly environment: (input: {
     readonly sessionID: SessionSchema.ID
@@ -182,7 +195,11 @@ export interface Interface {
     sessionID: SessionSchema.ID
     permissions: Permission.Ruleset
   }) => Effect.Effect<void, NotFoundError>
-  readonly move: SessionMove.Interface["move"]
+  /** Adds an existing directory to the Session's roots, resolved relative to its directory. */
+  readonly addRoot: (
+    input: RootInput,
+  ) => Effect.Effect<AbsolutePath, NotFoundError | DestinationNotFoundError | DestinationNotDirectoryError>
+  readonly removeRoot: (input: RootInput) => Effect.Effect<AbsolutePath, NotFoundError>
   readonly prompt: (
     input: Parameters<Session.Handle["prompt"]>[0] & { sessionID: SessionSchema.ID },
   ) => ReturnType<Session.Handle["prompt"]>
@@ -251,7 +268,7 @@ const layer = Layer.effect(
     const transport = yield* SessionModelTransport.Service
     const store = yield* SessionStore.Service
     const instances = yield* Instance.Service
-    const moves = yield* SessionMove.Service
+    const destinations = yield* SessionDestination.Service
     const jobs = yield* Job.Service
     const environments = yield* SessionEnvironment.Service
     const locations = yield* LocationServiceMap.Service
@@ -279,6 +296,7 @@ const layer = Layer.effect(
               projectID: project.id,
               parentID: input.parentID,
               location,
+              roots: parent?.roots,
               subpath: RelativePath.make(path.relative(project.directory, location.directory).replaceAll("\\", "/")),
               title: input.title,
               agent: input.agent,
@@ -337,6 +355,10 @@ const layer = Layer.effect(
             messageID: input.before,
           })
         if (!boundary) return yield* new ForkEmptyError({ sessionID: input.sessionID })
+        const destination =
+          input.directory === undefined
+            ? undefined
+            : yield* destinations.placement({ from: parent.location.directory, directory: input.directory })
         const sessionID = SessionSchema.ID.create()
         const inherited = yield* db
           .transaction(() =>
@@ -353,6 +375,7 @@ const layer = Layer.effect(
           sessionID,
           parentID: parent.id,
           boundary: { type: input.before ? "before" : "through", messageID: boundary.id },
+          destination,
           ...inherited,
         })
         return yield* result.get(sessionID).pipe(Effect.orDie)
@@ -435,7 +458,25 @@ const layer = Layer.effect(
       rename: (input) => sessions.forSession(input.sessionID).rename(input),
       setMetadata: (input) => sessions.forSession(input.sessionID).setMetadata(input),
       setPermissions: (input) => sessions.forSession(input.sessionID).setPermissions(input),
-      move: moves.move,
+      addRoot: Effect.fn("Session.addRoot")(function* (input) {
+        const session = yield* result.get(input.sessionID)
+        const lexical = AbsolutePath.make(FileAccess.resolvePath(session.location.directory, input.directory.trim()))
+        if (lexical === session.location.directory || session.roots?.includes(lexical)) return lexical
+        const directory = yield* destinations.directory({
+          from: session.location.directory,
+          directory: input.directory,
+        })
+        yield* bus.publish(SessionEvent.RootAdded, { sessionID: input.sessionID, directory })
+        return directory
+      }),
+      removeRoot: Effect.fn("Session.removeRoot")(function* (input) {
+        const session = yield* result.get(input.sessionID)
+        // Lexical resolution: a root may be removed after its directory is deleted.
+        const directory = AbsolutePath.make(FileAccess.resolvePath(session.location.directory, input.directory.trim()))
+        if (!session.roots?.includes(directory)) return directory
+        yield* bus.publish(SessionEvent.RootRemoved, { sessionID: input.sessionID, directory })
+        return directory
+      }),
       compact: (input) => sessions.forSession(input.sessionID).compact(input),
       wait: (sessionID) => sessions.forSession(sessionID).wait(),
       active: execution.active,
@@ -472,7 +513,7 @@ export const node: LayerNode.Provider<Service, never, typeof Node.tags.values.gl
     SessionStore.node,
     Instance.node,
     SessionInbox.node,
-    SessionMove.node,
+    SessionDestination.node,
     SessionProjector.node,
     LocationServiceMap.node,
     FSUtil.node,

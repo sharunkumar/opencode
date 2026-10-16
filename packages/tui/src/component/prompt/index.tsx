@@ -284,30 +284,25 @@ export function Prompt(props: PromptProps) {
             session?.location.directory ?? currentLocation.current?.directory ?? data.location.default().directory,
             expanded,
           )
-          if (!sessionID) {
-            setPendingDirectory(directory)
-            const location = await client.api.location.get({ location: { directory } }).catch((error) => {
-              toast.show({ title: "Failed to change directory", message: errorMessage(error), variant: "error" })
-              return undefined
+          if (sessionID) {
+            toast.show({
+              message: "Cannot change the directory of an existing session",
+              variant: "error",
             })
-            if (!location) {
-              setPendingDirectory(undefined)
-              return
-            }
-            if (sourceProjectID) directoryRecents.touch(sourceProjectID, location.directory)
-            currentLocation.set(location)
+            return
+          }
+          setPendingDirectory(directory)
+          const location = await client.api.location.get({ location: { directory } }).catch((error) => {
+            toast.show({ title: "Failed to change directory", message: errorMessage(error), variant: "error" })
+            return undefined
+          })
+          if (!location) {
             setPendingDirectory(undefined)
             return
           }
-          const error = await client.api.session.move({ sessionID, directory: input }).then(
-            () => undefined,
-            (error) => error,
-          )
-          if (error) {
-            toast.show({ title: "Failed to change directory", message: errorMessage(error), variant: "error" })
-            return
-          }
-          if (sourceProjectID) directoryRecents.touch(sourceProjectID, directory)
+          if (sourceProjectID) directoryRecents.touch(sourceProjectID, location.directory)
+          currentLocation.set(location)
+          setPendingDirectory(undefined)
         },
       },
     ],
@@ -634,16 +629,6 @@ export function Prompt(props: PromptProps) {
           ))
         },
       },
-      {
-        title: "Manage workspaces",
-        desc: "Manage workspaces",
-        name: "session.move",
-        category: "Session",
-        slash: { name: "worktrees" },
-        run: () => {
-          move.open()
-        },
-      },
     ].map(
       ({ name, category, ...command }) =>
         ({
@@ -681,7 +666,6 @@ export function Prompt(props: PromptProps) {
       "prompt.skills",
       "session.interrupt",
       "session.background",
-      "session.move",
     ],
   }))
 

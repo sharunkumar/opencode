@@ -79,7 +79,7 @@ import { Location } from "@opencode/core/location"
 import { Provider } from "@opencode/core/provider"
 import { Cause, Context, DateTime, Deferred, Effect, Exit, Fiber, Layer, Queue, Schema, Scope, Stream } from "effect"
 import { TestClock } from "effect/testing"
-import { asc, desc, eq, sql } from "drizzle-orm"
+import { asc, eq, sql } from "drizzle-orm"
 import { testEffect } from "./lib/effect"
 import { promptLocationNode } from "./fixture/prompt-location"
 import { LocationServiceMap } from "@opencode/core/location-service-map"
@@ -1314,49 +1314,10 @@ describe("SessionRunnerLLM", () => {
     },
   )
 
-  scenario("settles compaction and delivers a move while initial instructions are unavailable", function* (s) {
-    const runner = yield* SessionRunner.Service
-    s.systemUnavailable = true
-    let reads = 0
-    s.systemLoadHook = Effect.sync(() => {
-      reads++
-    })
-    const compaction = yield* s.sessionInbox.admitCompaction({
-      id: SessionMessage.ID.create(),
-      sessionID,
-      delivery: "queue",
-    })
+  scenario("consumes a legacy queued move without relocating the Session", function* (s) {
+    const before = (yield* s.session.get(sessionID)).location
     yield* s.sessionInbox.admit({
       id: SessionMessage.ID.create(),
-      sessionID,
-      item: {
-        type: "move",
-        payload: {
-          location: Location.Ref.make({ directory: AbsolutePath.make("/moved") }),
-          projectID: Project.ID.global,
-        },
-        delivery: "queue",
-      },
-    })
-
-    expect(yield* runner.drain({ sessionID, force: false })).toEqual(SessionRunner.DrainResult.Moved({}))
-
-    // Compaction needs the model and instructions, so it reads them and fails; the move does not.
-    expect(reads).toBe(1)
-    expect(s.requests).toHaveLength(0)
-    expect(yield* s.inbox).toEqual([])
-    expect((yield* s.session.get(sessionID)).location.directory).toBe(AbsolutePath.make("/moved"))
-    expect((yield* s.messages).find((message) => message.id === compaction.id)).toMatchObject({
-      type: "compaction",
-      status: "failed",
-      error: { message: "Instruction initialization blocked by unavailable sources: test/context" },
-    })
-  })
-
-  scenario("delivers a queued move atomically at the idle boundary", function* (s) {
-    const inboxID = SessionMessage.ID.create()
-    yield* s.sessionInbox.admit({
-      id: inboxID,
       sessionID,
       item: {
         type: "move",
@@ -1370,64 +1331,11 @@ describe("SessionRunnerLLM", () => {
 
     yield* s.resume
 
-    expect((yield* s.session.get(sessionID)).location.directory).toBe(AbsolutePath.make("/moved"))
+    expect((yield* s.session.get(sessionID)).location).toEqual(before)
     expect(yield* s.inbox).toEqual([])
     expect(s.requests).toEqual([])
-    expect(s.closedTransports).toEqual([sessionID])
-    expect(
-      (yield* s.db
-        .select({ type: EventTable.type })
-        .from(EventTable)
-        .where(eq(EventTable.aggregate_id, sessionID))
-        .orderBy(desc(EventTable.seq))
-        .limit(2)
-        .all()).map((event) => event.type),
-    ).toEqual([Bus.versionedType(SessionEvent.Moved.type, 1), Bus.versionedType(SessionEvent.InboxDelivered.type, 1)])
+    expect(yield* recordedEventTypes(sessionID)).not.toContain(Bus.versionedType(SessionEvent.Moved.type, 1))
   })
-
-  for (const delivery of ["steer", "queue"] as const) {
-    scenario(`preserves a tool continuation and step allowance across chained moves (${delivery})`, function* (s) {
-      const agents = yield* Agent.Service
-      yield* agents.transform((editor) =>
-        editor.update(Agent.ID.make("build"), (agent) => {
-          agent.steps = 2
-        }),
-      )
-      yield* s.admit("Echo before moving")
-      yield* s.llm.push(TestLLM.tool("call-move", "echo", { text: "moving" }), TestLLM.text("Done", "text-after-move"))
-      const tools = yield* s.blockTools()
-      const run = yield* s.resume.pipe(Effect.forkChild)
-      yield* tools.started
-      yield* Effect.forEach(["steer", delivery] as const, (delivery) =>
-        s.sessionInbox.admit({
-          id: SessionMessage.ID.create(),
-          sessionID,
-          item: {
-            type: "move",
-            payload: {
-              location: Location.Ref.make({ directory: AbsolutePath.make("/project") }),
-              projectID: Project.ID.global,
-            },
-            delivery,
-          },
-        }),
-      )
-
-      yield* tools.release
-      yield* Fiber.join(run)
-
-      expect(s.requests).toHaveLength(2)
-      expect(messageRoles(s.requests[1])?.slice(0, 3)).toEqual(["user", "assistant", "tool"])
-      expect(s.requests[0]?.toolChoice).toBeUndefined()
-      expect(s.requests[1]?.toolChoice).toMatchObject({ type: "none" })
-      expect(
-        (yield* recordedEventTypes(sessionID)).filter(
-          (type) => type === "session.step.started.1" || type === "session.moved.1",
-        ),
-      ).toEqual(["session.step.started.1", "session.moved.1", "session.moved.1", "session.step.started.1"])
-      expect(yield* s.inbox).toEqual([])
-    })
-  }
 
   scenario("keeps queued input parked across a mid-turn move", function* (s) {
     yield* s.admit("Echo before moving")
@@ -1460,50 +1368,6 @@ describe("SessionRunnerLLM", () => {
     expect(s.requests).toHaveLength(3)
     expect(userTexts(s.requests[1])).not.toContain("Queued for later")
     expect(userTexts(s.requests[2])).toContain("Queued for later")
-  })
-
-  scenario("runs a queued control on Location entry before a carried continuation", function* (s) {
-    const runner = yield* SessionRunner.Service
-    yield* s.admit("Echo before moving")
-    yield* s.llm.push(
-      TestLLM.tool("call-entry", "echo", { text: "moving" }),
-      TestLLM.text("## Objective\n- Entry summary", "entry-summary"),
-      TestLLM.text("Continued", "entry-continuation"),
-    )
-    const stream = yield* s.llm.gate
-    const run = yield* runner.drain({ sessionID, force: false }).pipe(Effect.forkChild)
-    yield* stream.started
-    const compaction = yield* s.sessionInbox.admitCompaction({
-      id: SessionMessage.ID.create(),
-      sessionID,
-      delivery: "queue",
-    })
-    yield* s.sessionInbox.admit({
-      id: SessionMessage.ID.create(),
-      sessionID,
-      item: {
-        type: "move",
-        payload: {
-          location: Location.Ref.make({ directory: AbsolutePath.make("/project") }),
-          projectID: Project.ID.global,
-        },
-        delivery: "steer",
-      },
-    })
-    yield* stream.release
-    const moved = yield* Fiber.join(run)
-
-    expect(moved).toEqual(SessionRunner.DrainResult.Moved({ continuation: { step: 2 } }))
-    expect(s.requests).toHaveLength(1)
-    expect(yield* SessionInbox.find(s.db, compaction.id)).toMatchObject({ id: compaction.id })
-    if (moved._tag !== "Moved") throw new Error("Expected a Location handoff")
-
-    // Location entry considers queued controls even when model work carries across the move.
-    yield* runner.drain({ sessionID, force: false, continuation: moved.continuation })
-
-    expect(s.requests).toHaveLength(3)
-    expect(userTexts(s.requests[2])[0]).toContain("<summary>\n## Objective\n- Entry summary\n</summary>")
-    expect(yield* s.inbox).toEqual([])
   })
 
   scenario(
@@ -2280,39 +2144,6 @@ describe("SessionRunnerLLM", () => {
     expect(s.requests).toHaveLength(3)
     expect(userTexts(s.requests[2]).slice(-2)).toEqual(["STEER_A", "STEER_B"])
     expect(yield* s.inbox).toEqual([])
-  })
-
-  scenario("does not pull compaction across an earlier move", function* (s) {
-    yield* s.admit("STEER_A")
-    yield* s.sessionInbox.admit({
-      id: SessionMessage.ID.create(),
-      sessionID,
-      item: {
-        type: "move",
-        payload: {
-          location: Location.Ref.make({ directory: AbsolutePath.make("/project") }),
-          projectID: Project.ID.global,
-        },
-        delivery: "steer",
-      },
-    })
-    yield* s.admit("STEER_B")
-    yield* s.sessionInbox.admitCompaction({ id: SessionMessage.ID.create(), sessionID, delivery: "steer" })
-    yield* s.llm.push(
-      TestLLM.text("First steer complete", "first"),
-      TestLLM.text("## Objective\n- Source work checkpoint", "summary"),
-      TestLLM.text("Second steer complete", "second"),
-    )
-    yield* s.resume
-    expect(s.requests).toHaveLength(3)
-    expect(userTexts(s.requests[0])).toEqual(["STEER_A"])
-    expect(userTexts(s.requests[1]).at(-1)).toContain("Summarize only what the user and the assistant said and did")
-    expect(userTexts(s.requests[2]).at(-1)).toBe("STEER_B")
-    expect(
-      (yield* recordedEventTypes(sessionID)).filter(
-        (type) => type === "session.moved.1" || type === "session.compaction.started.1",
-      ),
-    ).toEqual(["session.moved.1", "session.compaction.started.1"])
   })
 
   scenario("runs steers before queued compaction and later queued input", function* (s) {
@@ -4142,42 +3973,6 @@ describe("SessionRunnerLLM", () => {
 
     expect(s.requests.map(userTexts)).toEqual([["A"], ["A"], ["A", "B"]])
     expect((yield* s.messages).some((message) => message.id === steer.id)).toBe(false)
-    expect(yield* s.inbox).toEqual([])
-  })
-
-  scenario("dispatches a queued move when a steer is cancelled during preparation", function* (s) {
-    const runner = yield* SessionRunner.Service
-
-    const location = Location.Ref.make({ directory: AbsolutePath.make("/moved") })
-    yield* s.admit("A")
-    yield* s.llm.push(TestLLM.stop(), TestLLM.stop())
-    const stream = yield* s.llm.gate
-    const run = yield* runner.drain({ sessionID, force: false }).pipe(Effect.forkChild)
-    yield* stream.started
-
-    yield* s.sessionInbox.admit({
-      id: SessionMessage.ID.create(),
-      sessionID,
-      item: {
-        type: "move",
-        payload: { location, projectID: Project.ID.global },
-        delivery: "queue",
-      },
-    })
-    const steer = yield* s.admit("S")
-    s.systemLoadHook = Effect.gen(function* () {
-      s.systemLoadHook = Effect.void
-      yield* s.session.cancelInbox({ sessionID, inboxID: steer.id }).pipe(Effect.orDie)
-    })
-    yield* stream.release
-
-    expect({ result: yield* Fiber.join(run), location: (yield* s.session.get(sessionID)).location }).toEqual({
-      result: SessionRunner.DrainResult.Moved({}),
-      location,
-    })
-    expect(s.requests.map(userTexts)).toEqual([["A"], ["A"]])
-    expect(s.closedTransports).toEqual([sessionID])
-    expect(yield* recordedEventTypes(sessionID)).toContain(Bus.versionedType(SessionEvent.Moved.type, 1))
     expect(yield* s.inbox).toEqual([])
   })
 

@@ -10,6 +10,7 @@ import { Permission } from "./permission.js"
 import { Project } from "./project.js"
 import { AbsolutePath } from "./schema.js"
 import type { SessionErrors } from "./session/error.js"
+import { SessionStore } from "./session/store.js"
 import type { Tool } from "./tool.js"
 
 export const Kind = Schema.Literals(["file", "directory"])
@@ -89,6 +90,7 @@ const layer = Layer.effect(
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
     const permission = yield* Permission.Service
+    const store = yield* SessionStore.Service
 
     const resolve = Effect.fn("FileAccess.resolve")(function* (input: ResolveInput) {
       const absolute = AbsolutePath.make(resolvePath(location.directory, input.path))
@@ -127,8 +129,15 @@ const layer = Layer.effect(
       context: Invocation,
       metadata?: Permission.AssertInput["metadata"],
     ) {
+      if (!targets.some((target) => target.externalDirectory)) return
+      // Session roots are in scope like the working directory and need no external approval.
+      const roots = (yield* store.get(context.sessionID))?.roots ?? []
       const external = Array.dedupeWith(
-        targets.flatMap((target) => (target.externalDirectory ? [target.externalDirectory] : [])),
+        targets.flatMap((target) =>
+          target.externalDirectory && !roots.some((root) => FSUtil.contains(root, target.absolute))
+            ? [target.externalDirectory]
+            : [],
+        ),
         (left, right) => left.resource === right.resource,
       )
       if (external.length === 0) return
@@ -164,4 +173,8 @@ const layer = Layer.effect(
   }),
 )
 
-export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.node, Location.node, Permission.node] })
+export const node = makeLocationNode({
+  service: Service,
+  layer,
+  deps: [FSUtil.node, Location.node, Permission.node, SessionStore.node],
+})

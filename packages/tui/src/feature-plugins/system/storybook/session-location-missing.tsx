@@ -12,7 +12,7 @@ const directory = "/Users/kit/code/open-source/opencode-workerd-profile"
 function SessionLocationMissingStory(props: { context: Plugin.Context }) {
   const dimensions = useTerminalDimensions()
   const theme = props.context.theme
-  const [message, setMessage] = createSignal("Choose another directory to continue")
+  const [message, setMessage] = createSignal("Fork this session into another directory")
   const open = () =>
     props.context.ui.dialog.show(() => (
       <DialogWorkspaces

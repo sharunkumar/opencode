@@ -46,9 +46,7 @@ test.each([
 
     await fixture.create()
 
-    expect(fixture.requests).toEqual([
-      { payload: { projectID: "proj_test", name: "fresh" }, directory: null },
-    ])
+    expect(fixture.requests).toEqual([{ payload: { projectID: "proj_test", name: "fresh" }, directory: null }])
     expect(fixture.data.location.info({ directory: created })?.project.canonical).toBe(clone)
     expect(fixture.reads.locations.filter((directory) => directory === input.directory)).toHaveLength(
       input.home ? 3 : 1,
@@ -78,9 +76,7 @@ test.each([
     expect(fixture.reads.worktrees).toEqual(["proj_test"])
     expect(frame).toContain(clone)
     expect(frame.indexOf(clone)).toBeLessThan(frame.indexOf(main))
-    expect(fixture.requests).toEqual([
-      { payload: { projectID: "proj_test", name: "fresh" }, directory: null },
-    ])
+    expect(fixture.requests).toEqual([{ payload: { projectID: "proj_test", name: "fresh" }, directory: null }])
     expect(fixture.data.location.info(selected)?.project.canonical).toBe(clone)
     expect(fixture.moves).toEqual([])
   } finally {
@@ -149,26 +145,26 @@ test("refresh explicitly scans the project and preserves the worktree filter", a
   }
 })
 
-test.each([false, true])("Ctrl+M moves only an existing session (home=%s)", async (home) => {
+test.each([false, true])("Ctrl+M adds a directory only for an existing session (home=%s)", async (home) => {
   const fixture = await renderMove({ directory: clone, home })
   try {
     await fixture.move.open()
     const frame = await fixture.app.waitForFrame((frame) => frame.includes("Worktrees") && frame.includes(linked))
     expect(frame).toContain("new ctrl+a")
-    expect(frame.includes("move ctrl+m")).toBe(!home)
+    expect(frame.includes("add ctrl+m")).toBe(!home)
     await fixture.app.waitFor(() => fixture.app.renderer.currentFocusedEditor instanceof InputRenderable)
     await fixture.app.mockInput.typeText("linked")
     await fixture.app.waitForFrame((frame) => frame.includes(linked) && !frame.includes(clone))
     fixture.app.mockInput.pressKey("m", { ctrl: true })
     if (home) {
       await fixture.app.renderOnce()
-      expect(fixture.moves).toEqual([])
+      expect(fixture.roots).toEqual([])
       expect(fixture.route.data).toEqual({ type: "home" })
       expect(fixture.requests).toEqual([])
       return
     }
-    await fixture.app.waitFor(() => fixture.moves.length === 1)
-    expect(fixture.moves).toEqual([{ directory: linked }])
+    await fixture.app.waitFor(() => fixture.roots.length === 1)
+    expect(fixture.roots).toEqual([{ directory: linked }])
     expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_clone" })
     expect(fixture.requests).toEqual([])
   } finally {
@@ -186,10 +182,10 @@ test("choosing a directory recovers the session when its location is unavailable
     await fixture.app.mockInput.typeText("linked")
     await fixture.app.waitForFrame((frame) => frame.includes(linked) && !frame.includes(main))
     fixture.app.mockInput.pressEnter()
-    await fixture.app.waitFor(() => fixture.moves.length === 1)
+    await fixture.app.waitFor(() => fixture.forks.length === 1)
 
-    expect(fixture.moves).toEqual([{ directory: linked }])
-    expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_clone" })
+    expect(fixture.forks).toEqual([{ directory: linked }])
+    expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_forked" })
     expect(fixture.requests).toEqual([])
   } finally {
     fixture.app.renderer.destroy()
@@ -207,11 +203,11 @@ test("creating a worktree recovers the session without reading its removed locat
     await fixture.app.waitFor(() => fixture.app.renderer.currentFocusedEditor instanceof InputRenderable)
     await fixture.app.mockInput.typeText("fresh")
     fixture.app.mockInput.pressEnter()
-    await fixture.app.waitFor(() => fixture.moves.length === 1)
+    await fixture.app.waitFor(() => fixture.forks.length === 1)
 
     expect(fixture.requests).toEqual([{ payload: { projectID: "proj_test", name: "fresh" }, directory: null }])
-    expect(fixture.moves).toEqual([{ directory: created }])
-    expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_clone" })
+    expect(fixture.forks).toEqual([{ directory: created }])
+    expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_forked" })
     expect(fixture.reads.locations).not.toContain(clone)
   } finally {
     fixture.app.renderer.destroy()
@@ -219,7 +215,12 @@ test("creating a worktree recovers the session without reading its removed locat
 })
 
 test("failed recovery does not navigate away from the session", async () => {
-  const fixture = await renderMove({ directory: clone, unavailable: "location", showMissingLocation: true, moveFails: true })
+  const fixture = await renderMove({
+    directory: clone,
+    unavailable: "location",
+    showMissingLocation: true,
+    moveFails: true,
+  })
   try {
     await fixture.app.waitForFrame((frame) => frame.includes("Session location unavailable"))
     fixture.app.mockInput.pressEnter()
@@ -230,9 +231,9 @@ test("failed recovery does not navigate away from the session", async () => {
     fixture.app.mockInput.pressEnter()
     await fixture.app.waitFor(() => fixture.toast.currentToast !== null)
 
-    expect(fixture.moves).toEqual([{ directory: linked }])
+    expect(fixture.forks).toEqual([{ directory: linked }])
     expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_clone" })
-    expect(fixture.toast.currentToast).toMatchObject({ title: "Failed to move session", variant: "error" })
+    expect(fixture.toast.currentToast).toMatchObject({ title: "Failed to fork session", variant: "error" })
   } finally {
     fixture.app.renderer.destroy()
   }
@@ -293,6 +294,8 @@ async function renderMove(input: {
   const requests: unknown[] = []
   const removals: unknown[] = []
   const moves: unknown[] = []
+  const roots: unknown[] = []
+  const forks: unknown[] = []
   const reads = { session: 0, locations: [] as string[], worktrees: [] as string[], refresh: [] as unknown[] }
   const calls = createFetch(async (url, request) => {
     if (url.pathname === "/api/location") {
@@ -357,10 +360,24 @@ async function renderMove(input: {
       reads.refresh.push(await request.json())
       return new Response(null, { status: 204 })
     }
-    if (url.pathname === "/api/session/ses_clone/move") {
-      moves.push(await request.json())
+    if (url.pathname === "/api/session/ses_clone/root" && request.method === "POST") {
+      roots.push(await request.json())
+      return json({ data: { directory: linked } })
+    }
+    if (url.pathname === "/api/session/ses_clone/fork") {
+      const payload = await request.json()
+      forks.push(payload)
       if (input.moveFails) return json({ message: "Destination unavailable" }, { status: 503 })
-      return new Response(null, { status: 204 })
+      return json({
+        data: {
+          id: "ses_forked",
+          projectID: "proj_test",
+          location: { directory: (payload as { directory?: string }).directory ?? created },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          time: { created: 2, updated: 2 },
+        },
+      })
     }
     return undefined
   }, createEventStream())
@@ -423,6 +440,8 @@ async function renderMove(input: {
     requests,
     removals,
     moves,
+    roots,
+    forks,
     reads,
     async create() {
       await move.open()

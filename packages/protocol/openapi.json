@@ -1799,7 +1799,7 @@
             }
           }
         },
-        "description": "Create a child session by copying projected history before a message. Omit before to copy the full history.",
+        "description": "Create a child session by copying projected history before a message. Omit before to copy the full history. Set directory to place the fork in another directory, resolved relative to the session's directory.",
         "summary": "Fork session",
         "requestBody": {
           "content": {
@@ -1811,6 +1811,16 @@
                     "anyOf": [
                       {
                         "$ref": "#/components/schemas/Session.Message.ID"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "directory": {
+                    "anyOf": [
+                      {
+                        "type": "string"
                       },
                       {
                         "type": "null"
@@ -1982,10 +1992,10 @@
         }
       }
     },
-    "/api/session/{sessionID}/move": {
+    "/api/session/{sessionID}/root": {
       "post": {
         "tags": ["session"],
-        "operationId": "session.move",
+        "operationId": "session.root.add",
         "parameters": [
           {
             "name": "sessionID",
@@ -1998,8 +2008,29 @@
         ],
         "security": [],
         "responses": {
-          "204": {
-            "description": "<No Content>"
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "directory": {
+                          "$ref": "#/components/schemas/AbsolutePath"
+                        }
+                      },
+                      "required": ["directory"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "400": {
             "description": "InvalidRequestError",
@@ -2022,18 +2053,25 @@
             }
           },
           "404": {
-            "description": "SessionNotFoundError",
+            "description": "SessionNotFoundError | LocationNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionNotFoundErrorEncoded"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundErrorEncoded"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundErrorEncoded"
+                    }
+                  ]
                 }
               }
             }
           }
         },
-        "description": "Move a session to another project directory at the requested delivery boundary.",
-        "summary": "Move session",
+        "description": "Add an existing directory to the session's roots, resolved relative to the session's directory. The session's working directory does not change.",
+        "summary": "Add session root",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2041,17 +2079,7 @@
                 "type": "object",
                 "properties": {
                   "directory": {
-                    "$ref": "#/components/schemas/AbsolutePath"
-                  },
-                  "delivery": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/Session.Inbox.Delivery"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "string"
                   }
                 },
                 "required": ["directory"],
@@ -2061,6 +2089,94 @@
           },
           "required": true
         }
+      },
+      "delete": {
+        "tags": ["session"],
+        "operationId": "session.root.remove",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/Session.ID"
+            },
+            "required": true
+          },
+          {
+            "name": "directory",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "directory": {
+                          "$ref": "#/components/schemas/AbsolutePath"
+                        }
+                      },
+                      "required": ["directory"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SessionNotFoundError | LocationNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SessionNotFoundErrorEncoded"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LocationNotFoundErrorEncoded"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Remove a directory from the session's roots. Removing a directory that is not a root is a no-op.",
+        "summary": "Remove session root"
       }
     },
     "/api/session/{sessionID}/prompt": {
@@ -18527,6 +18643,12 @@
           },
           "title": {
             "type": "string"
+          },
+          "roots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AbsolutePath"
+            }
           },
           "subpath": {
             "$ref": "#/components/schemas/RelativePath"

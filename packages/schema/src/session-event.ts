@@ -6,7 +6,7 @@ import { Event } from "./event.js"
 import { FinishReason } from "./llm.js"
 import { Content } from "./tool.js"
 import { Model } from "./model.js"
-import { NonNegativeInt, PositiveInt, RelativePath } from "./schema.js"
+import { AbsolutePath, NonNegativeInt, PositiveInt, RelativePath } from "./schema.js"
 import { SessionID } from "./session-id.js"
 import { SessionMetadata } from "./session-metadata.js"
 import { Location } from "./location.js"
@@ -52,6 +52,7 @@ export const Created = Event.durable({
     ...Base,
     projectID: Project.ID,
     location: Location.Ref,
+    roots: Schema.Array(AbsolutePath).pipe(optional),
     subpath: RelativePath.pipe(optional),
     parentID: SessionID.pipe(optional),
     slug: Schema.String,
@@ -88,6 +89,7 @@ export const ModelSelected = Event.durable({
 })
 export type ModelSelected = typeof ModelSelected.Type
 
+// Replay-only: older releases could move a Session to another directory.
 export const Moved = Event.durable({
   type: "session.moved",
   ...options,
@@ -97,6 +99,26 @@ export const Moved = Event.durable({
   },
 })
 export type Moved = typeof Moved.Type
+
+export const RootAdded = Event.durable({
+  type: "session.root.added",
+  ...options,
+  schema: {
+    ...Base,
+    directory: AbsolutePath,
+  },
+})
+export type RootAdded = typeof RootAdded.Type
+
+export const RootRemoved = Event.durable({
+  type: "session.root.removed",
+  ...options,
+  schema: {
+    ...Base,
+    directory: AbsolutePath,
+  },
+})
+export type RootRemoved = typeof RootRemoved.Type
 
 export const Renamed = Event.durable({
   type: "session.renamed",
@@ -194,6 +216,8 @@ export const Forked = Event.durable({
     ...Base,
     parentID: SessionID,
     boundary: SessionFork.Boundary,
+    /** Absent when the fork keeps the parent's placement. */
+    destination: SessionFork.Destination.pipe(optional),
     instructions: Instruction.Values.pipe(optional),
     instructionEntries: InstructionEntry.Snapshot.pipe(optional),
   },
@@ -653,7 +677,8 @@ export const Definitions = Event.inventory(
   Created,
   AgentSelected,
   ModelSelected,
-  Moved,
+  RootAdded,
+  RootRemoved,
   Renamed,
   MetadataUpdated,
   Permissions,
@@ -706,6 +731,7 @@ export const DurableDefinitions = Event.inventory(
   ...Definitions.filter((definition) => definition.durability === "durable"),
   UsageRecorded,
   MessageContentUpdated,
+  Moved,
 )
 export const EphemeralDefinitions = Event.inventory(
   ...Definitions.filter((definition) => definition.durability === "ephemeral"),

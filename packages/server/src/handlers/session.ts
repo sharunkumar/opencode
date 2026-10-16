@@ -24,7 +24,13 @@ import {
 } from "@opencode/protocol/errors"
 import { AbsolutePath } from "@opencode/core/schema"
 import { locationErrors } from "../location"
-import { failedMessageDecode, failedSnapshot, missingMessage, missingSession } from "./session-error"
+import {
+  failedMessageDecode,
+  failedSnapshot,
+  invalidDestination,
+  missingMessage,
+  missingSession,
+} from "./session-error"
 
 const DefaultSessionsLimit = 50
 
@@ -226,14 +232,24 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         "session.fork",
         Effect.fn(function* (ctx) {
           return {
-            data: yield* session.fork({ sessionID: ctx.params.sessionID, before: ctx.payload.before }).pipe(
-              Effect.catchTag("Session.NotFoundError", missingSession),
-              Effect.catchTag("Session.MessageNotFoundError", missingMessage),
-              Effect.catchTag(
-                "Session.ForkEmptyError",
-                (error) => new InvalidRequestError({ message: error.message, kind: "empty_session" }),
+            data: yield* session
+              .fork({ sessionID: ctx.params.sessionID, before: ctx.payload.before, directory: ctx.payload.directory })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.MessageNotFoundError", missingMessage),
+                Effect.catchTag(
+                  "Session.ForkEmptyError",
+                  (error) => new InvalidRequestError({ message: error.message, kind: "empty_session" }),
+                ),
+                Effect.catchTag(
+                  [
+                    "Session.DestinationNotFoundError",
+                    "Session.DestinationNotDirectoryError",
+                    "Session.DestinationUnavailableError",
+                  ],
+                  invalidDestination,
+                ),
               ),
-            ),
           }
         }),
       )
@@ -281,27 +297,27 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         }),
       )
       .handle(
-        "session.move",
+        "session.root.add",
         Effect.fn(function* (ctx) {
-          yield* session
-            .move({
-              sessionID: ctx.params.sessionID,
-              directory: ctx.payload.directory,
-              delivery: ctx.payload.delivery,
-            })
+          const directory = yield* session
+            .addRoot({ sessionID: ctx.params.sessionID, directory: ctx.payload.directory })
             .pipe(
               Effect.catchTag("Session.NotFoundError", missingSession),
-              Effect.catchTag("Session.DestinationNotFoundError", (error) =>
-                Effect.fail(new InvalidRequestError({ message: `Directory does not exist: ${error.directory}` })),
-              ),
-              Effect.catchTag("Session.DestinationNotDirectoryError", (error) =>
-                Effect.fail(new InvalidRequestError({ message: `Not a directory: ${error.directory}` })),
-              ),
-              Effect.catchTag("Session.DestinationUnavailableError", (error) =>
-                Effect.fail(new InvalidRequestError({ message: `Directory is unavailable: ${error.directory}` })),
+              Effect.catchTag(
+                ["Session.DestinationNotFoundError", "Session.DestinationNotDirectoryError"],
+                invalidDestination,
               ),
             )
-          return HttpApiSchema.NoContent.make()
+          return { data: { directory } }
+        }),
+      )
+      .handle(
+        "session.root.remove",
+        Effect.fn(function* (ctx) {
+          const directory = yield* session
+            .removeRoot({ sessionID: ctx.params.sessionID, directory: ctx.query.directory })
+            .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          return { data: { directory } }
         }),
       )
       .handle(

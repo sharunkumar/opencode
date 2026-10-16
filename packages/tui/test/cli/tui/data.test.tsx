@@ -604,9 +604,9 @@ test("truncates committed revert messages without changing lifetime usage", asyn
   }
 })
 
-test("updates session location when moved", async () => {
+test("updates session roots when added and removed", async () => {
   const events = createEventStream()
-  const destination = "/tmp/opencode-moved"
+  const root = "/tmp/opencode-root"
   const calls = createFetch((url) => {
     if (url.pathname === "/api/session/ses_test")
       return json({
@@ -649,32 +649,22 @@ test("updates session location when moved", async () => {
     await mounted
     await data.session.sync("ses_test")
     emitEvent(events, {
-      id: "evt_moved_1",
+      id: "evt_root_added",
       created: 1,
-      type: "session.moved",
+      type: "session.root.added",
       durable: durable("ses_test"),
-      data: {
-        sessionID: "ses_test",
-        location: { directory: destination },
-        projectID: "project-moved",
-        subpath: "packages/cli",
-      },
+      data: { sessionID: "ses_test", directory: root },
     })
-    await wait(() => data.session.get("ses_test")?.location.directory === destination)
-    expect(data.session.get("ses_test")?.projectID).toBe("project-moved")
-    expect(data.session.get("ses_test")?.subpath).toBe("packages/cli")
-    expect(data.session.message.list("ses_test")).toContainEqual({
-      id: "msg_moved_1",
-      type: "location-switched",
-      location: { directory: destination },
-      projectID: "project-moved",
-      subpath: "packages/cli",
-      previous: {
-        location: { directory },
-        projectID: "proj_test",
-      },
-      time: { created: 1 },
+    await wait(() => data.session.get("ses_test")?.roots?.[0] === root)
+    emitEvent(events, {
+      id: "evt_root_removed",
+      created: 2,
+      type: "session.root.removed",
+      durable: durable("ses_test", 1),
+      data: { sessionID: "ses_test", directory: root },
     })
+    await wait(() => data.session.get("ses_test")?.roots === undefined)
+    expect(data.session.get("ses_test")?.location.directory).toBe(directory)
   } finally {
     app.renderer.destroy()
   }

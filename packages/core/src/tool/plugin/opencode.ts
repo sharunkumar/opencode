@@ -6,7 +6,7 @@ import type { SessionHooks } from "@opencode/plugin/effect/session"
 import { Model } from "@opencode/schema/model"
 import { AbsolutePath } from "@opencode/schema/schema"
 import { Session } from "@opencode/schema/session"
-import { Effect, Schema } from "effect"
+import { Effect, Option, Schema } from "effect"
 import { FileAccess } from "../../file-access.js"
 import { Git } from "../../git.js"
 import { Permission } from "../../permission.js"
@@ -19,14 +19,14 @@ export const RenameInput = Schema.Struct({
 
 const RenameOutput = Schema.Struct({ sessionID: Session.ID, title: Schema.String })
 
-export const MoveInput = Schema.Struct({
-  sessionID: Schema.optionalKey(Session.ID).annotate({ description: "Omit to move the current session." }),
-  directory: AbsolutePath.check(Schema.isMinLength(1)).annotate({
-    description: "Destination directory, relative to the target session's directory or absolute. Supports ~.",
+export const RootInput = Schema.Struct({
+  sessionID: Schema.optionalKey(Session.ID).annotate({ description: "Omit to target the current session." }),
+  directory: Schema.String.check(Schema.isMinLength(1)).annotate({
+    description: "Directory, relative to the target session's directory or absolute. Supports ~.",
   }),
 })
 
-const MoveOutput = Schema.Struct({ sessionID: Session.ID, directory: AbsolutePath })
+const RootOutput = Schema.Struct({ sessionID: Session.ID, directory: AbsolutePath })
 
 export const WorktreeCreateInput = Schema.Struct({
   name: Schema.Trim.check(Schema.isNonEmpty()).annotate({ description: "Worktree name." }),
@@ -90,10 +90,21 @@ export const Plugin = {
     const access = yield* FileAccess.Service
     const permission = yield* Permission.Service
     const hook = (event: SessionHooks["context"]) =>
-      Effect.sync(() => {
+      Effect.gen(function* () {
         event.system.push(
           SystemPart.make(
-            "When you create a worktree outside the current working directory and intend to use it as your primary working directory, consider using `execute` to call `tools.opencode.session_move` and make the worktree the session's working directory.",
+            "When you create a worktree outside the current working directory and intend to work in it, consider using `execute` to call `tools.opencode.session_root_add` so the worktree is in scope for this session.",
+          ),
+        )
+        const session = yield* ctx.session.get({ sessionID: event.sessionID }).pipe(Effect.option)
+        const roots = Option.getOrUndefined(session)?.roots
+        if (!roots?.length) return
+        event.system.push(
+          SystemPart.make(
+            [
+              "This session has additional root directories. They are in scope like the working directory, but commands still run in the working directory unless you set one.",
+              ...roots.map((root) => `- ${root}`),
+            ].join("\n"),
           ),
         )
       })
@@ -128,29 +139,41 @@ export const Plugin = {
           },
         })
         draft.add({
-          name: "session_move",
+          name: "session_root_add",
           description:
-            "Move a session to another directory, or omit sessionID to move the current session. The current session moves at the next safe boundary; do not run destination-dependent tools in the same execute call.",
-          input: MoveInput,
-          output: MoveOutput,
+            "Add a directory to a session's roots, or omit sessionID to target the current session. Roots are readable and editable without external-directory approval. The working directory does not change.",
+          input: RootInput,
+          output: RootOutput,
           options: { namespace: "opencode", codemode: true, pinned: true },
-          execute: (input, context) =>
-            Effect.gen(function* () {
-              const sessionID = input.sessionID ?? context.sessionID
-              yield* ctx.session.move({
-                sessionID,
-                directory: input.directory,
-                delivery: "steer",
-              })
-              return {
-                output: { sessionID, directory: input.directory },
-                content: `Moved session ${sessionID} to ${input.directory}.`,
-              }
-            }).pipe(
+          execute: (input, context) => {
+            const sessionID = input.sessionID ?? context.sessionID
+            return ctx.session.root.add({ sessionID, directory: input.directory }).pipe(
+              Effect.map((result) => ({
+                output: { sessionID, directory: result.directory },
+                content: `Added ${result.directory} to session ${sessionID} roots.`,
+              })),
+              Effect.mapError((error) => new ToolFailure({ message: `Unable to add root ${input.directory}`, error })),
+            )
+          },
+        })
+        draft.add({
+          name: "session_root_remove",
+          description: "Remove a directory from a session's roots, or omit sessionID to target the current session.",
+          input: RootInput,
+          output: RootOutput,
+          options: { namespace: "opencode", codemode: true, pinned: true },
+          execute: (input, context) => {
+            const sessionID = input.sessionID ?? context.sessionID
+            return ctx.session.root.remove({ sessionID, directory: input.directory }).pipe(
+              Effect.map((result) => ({
+                output: { sessionID, directory: result.directory },
+                content: `Removed ${result.directory} from session ${sessionID} roots.`,
+              })),
               Effect.mapError(
-                (error) => new ToolFailure({ message: `Unable to move session to ${input.directory}`, error }),
+                (error) => new ToolFailure({ message: `Unable to remove root ${input.directory}`, error }),
               ),
-            ),
+            )
+          },
         })
         draft.add({
           name: "worktree_create",

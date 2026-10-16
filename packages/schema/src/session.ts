@@ -5,7 +5,7 @@ import { Agent } from "./agent.js"
 import { Location } from "./location.js"
 import { Model } from "./model.js"
 import { Project } from "./project.js"
-import { DateTimeUtcFromMillis, optional, RelativePath } from "./schema.js"
+import { AbsolutePath, DateTimeUtcFromMillis, optional, RelativePath } from "./schema.js"
 import { SessionEvent } from "./session-event.js"
 import { SessionID } from "./session-id.js"
 import { SessionMetadata } from "./session-metadata.js"
@@ -51,6 +51,8 @@ export const Info = Schema.Struct({
   }),
   title: Schema.String.pipe(optional),
   location: Location.Ref,
+  /** Additional directories in scope for the Session. `location` remains the working directory. */
+  roots: Schema.Array(AbsolutePath).pipe(optional),
   subpath: RelativePath.pipe(optional),
   metadata: Metadata.pipe(optional),
   /** Evaluated after the agent's rules; the last matching rule wins. */

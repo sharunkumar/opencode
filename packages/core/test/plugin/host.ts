@@ -179,7 +179,10 @@ export function host(overrides: Overrides = {}): Plugin.Context {
       command: overrides.session?.command ?? (() => Effect.die("unused session.command")),
       compact: overrides.session?.compact ?? (() => Effect.die("unused session.compact")),
       update: overrides.session?.update ?? (() => Effect.die("unused session.update")),
-      move: overrides.session?.move ?? (() => Effect.die("unused session.move")),
+      root: overrides.session?.root ?? {
+        add: () => Effect.die("unused session.root.add"),
+        remove: () => Effect.die("unused session.root.remove"),
+      },
       synthetic: overrides.session?.synthetic ?? (() => Effect.die("unused session.synthetic")),
       interrupt: overrides.session?.interrupt ?? (() => Effect.die("unused session.interrupt")),
       wait: overrides.session?.wait ?? (() => Effect.die("unused session.wait")),
@@ -235,13 +238,15 @@ export function providerHost(providers: Provider.Interface): Plugin.Context["pro
   return {
     list: () => providers.available().pipe(Effect.map(located)),
     get: (input) =>
-      providers.get(Provider.ID.make(input.providerID)).pipe(
-        Effect.flatMap((provider) =>
-          provider === undefined
-            ? Effect.fail(new Error(`Provider not found: ${input.providerID}`))
-            : Effect.succeed(located(provider)),
+      providers
+        .get(Provider.ID.make(input.providerID))
+        .pipe(
+          Effect.flatMap((provider) =>
+            provider === undefined
+              ? Effect.fail(new Error(`Provider not found: ${input.providerID}`))
+              : Effect.succeed(located(provider)),
+          ),
         ),
-      ),
     reload: providers.reload,
     transform: (callback) =>
       providers.transform((editor) =>

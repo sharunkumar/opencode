@@ -13,9 +13,9 @@ import type { Model } from "@opencode/schema/model"
 import type { DateTime } from "effect"
 import type { Permission } from "@opencode/schema/permission"
 import type { SessionMessage } from "@opencode/schema/session-message"
-import type { SessionInbox } from "@opencode/schema/session-inbox"
 import type { PromptInput } from "@opencode/schema/prompt-input"
 import type { AgentAttachment } from "@opencode/schema/prompt"
+import type { SessionInbox } from "@opencode/schema/session-inbox"
 import type { Skill } from "@opencode/schema/skill"
 import type { FileDiff } from "@opencode/schema/file-diff"
 import type { InstructionEntry } from "@opencode/schema/instruction-entry"
@@ -234,7 +234,11 @@ export type SessionRemoveInput = { readonly sessionID: Session.ID }
 export type SessionRemoveOutput = void
 export type SessionRemoveOperation<E = never> = (input: SessionRemoveInput) => Effect.Effect<SessionRemoveOutput, E>
 
-export type SessionForkInput = { readonly sessionID: Session.ID; readonly before?: SessionMessage.ID | undefined }
+export type SessionForkInput = {
+  readonly sessionID: Session.ID
+  readonly before?: SessionMessage.ID | undefined
+  readonly directory?: string | undefined
+}
 export type SessionForkOutput = Session.Info
 export type SessionForkOperation<E = never> = (input: SessionForkInput) => Effect.Effect<SessionForkOutput, E>
 
@@ -259,13 +263,15 @@ export type SessionUpdateInput = {
 export type SessionUpdateOutput = void
 export type SessionUpdateOperation<E = never> = (input: SessionUpdateInput) => Effect.Effect<SessionUpdateOutput, E>
 
-export type SessionMoveInput = {
-  readonly sessionID: Session.ID
-  readonly directory: AbsolutePath
-  readonly delivery?: SessionInbox.Delivery | undefined
-}
-export type SessionMoveOutput = void
-export type SessionMoveOperation<E = never> = (input: SessionMoveInput) => Effect.Effect<SessionMoveOutput, E>
+export type SessionRootAddInput = { readonly sessionID: Session.ID; readonly directory: string }
+export type SessionRootAddOutput = { readonly directory: AbsolutePath }
+export type SessionRootAddOperation<E = never> = (input: SessionRootAddInput) => Effect.Effect<SessionRootAddOutput, E>
+
+export type SessionRootRemoveInput = { readonly sessionID: Session.ID; readonly directory: string }
+export type SessionRootRemoveOutput = { readonly directory: AbsolutePath }
+export type SessionRootRemoveOperation<E = never> = (
+  input: SessionRootRemoveInput,
+) => Effect.Effect<SessionRootRemoveOutput, E>
 
 export type SessionPromptInput = {
   readonly sessionID: Session.ID
@@ -440,6 +446,7 @@ export type SessionLogOutput =
             readonly sessionID: Session.ID
             readonly projectID: Project.ID
             readonly location: { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
+            readonly roots?: ReadonlyArray<AbsolutePath> | undefined
             readonly subpath?: RelativePath | undefined
             readonly parentID?: Session.ID | undefined
             readonly slug: string
@@ -485,17 +492,23 @@ export type SessionLogOutput =
           readonly id: Event.ID
           readonly created: number
           readonly metadata?: { readonly [x: string]: unknown } | undefined
-          readonly type: "session.moved"
+          readonly type: "session.root.added"
           readonly durable: { readonly aggregateID: string; readonly seq: Event.Seq; readonly version: Event.Version }
           readonly location?:
             | { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
             | undefined
-          readonly data: {
-            readonly sessionID: Session.ID
-            readonly location: { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
-            readonly projectID: Project.ID
-            readonly subpath?: RelativePath | undefined
-          }
+          readonly data: { readonly sessionID: Session.ID; readonly directory: AbsolutePath }
+        }
+      | {
+          readonly id: Event.ID
+          readonly created: number
+          readonly metadata?: { readonly [x: string]: unknown } | undefined
+          readonly type: "session.root.removed"
+          readonly durable: { readonly aggregateID: string; readonly seq: Event.Seq; readonly version: Event.Version }
+          readonly location?:
+            | { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
+            | undefined
+          readonly data: { readonly sessionID: Session.ID; readonly directory: AbsolutePath }
         }
       | {
           readonly id: Event.ID
@@ -565,6 +578,16 @@ export type SessionLogOutput =
             readonly sessionID: Session.ID
             readonly parentID: Session.ID
             readonly boundary: Session.ForkBoundary
+            readonly destination?:
+              | {
+                  readonly location: {
+                    readonly directory: AbsolutePath
+                    readonly workspaceID?: Workspace.ID | undefined
+                  }
+                  readonly projectID: Project.ID
+                  readonly subpath?: RelativePath | undefined
+                }
+              | undefined
             readonly instructions?: { readonly [x: Instruction.Key]: Instruction.Hash } | undefined
             readonly instructionEntries?: InstructionEntry.Snapshot | undefined
           }
@@ -1220,6 +1243,22 @@ export type SessionLogOutput =
             readonly content: ReadonlyArray<SessionMessage.AssistantContentEncoded>
           }
         }
+      | {
+          readonly id: Event.ID
+          readonly created: number
+          readonly metadata?: { readonly [x: string]: unknown } | undefined
+          readonly type: "session.moved"
+          readonly durable: { readonly aggregateID: string; readonly seq: Event.Seq; readonly version: Event.Version }
+          readonly location?:
+            | { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
+            | undefined
+          readonly data: {
+            readonly sessionID: Session.ID
+            readonly location: { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
+            readonly projectID: Project.ID
+            readonly subpath?: RelativePath | undefined
+          }
+        }
     )
   | EventLog.Synced
 export type SessionLogOperation<E = never> = (input: SessionLogInput) => Stream.Stream<SessionLogOutput, E>
@@ -1310,7 +1349,7 @@ export interface SessionApi<E = never> {
   readonly switchAgent: SessionSwitchAgentOperation<E>
   readonly switchModel: SessionSwitchModelOperation<E>
   readonly update: SessionUpdateOperation<E>
-  readonly move: SessionMoveOperation<E>
+  readonly root: { readonly add: SessionRootAddOperation<E>; readonly remove: SessionRootRemoveOperation<E> }
   readonly prompt: SessionPromptOperation<E>
   readonly command: SessionCommandOperation<E>
   readonly skill: SessionSkillOperation<E>

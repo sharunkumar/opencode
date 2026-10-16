@@ -137,6 +137,12 @@ Plugin (`custom.pull-requests` + TUI `custom.sidebar.pull-requests`): the sideba
 
 `cancel` tool: agents cancel a background `shell` or `subagent` they started by passing the shell ID or subagent `sessionID` from its `background: true` result (which now names the id); jobs owned by another session are refused.
 
+## Session Roots (Move Removed)
+
+Sessions keep one working directory (`location`) plus optional `roots`: extra directories that are in scope like the working directory, so reading and editing inside them skips `external_directory` approval. Add and remove roots with `session_root_add` / `session_root_remove` (Code Mode `opencode` namespace), `POST`/`DELETE /api/session/:sessionID/root`, or `session.root.add` / `session.root.remove` on the client and plugin APIs. Roots are event-sourced (`session.root.added` / `session.root.removed`), inherited by child sessions and forks, and listed in the system prompt; commands still run in the working directory.
+
+Moving a session is gone: the `session_move` tool, `/api/session/:sessionID/move`, the `SessionMove` service, and every UI entry point. `session.moved` and inbox `move` items stay decodable for old logs; the runner consumes legacy move items as no-ops. A session whose directory is missing is recovered by forking it into another directory (`session.fork` takes an optional `directory`).
+
 ## Instruction Filenames
 
 Auto-loaded instruction filenames are `InstructionDiscovery.filenames` (`AGENTS.md`, `CLAUDE.local.md`, `AGENTS.local.md`, `PATCH.md`), shared by the startup walk and the read-time walk.

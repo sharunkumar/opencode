@@ -40,6 +40,7 @@ const session = (
   slug: "test",
   directory: "/tmp/test",
   path: null,
+  roots: null,
   title: "Test",
   version: "1",
   share_url: null,

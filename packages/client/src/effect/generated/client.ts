@@ -45,8 +45,10 @@ import type {
   SessionSwitchModelOutput,
   SessionUpdateInput,
   SessionUpdateOutput,
-  SessionMoveInput,
-  SessionMoveOutput,
+  SessionRootAddInput,
+  SessionRootAddOutput,
+  SessionRootRemoveInput,
+  SessionRootRemoveOutput,
   SessionPromptInput,
   SessionPromptOutput,
   SessionCommandInput,
@@ -463,7 +465,10 @@ const EndpointSessionRemove = (raw: RawClient["server.session"]) => (input: Sess
 
 const EndpointSessionFork = (raw: RawClient["server.session"]) => (input: SessionForkInput) =>
   preserveEffect<SessionForkOutput>()(
-    raw["session.fork"]({ params: { sessionID: input["sessionID"] }, payload: { before: input["before"] } }).pipe(
+    raw["session.fork"]({
+      params: { sessionID: input["sessionID"] },
+      payload: { before: input["before"], directory: input["directory"] },
+    }).pipe(
       Effect.mapError(mapClientError),
       Effect.map((value) => value.data),
     ),
@@ -491,12 +496,26 @@ const EndpointSessionUpdate = (raw: RawClient["server.session"]) => (input: Sess
     }).pipe(Effect.mapError(mapClientError)),
   )
 
-const EndpointSessionMove = (raw: RawClient["server.session"]) => (input: SessionMoveInput) =>
-  preserveEffect<SessionMoveOutput>()(
-    raw["session.move"]({
+const EndpointSessionRootAdd = (raw: RawClient["server.session"]) => (input: SessionRootAddInput) =>
+  preserveEffect<SessionRootAddOutput>()(
+    raw["session.root.add"]({
       params: { sessionID: input["sessionID"] },
-      payload: { directory: input["directory"], delivery: input["delivery"] },
-    }).pipe(Effect.mapError(mapClientError)),
+      payload: { directory: input["directory"] },
+    }).pipe(
+      Effect.mapError(mapClientError),
+      Effect.map((value) => value.data),
+    ),
+  )
+
+const EndpointSessionRootRemove = (raw: RawClient["server.session"]) => (input: SessionRootRemoveInput) =>
+  preserveEffect<SessionRootRemoveOutput>()(
+    raw["session.root.remove"]({
+      params: { sessionID: input["sessionID"] },
+      query: { directory: input["directory"] },
+    }).pipe(
+      Effect.mapError(mapClientError),
+      Effect.map((value) => value.data),
+    ),
   )
 
 const EndpointSessionPrompt = (raw: RawClient["server.session"]) => (input: SessionPromptInput) =>
@@ -785,7 +804,7 @@ const adaptGroupSession = (raw: RawClient["server.session"]) => ({
   switchAgent: EndpointSessionSwitchAgent(raw),
   switchModel: EndpointSessionSwitchModel(raw),
   update: EndpointSessionUpdate(raw),
-  move: EndpointSessionMove(raw),
+  root: { add: EndpointSessionRootAdd(raw), remove: EndpointSessionRootRemove(raw) },
   prompt: EndpointSessionPrompt(raw),
   command: EndpointSessionCommand(raw),
   skill: EndpointSessionSkill(raw),

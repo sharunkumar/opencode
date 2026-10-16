@@ -605,7 +605,10 @@ export function fromPromise(plugin: Plugin) {
             synthetic: adaptApiMethod(SessionEndpoints["session.synthetic"], host.session.synthetic),
             interrupt: adaptApiMethod(SessionEndpoints["session.interrupt"], host.session.interrupt),
             update: adaptApiMethod(SessionEndpoints["session.update"], host.session.update),
-            move: adaptApiMethod(SessionEndpoints["session.move"], host.session.move),
+            root: {
+              add: adaptApiMethod(SessionEndpoints["session.root.add"], host.session.root.add),
+              remove: adaptApiMethod(SessionEndpoints["session.root.remove"], host.session.root.remove),
+            },
             wait: adaptApiMethod(SessionEndpoints["session.wait"], host.session.wait),
             context: adaptApiMethod(SessionEndpoints["session.context"], host.session.context),
           },

@@ -34,6 +34,7 @@ export const SessionTable = sqliteTable(
     slug: text().notNull(),
     directory: directoryColumn().notNull(),
     path: pathColumn(),
+    roots: text({ mode: "json" }).$type<Session.Info["roots"]>(),
     title: text(),
     version: text().notNull(),
     share_url: text(),

@@ -146,7 +146,7 @@ export default function SessionDetailsPanel(props: DetailsPanelProps) {
               class="session-summary-row"
             >
               <Icon name="outline-worktree" class="shrink-0 text-v2-icon-icon-muted" />
-              <span class="min-w-0 truncate">{ctx.t("move.title")}</span>
+              <span class="min-w-0 truncate">{ctx.t("root.title")}</span>
             </SessionWorkspaceMenu>
             <button
               type="button"

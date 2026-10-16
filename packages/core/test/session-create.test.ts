@@ -434,6 +434,68 @@ describe("Session.create", () => {
     }),
   )
 
+  it.live("adds and removes roots, inherits them through children and forks", () =>
+    withTmp((directory) =>
+      Effect.gen(function* () {
+        const session = yield* Session.Service
+        const bus = yield* Bus.Service
+        const { db } = yield* Database.Service
+        const root = AbsolutePath.make(directory)
+        const created = yield* session.create({ location })
+
+        expect(yield* session.addRoot({ sessionID: created.id, directory })).toBe(root)
+        yield* session.addRoot({ sessionID: created.id, directory })
+        yield* session.addRoot({ sessionID: created.id, directory: location.directory })
+        expect((yield* session.get(created.id)).roots).toEqual([root])
+        expect((yield* session.create({ parentID: created.id })).roots).toEqual([root])
+
+        yield* session.prompt({ sessionID: created.id, text: "Fork context", resume: false })
+        yield* SessionInbox.promote(db, bus, created.id, "steer")
+        expect((yield* session.fork({ sessionID: created.id })).roots).toEqual([root])
+
+        expect(
+          yield* session
+            .addRoot({ sessionID: created.id, directory: path.join(directory, "missing") })
+            .pipe(Effect.flip),
+        ).toBeInstanceOf(Session.DestinationNotFoundError)
+
+        expect(yield* session.removeRoot({ sessionID: created.id, directory })).toBe(root)
+        expect((yield* session.get(created.id)).roots).toBeUndefined()
+        yield* session.removeRoot({ sessionID: created.id, directory })
+        expect(
+          (yield* logEvents(session, created.id).pipe(Stream.runCollect)).filter(
+            (event) => event.type === "session.root.added" || event.type === "session.root.removed",
+          ),
+        ).toMatchObject([
+          { type: "session.root.added", data: { directory: root } },
+          { type: "session.root.removed", data: { directory: root } },
+        ])
+      }),
+    ),
+  )
+
+  it.live("forks into another directory", () =>
+    withTmp((directory) =>
+      Effect.gen(function* () {
+        const session = yield* Session.Service
+        const bus = yield* Bus.Service
+        const { db } = yield* Database.Service
+        const created = yield* session.create({ location })
+        yield* session.prompt({ sessionID: created.id, text: "Fork context", resume: false })
+        yield* SessionInbox.promote(db, bus, created.id, "steer")
+
+        const forked = yield* session.fork({ sessionID: created.id, directory })
+
+        expect(forked.location).toEqual({ directory: AbsolutePath.make(directory) })
+        expect((yield* session.get(created.id)).location).toEqual(location)
+        expect(yield* session.messages({ sessionID: forked.id })).toHaveLength(1)
+        expect(
+          yield* session.fork({ sessionID: created.id, directory: path.join(directory, "missing") }).pipe(Effect.flip),
+        ).toBeInstanceOf(Session.DestinationNotFoundError)
+      }),
+    ),
+  )
+
   it.effect("inherits location from an existing parent when omitted", () =>
     Effect.gen(function* () {
       const session = yield* Session.Service
@@ -809,9 +871,10 @@ describe("Session.create", () => {
       const session = yield* Session.Service
       const parent = yield* session.create({ location })
 
-      expect(
-        yield* session.fork({ sessionID: parent.id }).pipe(Effect.flip),
-      ).toMatchObject({ _tag: "Session.ForkEmptyError", sessionID: parent.id })
+      expect(yield* session.fork({ sessionID: parent.id }).pipe(Effect.flip)).toMatchObject({
+        _tag: "Session.ForkEmptyError",
+        sessionID: parent.id,
+      })
     }),
   )
 

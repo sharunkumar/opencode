@@ -1,5 +1,5 @@
 import { batch, createEffect, createMemo, createResource, createSignal, onCleanup, Show } from "solid-js"
-import type { OpenCodeEvent, SessionInfo } from "@opencode/client"
+import type { SessionInfo } from "@opencode/client"
 import path from "path"
 import { useTerminalDimensions } from "@opentui/solid"
 import { dialogWidth, useDialog } from "../ui/dialog"
@@ -27,9 +27,7 @@ import { projectName } from "../util/project"
 const RECENT_LIMIT = 8
 export const DialogOpenKey = Symbol("DialogOpen")
 
-type OpenTarget =
-  | { type: "session"; sessionID: string }
-  | { type: "project"; directory: string; projectID?: string }
+type OpenTarget = { type: "session"; sessionID: string } | { type: "project"; directory: string; projectID?: string }
 
 type OpenView = { type: "projects" } | { type: "worktrees"; projectID: string }
 
@@ -54,25 +52,17 @@ export function DialogOpen(props: { sessions: SessionInfo[]; onLoad: (sessions: 
     closed = true
   })
   const [recent] = createResource(() => {
-    // A late read must not overwrite deletion or placement facts observed in flight.
-    const changed = new Map<string, Extract<OpenCodeEvent, { type: "session.deleted" | "session.moved" }>>()
+    // A late read must not restore a session deleted while the list was in flight.
+    const deleted = new Set<string>()
     const unsubscribe = client.event.listen((message) => {
       const event = message.details
-      if (event.type === "session.deleted" || event.type === "session.moved") changed.set(event.data.sessionID, event)
+      if (event.type === "session.deleted") deleted.add(event.data.sessionID)
     })
     onCleanup(unsubscribe)
     return client.api.session
       .list({ limit: 50, order: "desc", parentID: null })
       .then((response) => {
-        if (!closed)
-          props.onLoad(
-            response.data.flatMap((session) => {
-              const event = changed.get(session.id)
-              if (!event) return [session]
-              if (event.type === "session.deleted") return []
-              return [moveOpenSession(props.sessions.find((entry) => entry.id === session.id) ?? session, event)]
-            }),
-          )
+        if (!closed) props.onLoad(response.data.filter((session) => !deleted.has(session.id)))
         return true
       })
       .catch(() => false)
@@ -239,7 +229,9 @@ export function DialogOpen(props: { sessions: SessionInfo[]; onLoad: (sessions: 
       .list()
       .filter((project) => project.canonical !== "/")
       // Historical project identities can share a checkout. The list is newest-active first.
-      .filter((project, index, projects) => projects.findIndex((item) => item.canonical === project.canonical) === index)
+      .filter(
+        (project, index, projects) => projects.findIndex((item) => item.canonical === project.canonical) === index,
+      )
       .map((project) => ({ directory: project.canonical, project }))
       .map((item) => {
         const title =
@@ -263,8 +255,7 @@ export function DialogOpen(props: { sessions: SessionInfo[]; onLoad: (sessions: 
           } as OpenTarget,
           category: "Projects",
           gutter:
-            item.directory === current.directory ||
-            item.directory === location.current?.project.canonical
+            item.directory === current.directory || item.directory === location.current?.project.canonical
               ? () => <text fg={theme.text.formfield.selected}>●</text>
               : undefined,
         }
@@ -315,8 +306,7 @@ export function DialogOpen(props: { sessions: SessionInfo[]; onLoad: (sessions: 
           title,
           footer: footer + " ".repeat(Math.max(0, width - stringWidth(footer))),
           value: { type: "project", directory } as OpenTarget,
-          gutter:
-            directory === current.directory ? () => <text fg={theme.text.formfield.selected}>●</text> : undefined,
+          gutter: directory === current.directory ? () => <text fg={theme.text.formfield.selected}>●</text> : undefined,
         }
       })
   })
@@ -482,16 +472,6 @@ export function DialogOpen(props: { sessions: SessionInfo[]; onLoad: (sessions: 
       </Show>
     </box>
   )
-}
-
-export function moveOpenSession(session: SessionInfo, event: Extract<OpenCodeEvent, { type: "session.moved" }>) {
-  return {
-    ...session,
-    location: event.data.location,
-    projectID: event.data.projectID ?? session.projectID,
-    subpath: event.data.subpath,
-    time: { ...session.time, updated: Math.max(session.time.updated, event.created) },
-  }
 }
 
 function timeAgo(timestamp: number) {

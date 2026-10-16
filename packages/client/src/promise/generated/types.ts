@@ -970,14 +970,24 @@ export type SessionModelSelected = {
   data: { sessionID: SessionID; model: ModelRef; previous?: ModelRef }
 }
 
-export type SessionMoved = {
+export type SessionRootAdded = {
   id: EventID
   created: number
   metadata?: { [x: string]: any }
-  type: "session.moved"
+  type: "session.root.added"
   durable: { aggregateID: string; seq: EventSeq; version: 1 }
   location?: LocationRef
-  data: { sessionID: SessionID; location: LocationRef; projectID: ProjectID; subpath?: RelativePath }
+  data: { sessionID: SessionID; directory: AbsolutePath }
+}
+
+export type SessionRootRemoved = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "session.root.removed"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: { sessionID: SessionID; directory: AbsolutePath }
 }
 
 export type SessionRenamed = {
@@ -1020,21 +1030,7 @@ export type SessionDeleted = {
   data: { sessionID: SessionID }
 }
 
-export type SessionForked = {
-  id: EventID
-  created: number
-  metadata?: { [x: string]: any }
-  type: "session.forked"
-  durable: { aggregateID: string; seq: EventSeq; version: 2 }
-  location?: LocationRef
-  data: {
-    sessionID: SessionID
-    parentID: SessionID
-    boundary: SessionForkBoundary
-    instructions?: { [x: InstructionKey]: InstructionHash }
-    instructionEntries?: InstructionEntrySnapshot
-  }
-}
+export type SessionForkDestination = { location: LocationRef; projectID: ProjectID; subpath?: RelativePath }
 
 export type SessionInboxDelivered = {
   id: EventID
@@ -1405,6 +1401,16 @@ export type SessionUsageRecorded = {
   durable: { aggregateID: string; seq: EventSeq; version: 1 }
   location?: LocationRef
   data: { sessionID: SessionID; source: "title" | "compaction"; cost: MoneyUSD; tokens: TokenUsageInfo }
+}
+
+export type SessionMoved = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "session.moved"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: { sessionID: SessionID; location: LocationRef; projectID: ProjectID; subpath?: RelativePath }
 }
 
 export type LocationShutdown = {
@@ -2100,6 +2106,7 @@ export type SessionInfo = {
   outcome?: "succeeded" | "failed" | "interrupted"
   time: { created: number; updated: number; idle?: number; viewed?: number; archived?: number }
   title?: string
+  roots?: Array<AbsolutePath>
   subpath?: RelativePath
   metadata?: SessionMetadata
   permissions?: PermissionRuleset
@@ -2118,6 +2125,7 @@ export type SessionCreated = {
     sessionID: SessionID
     projectID: ProjectID
     location: LocationRef
+    roots?: Array<AbsolutePath>
     subpath?: RelativePath
     parentID?: SessionID
     slug: string
@@ -2343,6 +2351,23 @@ export type SessionMessageAssistantTool = {
   time: { created: number; ran?: number; completed?: number }
 }
 
+export type SessionForked = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "session.forked"
+  durable: { aggregateID: string; seq: EventSeq; version: 2 }
+  location?: LocationRef
+  data: {
+    sessionID: SessionID
+    parentID: SessionID
+    boundary: SessionForkBoundary
+    destination?: SessionForkDestination
+    instructions?: { [x: InstructionKey]: InstructionHash }
+    instructionEntries?: InstructionEntrySnapshot
+  }
+}
+
 export type SessionInboxItem =
   | { type: "user"; payload: SessionInboxUserPayload1; delivery: SessionInboxDelivery }
   | { type: "synthetic"; payload: SessionInboxSyntheticPayload1; delivery: SessionInboxDelivery }
@@ -2492,7 +2517,8 @@ export type SessionEventDurable =
   | SessionCreated
   | SessionAgentSelected
   | SessionModelSelected
-  | SessionMoved
+  | SessionRootAdded
+  | SessionRootRemoved
   | SessionRenamed
   | SessionMetadataUpdated
   | SessionPermissions
@@ -2534,6 +2560,7 @@ export type SessionEventDurable =
   | SessionRevertCommitted
   | SessionUsageRecorded
   | SessionMessageContentUpdated
+  | SessionMoved
 
 export type IntegrationInfo = {
   id: IntegrationID
@@ -2555,7 +2582,8 @@ export type V2Event =
   | SessionCreated
   | SessionAgentSelected
   | SessionModelSelected
-  | SessionMoved
+  | SessionRootAdded
+  | SessionRootRemoved
   | SessionRenamed
   | SessionMetadataUpdated
   | SessionPermissions
@@ -3208,6 +3236,7 @@ export type SessionImportInput = {
         readonly archived?: number
       }
       readonly title?: string
+      readonly roots?: ReadonlyArray<string>
       readonly subpath?: string
       readonly metadata?: { readonly [x: string]: JsonValue }
       readonly permissions?: ReadonlyArray<{
@@ -3551,6 +3580,7 @@ export type SessionImportInput = {
         readonly archived?: number
       }
       readonly title?: string
+      readonly roots?: ReadonlyArray<string>
       readonly subpath?: string
       readonly metadata?: { readonly [x: string]: JsonValue }
       readonly permissions?: ReadonlyArray<{
@@ -3894,6 +3924,7 @@ export type SessionImportInput = {
         readonly archived?: number
       }
       readonly title?: string
+      readonly roots?: ReadonlyArray<string>
       readonly subpath?: string
       readonly metadata?: { readonly [x: string]: JsonValue }
       readonly permissions?: ReadonlyArray<{
@@ -4231,7 +4262,8 @@ export type SessionRemoveOutput = void
 
 export type SessionForkInput = {
   readonly sessionID: { readonly sessionID: string }["sessionID"]
-  readonly before?: { readonly before?: string | undefined }["before"]
+  readonly before?: { readonly before?: string | undefined; readonly directory?: string | undefined }["before"]
+  readonly directory?: { readonly before?: string | undefined; readonly directory?: string | undefined }["directory"]
 }
 
 export type SessionForkOutput = { data: SessionInfo }["data"]
@@ -4279,13 +4311,19 @@ export type SessionUpdateInput = {
 
 export type SessionUpdateOutput = void
 
-export type SessionMoveInput = {
+export type SessionRootAddInput = {
   readonly sessionID: { readonly sessionID: string }["sessionID"]
-  readonly directory: { readonly directory: string; readonly delivery?: ("steer" | "queue") | undefined }["directory"]
-  readonly delivery?: { readonly directory: string; readonly delivery?: ("steer" | "queue") | undefined }["delivery"]
+  readonly directory: { readonly directory: string }["directory"]
 }
 
-export type SessionMoveOutput = void
+export type SessionRootAddOutput = { data: { directory: AbsolutePath } }["data"]
+
+export type SessionRootRemoveInput = {
+  readonly sessionID: { readonly sessionID: string }["sessionID"]
+  readonly directory: { readonly directory: string }["directory"]
+}
+
+export type SessionRootRemoveOutput = { data: { directory: AbsolutePath } }["data"]
 
 export type SessionPromptInput = {
   readonly sessionID: { readonly sessionID: string }["sessionID"]
