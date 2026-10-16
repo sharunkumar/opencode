@@ -7,7 +7,7 @@ TUI_FORK_TESTS := test/ui/directory-link.test.ts test/ui/directory-markdown.test
 	test/cli/tui/data.test.tsx test/cli/tui/dialog-open.test.tsx test/cli/tui/prompt-move.test.tsx test/config.test.tsx \
 	test/context/session-tabs.test.tsx
 CORE_FORK_TESTS := test/plugin/custom.test.ts test/plugin/supervisor.test.ts test/tool-cancel.test.ts \
-	test/session-create.test.ts test/file-access.test.ts test/bus-session-routing.test.ts test/session-runner.test.ts \
+	test/session-create.test.ts test/session-roots.test.ts test/session-skill.test.ts test/file-access.test.ts test/bus-session-routing.test.ts test/session-runner.test.ts \
 	test/subagent-lifetime.test.ts
 SCHEMA_FORK_TESTS := test/event-manifest.test.ts
 

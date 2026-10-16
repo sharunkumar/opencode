@@ -52,6 +52,9 @@ import { PluginSupervisor } from "@opencode/core/plugin/supervisor"
 import { Tool } from "@opencode/core/tool"
 import { asc, eq } from "drizzle-orm"
 import { Effect, Layer, Schema, Stream } from "effect"
+import fs from "fs/promises"
+import path from "path"
+import { tmpdirScoped } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 
 const requests: LLMRequest[] = []
@@ -109,6 +112,7 @@ const builtins = Layer.mock(InstructionBuiltIns.Service, {
 const discovery = Layer.mock(InstructionDiscovery.Service, {
   project: true,
   global: true,
+  list: () => Effect.succeed([]),
   load: () => Effect.succeed(Instructions.empty),
 })
 const skills = Layer.mock(SkillInstructions.Service, { load: () => Effect.succeed(Instructions.empty) })
@@ -413,4 +417,31 @@ it.effect(
       expect(yield* durableState(db, sessionID)).toEqual(before)
     }),
   { timeout: 15_000 },
+)
+
+it.live("selects each session root's instructions into model context", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped()
+      const root = AbsolutePath.make(yield* Effect.promise(() => fs.realpath(tmp.path)))
+      yield* Effect.promise(async () => {
+        await fs.mkdir(path.join(root, ".git"))
+        await fs.writeFile(path.join(root, "AGENTS.md"), "root rules")
+      })
+      const { db } = yield* setup
+      yield* db
+        .update(SessionTable)
+        .set({ roots: [root] })
+        .where(eq(SessionTable.id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
+      const context = yield* SessionContext.Service
+      const source = (yield* context.select(sessionID)).instructions.find((item) => item.key === "core/roots")
+      if (!source) return yield* Effect.die("Root instructions missing")
+      const [observed] = yield* Instructions.read([source])
+      expect(observed && source.initial(observed.value as Schema.Json)).toBe(
+        `Instructions from: ${path.join(root, "AGENTS.md")}\nroot rules`,
+      )
+    }),
+  ),
 )

@@ -16,6 +16,7 @@ import { Plugin } from "../plugin/service.js"
 import { PluginHooks } from "../plugin/hooks.js"
 import { Skill } from "../skill.js"
 import { AttachmentError, SkillNotFoundError } from "./error.js"
+import { SessionRoots } from "./roots.js"
 
 export type Input = {
   text: string
@@ -56,13 +57,13 @@ export const prepare = Effect.fn("SessionPrompt.prepare")(function* (request: {
     const requested = input.skills
     const selected = yield* Effect.gen(function* () {
       if (!requested?.length) return undefined
-      const skillService = yield* Skill.Service
+      const roots = yield* SessionRoots.Service
       const prepared = new Map<Skill.ID, Skill.Name>()
       return yield* Effect.forEach(requested, (attachment) =>
         Effect.gen(function* () {
           const name = prepared.get(attachment.id)
           if (name !== undefined) return { id: attachment.id, name, mention: attachment.mention }
-          const skill = yield* skillService.get(attachment.id)
+          const skill = yield* roots.skill(request.session.id, attachment.id)
           if (!skill) return yield* new SkillNotFoundError({ skill: attachment.id })
           prepared.set(skill.id, skill.name)
           return {

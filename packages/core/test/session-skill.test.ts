@@ -22,6 +22,7 @@ import { SessionExecution } from "@opencode/core/session/execution"
 import { SessionEvent } from "@opencode/core/session/event"
 import { SessionMessage } from "@opencode/core/session/message"
 import { SessionProjector } from "@opencode/core/session/projector"
+import { SessionRoots } from "@opencode/core/session/roots"
 import { SessionStore } from "@opencode/core/session/store"
 import { SessionInbox } from "@opencode/core/session/inbox"
 import { Skill } from "@opencode/core/skill"
@@ -44,6 +45,7 @@ const locations = makeGlobalNode({
     LocationServiceMap.Service,
     Effect.gen(function* () {
       const managed = yield* ManagedPolicy.Service
+      const store = yield* SessionStore.Service
       return yield* LayerMap.make(
         (_ref: Location.Ref) =>
           // These tests need skill activation and prompt preparation from the same location services.
@@ -58,11 +60,19 @@ const locations = makeGlobalNode({
             ).pipe(
               Layer.provideMerge(
                 LayerNode.compile(
-                  LayerNode.group([PluginHooks.node, Image.node, Skill.node, Config.node, ManagedPolicy.node]),
+                  LayerNode.group([
+                    PluginHooks.node,
+                    Image.node,
+                    Skill.node,
+                    SessionRoots.node,
+                    Config.node,
+                    ManagedPolicy.node,
+                  ]),
                   {
                     replacements: [
                       Config.node.replace(Config.testLayer()),
                       ManagedPolicy.node.replace(Layer.succeed(ManagedPolicy.Service, managed)),
+                      SessionStore.node.replace(Layer.succeed(SessionStore.Service, store)),
                     ],
                   },
                 ),
@@ -74,7 +84,7 @@ const locations = makeGlobalNode({
       )
     }),
   ),
-  deps: [ManagedPolicy.node],
+  deps: [ManagedPolicy.node, SessionStore.node],
 })
 const it = testEffect(
   AppNodeBuilder.build(

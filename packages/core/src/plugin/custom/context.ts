@@ -6,13 +6,12 @@ import { CustomContext } from "@opencode/schema/custom-context"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Global } from "@opencode/util/global"
 import { Effect, Option, Schema } from "effect"
-import { SkillFile } from "../../config/plugin/skill-file.js"
 import { InstructionDiscovery } from "../../instruction-discovery.js"
 import { Instructions } from "../../instructions/index.js"
 import { Location } from "../../location.js"
-import { Project } from "../../project.js"
-import { AbsolutePath } from "../../schema.js"
 import { SessionMessage } from "../../session/message.js"
+import { SessionRoots } from "../../session/roots.js"
+import { Skill } from "../../skill.js"
 
 // Backs the TUI sidebar's context file list. Calls route to the session's Location, so
 // ambient discovery is read from the same Location the session runs in.
@@ -25,52 +24,8 @@ export const Plugin = define({
     const global = yield* Global.Service
     const config = global.config
     const configReal = yield* fs.resolve(config)
-
-    const skillNames = Effect.fn("CustomContextPlugin.skillNames")(function* (directory: string) {
-      const names = yield* Effect.forEach(RootSkillDirectories, (name) =>
-        Effect.gen(function* () {
-          const cwd = join(directory, name)
-          const files = yield* fs
-            .scan("{*.md,**/SKILL.md}", { cwd, absolute: true, include: "file", symlink: true, dot: true })
-            .pipe(Effect.orElseSucceed(() => [] as string[]))
-          return yield* Effect.forEach(files.toSorted(), (filepath) =>
-            fs.readFileStringSafe(filepath).pipe(
-              Effect.orElseSucceed(() => undefined),
-              Effect.map((content) => {
-                if (!content) return []
-                const parsed = SkillFile.parse(cwd, filepath, content)
-                return parsed._tag === "Parsed" ? [parsed.skill.name] : []
-              }),
-            ),
-          )
-        }),
-      )
-      return [...new Set(names.flat(2))]
-    })
-
-    // A root provides its own instruction files and skills. Files the primary directory already lists,
-    // and global config files, stay out of the root's group.
-    const rootContext = Effect.fn("CustomContextPlugin.rootContext")(function* (
-      directory: string,
-      listed: ReadonlySet<string>,
-    ) {
-      const stop = (yield* Project.root(fs, AbsolutePath.make(directory))) ?? directory
-      const walked = yield* fs
-        .up({ targets: [...InstructionDiscovery.filenames], start: directory, stop, type: "file" })
-        .pipe(Effect.orElseSucceed(() => [] as string[]))
-      const files = (yield* Effect.forEach(walked, fs.resolve)).filter(
-        (file) => !listed.has(file) && !FSUtil.contains(configReal, file),
-      )
-      return contextRoot(
-        location.project.directory,
-        directory,
-        global.home,
-        config,
-        configReal,
-        files,
-        yield* skillNames(directory),
-      )
-    })
+    const roots = yield* SessionRoots.Service
+    const skills = yield* Skill.Service
 
     yield* ctx.rpc
       .register(CustomContext.Contract, {
@@ -79,11 +34,22 @@ export const Plugin = define({
             const loaded = yield* discovery.list()
             const history = yield* ctx.session.context({ sessionID: input.sessionID })
             const session = yield* ctx.session.get({ sessionID: input.sessionID })
-            const listed = new Set(Array.isArray(loaded) ? loaded.map((file) => file.path) : [])
+            const found = yield* roots.discover(session)
+            const owners = skillOwners(contextSkills(history), yield* skills.list(), found)
             return {
               ...contextFiles(location.project.directory, global.home, config, configReal, loaded, history),
-              skills: contextSkills(history),
-              roots: yield* Effect.forEach(session.roots ?? [], (directory) => rootContext(directory, listed)),
+              skills: owners.primary,
+              roots: found.map((root) =>
+                contextRoot(
+                  location.project.directory,
+                  root.directory,
+                  global.home,
+                  config,
+                  configReal,
+                  root.files.map((file) => file.path),
+                  owners.root(root.directory),
+                ),
+              ),
             }
           }).pipe(Effect.orDie),
       })
@@ -91,7 +57,22 @@ export const Plugin = define({
   }),
 })
 
-const RootSkillDirectories = [".opencode/skill", ".opencode/skills", ".claude/skills", ".agents/skills"]
+// Loaded skills belong to the root that provides them; the primary Location wins a name collision.
+export function skillOwners(
+  loaded: ReadonlyArray<string>,
+  primary: ReadonlyArray<Skill.Info>,
+  roots: ReadonlyArray<SessionRoots.Root>,
+) {
+  const primaryNames = new Set<string>(primary.map((skill) => skill.name))
+  const owner = (name: string) =>
+    primaryNames.has(name)
+      ? undefined
+      : roots.find((root) => root.skills.some((skill) => skill.name === name))?.directory
+  return {
+    primary: loaded.filter((name) => owner(name) === undefined),
+    root: (directory: string) => loaded.filter((name) => owner(name) === directory),
+  }
+}
 
 const InjectedPaths = Schema.Struct({
   instruction: Schema.Struct({ paths: Schema.Array(Schema.String) }),

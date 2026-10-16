@@ -42,6 +42,7 @@ import { SessionTitle } from "./session/title.js"
 import { SessionContext } from "./session/context.js"
 import { Skill } from "./skill.js"
 import { SkillInstructions } from "./skill/instructions.js"
+import { SessionRoots } from "./session/roots.js"
 import { Snapshot } from "./snapshot.js"
 import { InstructionDiscovery } from "./instruction-discovery.js"
 import { InstructionBuiltIns } from "./instructions/builtins.js"
@@ -93,6 +94,7 @@ const nodes = [
   ToolOutput.node,
   Image.node,
   SkillInstructions.node,
+  SessionRoots.node,
   ReferenceInstructions.node,
   InstructionEntry.node,
   Form.node,

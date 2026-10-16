@@ -33,6 +33,7 @@ import { SessionRunCoordinator } from "../src/session/run-coordinator.js"
 import { SessionSchema } from "../src/session/schema.js"
 import { Session } from "../src/session/session.js"
 import { SessionTable } from "../src/session/sql.js"
+import { SessionRoots } from "../src/session/roots.js"
 import { SessionStore } from "../src/session/store.js"
 import { Shell } from "../src/shell.js"
 import { Skill } from "../src/skill.js"
@@ -129,13 +130,22 @@ const setup = Effect.fnUntraced(function* (options?: {
   )
   const servicesFor = (ref: Location.Ref) => {
     locations.push(ref)
+    const skills =
+      options?.skills?.(ref) ??
+      Layer.mock(Skill.Service, {
+        get: (id) => Effect.succeed(id === skillInfo.id ? skillInfo : undefined),
+      })
     return Layer.mergeAll(
       services,
       Layer.succeed(Location.Service, location(ref)),
-      options?.skills?.(ref) ??
-        Layer.mock(Skill.Service, {
-          get: (id) => Effect.succeed(id === skillInfo.id ? skillInfo : undefined),
-        }),
+      skills,
+      // These Sessions have no roots, so root lookup is the Location's skill lookup.
+      Layer.effect(
+        SessionRoots.Service,
+        Effect.map(Skill.Service, (primary) =>
+          SessionRoots.Service.of({ discover: () => Effect.succeed([]), skill: (_sessionID, id) => primary.get(id) }),
+        ),
+      ).pipe(Layer.provide(skills)),
       options?.snapshot?.(ref) ?? Layer.mock(Snapshot.Service, {}),
       Layer.mock(Plugin.Service, {
         awaitActivation: Effect.sync(() => {

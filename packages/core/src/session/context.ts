@@ -14,6 +14,7 @@ import { Location } from "../location.js"
 import { McpInstructions } from "../mcp/instructions.js"
 import { McpTool } from "../tool/mcp.js"
 import { ReferenceInstructions } from "../reference/instructions.js"
+import { Skill } from "../skill.js"
 import { SkillInstructions } from "../skill/instructions.js"
 import { Tool } from "../tool.js"
 import { AgentNotFoundError } from "./error.js"
@@ -22,6 +23,7 @@ import { SessionProviderContext } from "./provider-context.js"
 import { InstructionEntry } from "./instruction-entry.js"
 import { SessionMessage } from "./message.js"
 import { SessionModelRequest } from "./model-request.js"
+import { SessionRoots } from "./roots.js"
 import { SessionRunnerModel } from "./runner/model.js"
 import { SessionSchema } from "./schema.js"
 import { SessionStore } from "./store.js"
@@ -87,6 +89,8 @@ const layer = Layer.effect(
     const request = yield* SessionModelRequest.Service
     const referenceInstructions = yield* ReferenceInstructions.Service
     const skillInstructions = yield* SkillInstructions.Service
+    const skills = yield* Skill.Service
+    const roots = yield* SessionRoots.Service
     const store = yield* SessionStore.Service
     const registry = yield* Tool.Service
 
@@ -129,12 +133,19 @@ const layer = Layer.effect(
       if (!agent.info) return yield* new AgentNotFoundError({ sessionID: session.id, agent: session.agent ?? agent.id })
       // Session permissions narrow discovery the same way they narrow the tool snapshot.
       const permissions = Permission.merge(agent.info.permissions, session.permissions ?? [])
+      const found = yield* roots.discover(session)
       const loaded = yield* Effect.all(
         {
           tools: registry.snapshot(permissions),
           builtins: builtins.load(),
           discovery: discovery.load(),
-          skills: skillInstructions.load(permissions),
+          skills: found.length
+            ? skills
+                .list()
+                .pipe(
+                  Effect.flatMap((primary) => skillInstructions.load(permissions, SessionRoots.skills(primary, found))),
+                )
+            : skillInstructions.load(permissions),
           references: referenceInstructions.load(),
           mcp: mcpInstructions.load(permissions),
           entries: entries.load(sessionID),
@@ -153,6 +164,7 @@ const layer = Layer.effect(
           loaded.references,
           loaded.skills,
           loaded.discovery,
+          SessionRoots.instructions(found),
           loaded.builtins,
           loaded.entries,
         ]),
@@ -201,7 +213,9 @@ export const node = makeLocationNode({
     ReferenceInstructions.node,
     SessionRunnerModel.node,
     SessionModelRequest.node,
+    SessionRoots.node,
     SessionStore.node,
+    Skill.node,
     SkillInstructions.node,
     Tool.node,
   ],

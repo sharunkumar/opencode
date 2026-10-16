@@ -8,6 +8,7 @@ import { Permission } from "@opencode/core/permission"
 import { AbsolutePath } from "@opencode/core/schema"
 import { Session } from "@opencode/core/session"
 import { Skill } from "@opencode/core/skill"
+import { SessionRoots } from "@opencode/core/session/roots"
 import { Config } from "@opencode/core/config"
 import { ManagedPolicy } from "@opencode/core/managed-policy"
 import { SkillTool } from "@opencode/core/tool/plugin/skill"
@@ -25,7 +26,7 @@ import { registerIntegrationPolicy } from "./fixture/policy"
 const skillToolNode = makeLocationNode({
   name: "test/skill-tool-plugin",
   layer: Layer.effectDiscard(registerToolPlugin(SkillTool.Plugin)),
-  deps: [Tool.node, FSUtil.node, Skill.node, Permission.node],
+  deps: [Tool.node, FSUtil.node, SessionRoots.node, Permission.node],
 })
 
 const sessionID = Session.ID.make("ses_skill_tool_test")
