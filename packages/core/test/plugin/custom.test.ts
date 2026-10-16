@@ -80,7 +80,9 @@ it.effect("collects context files without duplicates and flags unavailable disco
         time: { created: DateTime.makeUnsafe(0) },
       }),
     ]
-    const ambient = [new InstructionDiscovery.File({ path: AbsolutePath.make(`${project}/AGENTS.md`), content: "root" })]
+    const ambient = [
+      new InstructionDiscovery.File({ path: AbsolutePath.make(`${project}/AGENTS.md`), content: "root" }),
+    ]
     const home = "/home/user"
     const config = `${home}/.config/opencode`
     expect(CustomContextPlugin.contextFiles(project, home, config, config, ambient, history)).toEqual({
@@ -105,6 +107,43 @@ it.effect("collects context files without duplicates and flags unavailable disco
     expect(CustomContextPlugin.contextFiles(project, home, config, linked, global, [])).toEqual({
       unavailable: false,
       files: ["~/.config/opencode/AGENTS.md"],
+    })
+  }),
+)
+
+it.effect("groups a root's instructions and skills under its own directory", () =>
+  Effect.sync(() => {
+    const home = "/home/user"
+    const config = `${home}/.config/opencode`
+    expect(
+      CustomContextPlugin.contextRoot(
+        "/repo",
+        `${home}/src/cmux`,
+        home,
+        config,
+        config,
+        [
+          `${home}/src/cmux/AGENTS.md`,
+          `${home}/src/cmux/web/AGENTS.md`,
+          `${home}/src/AGENTS.md`,
+          `${home}/src/cmux/AGENTS.md`,
+        ],
+        ["review", "deploy"],
+      ),
+    ).toEqual({
+      directory: "~/src/cmux",
+      files: ["AGENTS.md", "web/AGENTS.md", "~/src/AGENTS.md"],
+      skills: ["review", "deploy"],
+    })
+    expect(CustomContextPlugin.contextRoot("/repo", "/opt/shared", home, config, config, [], [])).toEqual({
+      directory: "/opt/shared",
+      files: [],
+      skills: [],
+    })
+    expect(CustomContextPlugin.contextRoot("/repo", "/repo/packages/web", home, config, config, [], [])).toEqual({
+      directory: "packages/web",
+      files: [],
+      skills: [],
     })
   }),
 )

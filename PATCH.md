@@ -33,7 +33,7 @@ Deleted `.opencode/tool/github-pr-search.ts` and `github-triage.ts`: v1-style to
 
 ## Makefile
 
-Added `make build-single` (builds the single-file `opencode` binary from `packages/cli`) and `make generate` (regenerates the SDK and related files).
+Added `make build-single` (builds the single-file `opencode` binary from `packages/cli`) and `make generate` (regenerates the protocol, client, and docs, then formats only the files generation touched; upstream's script formats the whole repo, which is not prettier-clean).
 
 ## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`)
 

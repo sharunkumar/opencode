@@ -5,10 +5,16 @@ import { Rpc } from "./rpc.js"
 import { Session } from "./session.js"
 
 const Input = Schema.toStandardSchemaV1(Schema.Struct({ sessionID: Session.ID }))
+const Root = Schema.Struct({
+  directory: Schema.String,
+  files: Schema.Array(Schema.String),
+  skills: Schema.Array(Schema.String),
+})
 const Output = Schema.toStandardSchemaV1(
   Schema.Struct({
     files: Schema.Array(Schema.String),
     skills: Schema.Array(Schema.String),
+    roots: Schema.Array(Root),
     unavailable: Schema.Boolean,
   }),
 )
