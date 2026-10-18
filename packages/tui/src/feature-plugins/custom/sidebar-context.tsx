@@ -4,6 +4,7 @@ import { CustomContext } from "@opencode/schema/custom-context"
 import { createMemo, createResource, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useClipboard } from "../../context/clipboard"
+import { labelColor } from "../../theme/provider-color"
 import { useToast } from "../../ui/toast"
 
 type Node = { label: string; children?: readonly Node[] }
@@ -92,6 +93,7 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
     (result()?.roots ?? []).map((root) => ({
       path: root.path,
       label: root.directory,
+      temp: root.temp,
       children: [...group("Instructions", root.files), ...group("Skills", root.skills)],
     })),
   )
@@ -109,13 +111,16 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
               <box
                 onMouseDown={() => {
                   setOpen(root.path, !open[root.path])
-                  void clipboard.write(root.path).then(
-                    () => toast.show({ message: "Path copied to clipboard", variant: "info" }),
-                    toast.error,
-                  )
+                  void clipboard
+                    .write(root.path)
+                    .then(() => toast.show({ message: "Path copied to clipboard", variant: "info" }), toast.error)
                 }}
               >
                 <text fg={theme.text.base} wrapMode="none" selectable={false} truncate>
+                  <Show when={root.temp}>
+                    <span style={{ fg: labelColor(theme, "tmp", 0) }}>tmp</span>
+                    {root.label ? "/" : ""}
+                  </Show>
                   {root.label}
                 </text>
               </box>

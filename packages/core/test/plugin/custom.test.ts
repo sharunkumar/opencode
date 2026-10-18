@@ -133,21 +133,44 @@ it.effect("groups a root's instructions and skills under its own directory", () 
     ).toEqual({
       path: `${home}/src/cmux`,
       directory: "~/src/cmux",
+      temp: false,
       files: ["AGENTS.md", "web/AGENTS.md", "~/src/AGENTS.md"],
       skills: ["review", "deploy"],
     })
     expect(CustomContextPlugin.contextRoot("/repo", "/opt/shared", home, config, config, [], [])).toEqual({
       path: "/opt/shared",
       directory: "/opt/shared",
+      temp: false,
       files: [],
       skills: [],
     })
     expect(CustomContextPlugin.contextRoot("/repo", "/repo/packages/web", home, config, config, [], [])).toEqual({
       path: "/repo/packages/web",
       directory: "packages/web",
+      temp: false,
       files: [],
       skills: [],
     })
+  }),
+)
+
+it.effect("marks roots inside a known temp directory instead of spelling out the temp path", () =>
+  Effect.sync(() => {
+    const home = "/home/user"
+    const config = `${home}/.config/opencode`
+    const temps = ["/var/folders/ab/T", "/private/var/folders/ab/T"]
+    const root = (directory: string, project = "/repo") =>
+      CustomContextPlugin.contextRoot(project, directory, home, config, config, [], [], temps)
+    expect(root("/private/var/folders/ab/T/opencode/work")).toMatchObject({
+      path: "/private/var/folders/ab/T/opencode/work",
+      directory: "opencode/work",
+      temp: true,
+    })
+    expect(root("/var/folders/ab/T/opencode")).toMatchObject({ directory: "opencode", temp: true })
+    expect(root("/var/folders/ab/T")).toMatchObject({ directory: "", temp: true })
+    expect(root("/var/folders/ab/T-other")).toMatchObject({ directory: "/var/folders/ab/T-other", temp: false })
+    expect(root("/repo/tmp")).toMatchObject({ directory: "tmp", temp: false })
+    expect(root("/var/folders/ab/T/work", "/var/folders/ab/T")).toMatchObject({ directory: "work", temp: false })
   }),
 )
 

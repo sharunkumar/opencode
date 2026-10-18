@@ -8,6 +8,7 @@ const Input = Schema.toStandardSchemaV1(Schema.Struct({ sessionID: Session.ID })
 const Root = Schema.Struct({
   path: Schema.String,
   directory: Schema.String,
+  temp: Schema.Boolean,
   files: Schema.Array(Schema.String),
   skills: Schema.Array(Schema.String),
 })

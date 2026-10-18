@@ -1,5 +1,6 @@
 export * as CustomContextPlugin from "./context.js"
 
+import { tmpdir } from "os"
 import { join, relative } from "path"
 import { define } from "@opencode/plugin/effect/plugin"
 import { CustomContext } from "@opencode/schema/custom-context"
@@ -24,6 +25,8 @@ export const Plugin = define({
     const global = yield* Global.Service
     const config = global.config
     const configReal = yield* fs.resolve(config)
+    // Discovery stores real paths, so list both spellings of each known temp directory (/var vs /private/var on macOS).
+    const temps = [...new Set([tmpdir(), yield* fs.resolve(tmpdir())])]
     const roots = yield* SessionRoots.Service
     const skills = yield* Skill.Service
 
@@ -48,6 +51,7 @@ export const Plugin = define({
                   configReal,
                   root.files.map((file) => file.path),
                   owners.root(root.directory),
+                  temps,
                 ),
               ),
             }
@@ -97,7 +101,9 @@ export function contextFiles(
   }
 }
 
-// A root's group: its directory displayed like any other path, then its files relative to it.
+// A root's group: its directory displayed like any other path, then its files relative to it. A root inside a
+// known temp directory (and outside the project) reports `temp` with the part after that directory, so the
+// sidebar can mark it instead of the label spelling out a temp path.
 export function contextRoot(
   project: string,
   directory: string,
@@ -106,10 +112,13 @@ export function contextRoot(
   configReal: string,
   files: ReadonlyArray<string>,
   skills: ReadonlyArray<string>,
+  temps: ReadonlyArray<string> = [],
 ) {
+  const temp = FSUtil.contains(project, directory) ? undefined : temps.find((item) => FSUtil.contains(item, directory))
   return {
     path: directory,
-    directory: display(project, home, config, configReal, directory),
+    directory: temp === undefined ? display(project, home, config, configReal, directory) : relative(temp, directory),
+    temp: temp !== undefined,
     files: [...new Set(files)].map((file) => display(directory, home, config, configReal, file)),
     skills: [...skills],
   }

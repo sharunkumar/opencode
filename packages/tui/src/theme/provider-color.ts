@@ -9,7 +9,7 @@ export function keywordColor(theme: Pick<ComponentTheme, "categorical">, keyword
   return labelColor(theme, keyword, providers)
 }
 
-function labelColor(theme: Pick<ComponentTheme, "categorical">, key: string, offset: number): RGBA {
+export function labelColor(theme: Pick<ComponentTheme, "categorical">, key: string, offset: number): RGBA {
   const palette = theme.categorical
   const hash = [...key.toLowerCase()].reduce((value, char) => (value * 31 + char.charCodeAt(0)) >>> 0, 0)
   return palette[(hash + offset) % palette.length][200]
