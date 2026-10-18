@@ -4,7 +4,6 @@ import { CustomContext } from "@opencode/schema/custom-context"
 import { createMemo, createResource, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useClipboard } from "../../context/clipboard"
-import { labelColor } from "../../theme/provider-color"
 import { useToast } from "../../ui/toast"
 
 type Node = { label: string; children?: readonly Node[] }
@@ -118,7 +117,7 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
               >
                 <text fg={theme.text.base} wrapMode="none" selectable={false} truncate>
                   <Show when={root.temp}>
-                    <span style={{ fg: labelColor(theme, "tmp", 0) }}>tmp</span>
+                    <span style={{ fg: theme.text.muted }}>tmp</span>
                     {root.label ? "/" : ""}
                   </Show>
                   {root.label}
