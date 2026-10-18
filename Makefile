@@ -22,7 +22,7 @@ typecheck: install-deps
 build-single: typecheck
 	$(BUN) run --cwd packages/cli build --single
 
-tests:
+tests: install-deps
 	cd packages/tui && $(BUN) test $(TUI_FORK_TESTS)
 	cd packages/core && $(BUN) test $(CORE_FORK_TESTS)
 	cd packages/schema && $(BUN) test $(SCHEMA_FORK_TESTS)

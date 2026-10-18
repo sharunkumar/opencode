@@ -35,3 +35,6 @@ jobs:
         # Against the merge's first parent, so base-branch commits the pull request has not merged are not counted as its
         # changes (the event's base SHA can predate them).
         run: bun run lint:changed HEAD^1
+
+      - name: Run fork tests
+        run: make tests BUN=bun
