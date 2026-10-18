@@ -3,10 +3,10 @@ import { useDialog } from "@opencode/ui/context/dialog"
 import { DockShell, DockTray } from "@opencode/ui/dock-surface"
 import { Icon } from "@opencode/ui/icon"
 import { Menu } from "@opencode/ui/menu"
-import { getFilename, sameDirectory } from "@opencode/util/path"
+import { sameDirectory } from "@opencode/util/path"
 import { useNavigate } from "@solidjs/router"
 import { useMutation } from "@tanstack/solid-query"
-import { createEffect, createResource, For, Show } from "solid-js"
+import { createEffect, createResource, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useData, useServer } from "@/runtime/server/current"
@@ -14,6 +14,7 @@ import { sessionHref } from "@/shell/routes/session"
 import { showToast } from "@/shell/notifications/toast"
 import { createWorktree } from "@/workspaces/create"
 import { useDirectoryPicker } from "@/workspaces/selection/picker"
+import { WorkspaceSubmenu } from "@/workspaces/submenu"
 
 export function SessionLocationMissing(props: { sessionID: string; projectID: string; directory: string }) {
   const language = useLanguage()
@@ -114,7 +115,7 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
               {language.t("session.location.worktree")}
             </Menu.Trigger>
             <Menu.Portal>
-              <Menu.Content class="max-h-80 max-w-[calc(100vw-32px)] overflow-y-auto">
+              <Menu.Content class="max-w-[calc(100vw-32px)]">
                 <Menu.Item onSelect={() => fork.mutate({})} disabled={fork.isPending}>
                   <Icon name="workspace-new" />
                   {language.t("workspace.new")}
@@ -122,18 +123,13 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
                 <Show when={worktrees.loading && otherWorktrees().length === 0}>
                   <Menu.Item disabled>{language.t("common.loading")}</Menu.Item>
                 </Show>
-                <For each={otherWorktrees()}>
-                  {(worktree) => (
-                    <Menu.Item
-                      title={worktree.directory}
-                      onSelect={() => fork.mutate({ directory: worktree.directory })}
-                      disabled={fork.isPending}
-                    >
-                      <Icon name="workspace-isolated" />
-                      <span class="truncate">{getFilename(worktree.directory)}</span>
-                    </Menu.Item>
-                  )}
-                </For>
+                <Show when={otherWorktrees().length > 0}>
+                  <WorkspaceSubmenu
+                    directories={otherWorktrees().map((worktree) => worktree.directory)}
+                    disabled={fork.isPending}
+                    onSelect={(directory) => fork.mutate({ directory })}
+                  />
+                </Show>
               </Menu.Content>
             </Menu.Portal>
           </Menu>

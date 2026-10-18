@@ -2,7 +2,7 @@ import { batch, createEffect, createMemo, createResource, createSignal, onCleanu
 import type { SessionInfo } from "@opencode/client"
 import path from "path"
 import { useTerminalDimensions } from "@opentui/solid"
-import { dialogWidth, useDialog } from "../ui/dialog"
+import { DIALOG_LIST_INSET, dialogWidth, useDialog } from "../ui/dialog"
 import { DialogSelect, dialogSelectContentWidth, type DialogSelectRef } from "../ui/dialog-select"
 import { DialogPrompt } from "../ui/dialog-prompt"
 import { useRoute } from "../context/route"
@@ -342,7 +342,7 @@ export function DialogOpen(props: { sessions: SessionInfo[]; onLoad: (sessions: 
             onFilter={setFilter}
             emptyView={
               <Show when={!recent.loading && !projects.loading}>
-                <box paddingLeft={4} paddingRight={4}>
+                <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
                   <text fg={theme.text.muted}>No recent sessions or projects</text>
                 </box>
               </Show>
@@ -408,7 +408,7 @@ export function DialogOpen(props: { sessions: SessionInfo[]; onLoad: (sessions: 
             ]}
             footerHints={[...(projectID() ? [{ title: "new worktree", label: "ctrl+n" }] : [])]}
             noMatchView={
-              <box paddingLeft={4} paddingRight={4}>
+              <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
                 <text fg={theme.text.muted}>
                   {projectID()
                     ? worktrees.loading

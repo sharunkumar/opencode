@@ -111,6 +111,8 @@ import type {
   ModelDefaultOutput,
   GenerateTextInput,
   GenerateTextOutput,
+  VoiceSessionInput,
+  VoiceSessionOutput,
   ProviderListInput,
   ProviderListOutput,
   ProviderGetInput,
@@ -1160,6 +1162,20 @@ export function make(options: ClientOptions) {
             method: "POST",
             path: `/api/experimental/generate`,
             body: { prompt: input["prompt"], model: input["model"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404, 503],
+            empty: false,
+          },
+          requestOptions,
+        ).then((value) => value.data),
+    },
+    voice: {
+      session: (input: VoiceSessionInput, requestOptions?: RequestOptions) =>
+        request<{ readonly data: VoiceSessionOutput }>(
+          {
+            method: "POST",
+            path: `/api/experimental/voice/session`,
+            body: { model: input["model"], session: input["session"], transport: input["transport"] },
             successStatus: 200,
             declaredStatuses: [400, 401, 404, 503],
             empty: false,

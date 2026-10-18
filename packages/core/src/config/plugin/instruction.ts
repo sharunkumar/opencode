@@ -63,10 +63,18 @@ export const Plugin = define({
         yield* updates.pipe(Stream.runForEach(publish), Effect.forkScoped({ startImmediately: true }))
       }
 
+      // A missing file may be mid-save and is transient; a denied file (e.g. outside a sandbox grant) stays absent.
       const read = Effect.fn("ConfigInstructionPlugin.read")(function* (filepath: string) {
-        const content = yield* fs.readFileStringSafe(filepath)
-        if (content !== undefined) return new InstructionDiscovery.File({ path: filepath, content })
-        yield* Effect.logDebug("instruction file skipped", { path: filepath, reason: "unavailable" })
+        return yield* fs.readFileString(filepath).pipe(
+          Effect.map((content) => new InstructionDiscovery.File({ path: filepath, content })),
+          Effect.catchIf(
+            (error) => error.reason._tag === "NotFound" || FSUtil.isAccessDenied(error),
+            (error) =>
+              Effect.logDebug("instruction file skipped", { path: filepath, reason: error.reason._tag }).pipe(
+                Effect.as(error.reason._tag === "NotFound" ? undefined : ("denied" as const)),
+              ),
+          ),
+        )
       })
 
       const globalSource = Effect.fn("ConfigInstructionPlugin.globalSource")(function* () {
@@ -77,7 +85,7 @@ export const Plugin = define({
             return yield* read(path)
           }),
         )
-        return files.filter((file): file is InstructionDiscovery.File => file !== undefined)
+        return files.filter((file) => file instanceof InstructionDiscovery.File)
       })
 
       const projectSource = Effect.fn("ConfigInstructionPlugin.projectSource")(function* () {
@@ -89,7 +97,7 @@ export const Plugin = define({
         const discovered = new Set(walked.filter((file) => discovery.global || !globalFiles.includes(file)))
         const files = yield* Effect.forEach(discovered, read, { concurrency: "unbounded" })
         if (files.some((file) => file === undefined)) return Instructions.unavailable
-        return files.filter((file): file is InstructionDiscovery.File => file !== undefined)
+        return files.filter((file) => file instanceof InstructionDiscovery.File)
       })
 
       // Relative patterns search upward from the location to the project root. Without
@@ -122,7 +130,7 @@ export const Plugin = define({
             if (watched.has(resolved)) continue
             watched.add(resolved)
             const file = yield* read(resolved)
-            if (file) files.push(file)
+            if (file instanceof InstructionDiscovery.File) files.push(file)
           }
         }
         for (const [key] of Array.from(watches)) if (!watched.has(key)) yield* FiberMap.remove(watches, key)

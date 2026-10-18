@@ -11,11 +11,12 @@ import { modelPreferenceKey } from "../model-preference"
 import { useLocation } from "../context/location"
 import { useTheme } from "../context/theme"
 import { keywordColor, providerColor } from "../theme/provider-color"
-import { useConfig } from "../config"
+import { useConfig, useNewDesigns } from "../config"
 import { Keyword } from "../util/keyword"
 
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
+  const newDesigns = useNewDesigns()
   const data = useData()
   const dialog = useDialog()
   const location = useLocation()
@@ -146,6 +147,8 @@ export function DialogModel(props: { providerID?: string }) {
 
   return (
     <DialogSelect<ReturnType<typeof options>[number]["value"]>
+      searchInTitle
+      titlePlaceholder="Search models"
       options={options()}
       colorBy={(value) => providerColor(theme, value.providerID)}
       highlightTitle={(text) =>
@@ -158,7 +161,13 @@ export function DialogModel(props: { providerID?: string }) {
       actions={[
         {
           command: "model.dialog.provider",
-          title: connected() ? "Connect an integration" : "View all integrations",
+          title: newDesigns()
+            ? connected()
+              ? "connect integration"
+              : "view all integrations"
+            : connected()
+              ? "Connect an integration"
+              : "View all integrations",
           selection: "none",
           onTrigger() {
             dialog.replace(() => (
@@ -170,7 +179,7 @@ export function DialogModel(props: { providerID?: string }) {
         },
         {
           command: "model.dialog.favorite",
-          title: "Favorite",
+          title: newDesigns() ? "favorite" : "Favorite",
           hidden: !connected(),
           onTrigger: (option) => {
             local.model.toggleFavorite(option.value as { providerID: string; modelID: string })
