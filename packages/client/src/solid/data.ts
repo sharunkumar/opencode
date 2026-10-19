@@ -744,6 +744,14 @@ export function createData(config: CreateDataInput) {
         if (store.session.info[event.data.sessionID])
           setStore("session", "info", event.data.sessionID, "permissions", event.data.permissions)
         return
+      case "session.archived":
+        if (store.session.info[event.data.sessionID])
+          setStore("session", "info", event.data.sessionID, "time", "archived", event.created)
+        return
+      case "session.unarchived":
+        if (store.session.info[event.data.sessionID])
+          setStore("session", "info", event.data.sessionID, "time", "archived", undefined)
+        return
       case "session.root.added": {
         const roots = store.session.info[event.data.sessionID]?.roots ?? []
         if (store.session.info[event.data.sessionID] && !roots.includes(event.data.directory))

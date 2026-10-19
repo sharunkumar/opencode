@@ -1036,6 +1036,26 @@ export type SessionViewed = {
   data: { sessionID: SessionID; idle: number }
 }
 
+export type SessionArchived = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "session.archived"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: { sessionID: SessionID }
+}
+
+export type SessionUnarchived = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "session.unarchived"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: { sessionID: SessionID }
+}
+
 export type SessionDeleted = {
   id: EventID
   created: number
@@ -2541,6 +2561,8 @@ export type SessionEventDurable =
   | SessionMetadataUpdated
   | SessionPermissions
   | SessionViewed
+  | SessionArchived
+  | SessionUnarchived
   | SessionDeleted
   | SessionForked
   | SessionInboxDelivered
@@ -2606,6 +2628,8 @@ export type V2Event =
   | SessionMetadataUpdated
   | SessionPermissions
   | SessionViewed
+  | SessionArchived
+  | SessionUnarchived
   | SessionUsageUpdated
   | SessionDeleted
   | SessionForked
@@ -2875,6 +2899,14 @@ export type ProjectNotFoundError = {
 export const isProjectNotFoundError = (value: unknown): value is ProjectNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectNotFoundError"
 
+export type PermissionSavedNotFoundError = {
+  readonly _tag: "PermissionSavedNotFoundError"
+  readonly id: string
+  readonly message: string
+}
+export const isPermissionSavedNotFoundError = (value: unknown): value is PermissionSavedNotFoundError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "PermissionSavedNotFoundError"
+
 export type PermissionNotFoundError = {
   readonly _tag: "PermissionNotFoundError"
   readonly requestID: string
@@ -2988,6 +3020,7 @@ export type SessionListInput = {
     readonly order?: "asc" | "desc" | undefined
     readonly search?: string | undefined
     readonly parentID?: string | null | undefined
+    readonly archived?: boolean | undefined
     readonly directory?: string | undefined
     readonly project?: string | undefined
     readonly subpath?: string | undefined
@@ -2998,6 +3031,7 @@ export type SessionListInput = {
     readonly order?: "asc" | "desc" | undefined
     readonly search?: string | undefined
     readonly parentID?: string | null | undefined
+    readonly archived?: boolean | undefined
     readonly directory?: string | undefined
     readonly project?: string | undefined
     readonly subpath?: string | undefined
@@ -3008,6 +3042,7 @@ export type SessionListInput = {
     readonly order?: "asc" | "desc" | undefined
     readonly search?: string | undefined
     readonly parentID?: string | null | undefined
+    readonly archived?: boolean | undefined
     readonly directory?: string | undefined
     readonly project?: string | undefined
     readonly subpath?: string | undefined
@@ -3018,16 +3053,29 @@ export type SessionListInput = {
     readonly order?: "asc" | "desc" | undefined
     readonly search?: string | undefined
     readonly parentID?: string | null | undefined
+    readonly archived?: boolean | undefined
     readonly directory?: string | undefined
     readonly project?: string | undefined
     readonly subpath?: string | undefined
     readonly cursor?: string | undefined
   }["parentID"]
+  readonly archived?: {
+    readonly limit?: number | undefined
+    readonly order?: "asc" | "desc" | undefined
+    readonly search?: string | undefined
+    readonly parentID?: string | null | undefined
+    readonly archived?: boolean | undefined
+    readonly directory?: string | undefined
+    readonly project?: string | undefined
+    readonly subpath?: string | undefined
+    readonly cursor?: string | undefined
+  }["archived"]
   readonly directory?: {
     readonly limit?: number | undefined
     readonly order?: "asc" | "desc" | undefined
     readonly search?: string | undefined
     readonly parentID?: string | null | undefined
+    readonly archived?: boolean | undefined
     readonly directory?: string | undefined
     readonly project?: string | undefined
     readonly subpath?: string | undefined
@@ -3038,6 +3086,7 @@ export type SessionListInput = {
     readonly order?: "asc" | "desc" | undefined
     readonly search?: string | undefined
     readonly parentID?: string | null | undefined
+    readonly archived?: boolean | undefined
     readonly directory?: string | undefined
     readonly project?: string | undefined
     readonly subpath?: string | undefined
@@ -3048,6 +3097,7 @@ export type SessionListInput = {
     readonly order?: "asc" | "desc" | undefined
     readonly search?: string | undefined
     readonly parentID?: string | null | undefined
+    readonly archived?: boolean | undefined
     readonly directory?: string | undefined
     readonly project?: string | undefined
     readonly subpath?: string | undefined
@@ -3058,6 +3108,7 @@ export type SessionListInput = {
     readonly order?: "asc" | "desc" | undefined
     readonly search?: string | undefined
     readonly parentID?: string | null | undefined
+    readonly archived?: boolean | undefined
     readonly directory?: string | undefined
     readonly project?: string | undefined
     readonly subpath?: string | undefined
@@ -4310,6 +4361,7 @@ export type SessionUpdateInput = {
     readonly permissions?:
       | ReadonlyArray<{ readonly action: string; readonly resource: string; readonly effect: "allow" | "deny" | "ask" }>
       | undefined
+    readonly archived?: boolean | undefined
   }["title"]
   readonly metadata?: {
     readonly title?: string | undefined
@@ -4317,6 +4369,7 @@ export type SessionUpdateInput = {
     readonly permissions?:
       | ReadonlyArray<{ readonly action: string; readonly resource: string; readonly effect: "allow" | "deny" | "ask" }>
       | undefined
+    readonly archived?: boolean | undefined
   }["metadata"]
   readonly permissions?: {
     readonly title?: string | undefined
@@ -4324,7 +4377,16 @@ export type SessionUpdateInput = {
     readonly permissions?:
       | ReadonlyArray<{ readonly action: string; readonly resource: string; readonly effect: "allow" | "deny" | "ask" }>
       | undefined
+    readonly archived?: boolean | undefined
   }["permissions"]
+  readonly archived?: {
+    readonly title?: string | undefined
+    readonly metadata?: { readonly [x: string]: JsonValue } | undefined
+    readonly permissions?:
+      | ReadonlyArray<{ readonly action: string; readonly resource: string; readonly effect: "allow" | "deny" | "ask" }>
+      | undefined
+    readonly archived?: boolean | undefined
+  }["archived"]
 }
 
 export type SessionUpdateOutput = void
@@ -6288,6 +6350,14 @@ export type PermissionRequestListOutput = { location: LocationPublicRef; data: A
 export type PermissionSavedListInput = { readonly projectID?: { readonly projectID?: string | undefined }["projectID"] }
 
 export type PermissionSavedListOutput = { data: Array<PermissionSavedInfo> }["data"]
+
+export type PermissionSavedUpdateInput = {
+  readonly id: { readonly id: string }["id"]
+  readonly action?: { readonly action?: string | undefined; readonly resource?: string | undefined }["action"]
+  readonly resource?: { readonly action?: string | undefined; readonly resource?: string | undefined }["resource"]
+}
+
+export type PermissionSavedUpdateOutput = { data: PermissionSavedInfo }["data"]
 
 export type PermissionSavedRemoveInput = { readonly id: { readonly id: string }["id"] }
 

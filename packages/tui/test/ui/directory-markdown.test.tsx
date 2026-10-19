@@ -6,10 +6,10 @@ import path from "node:path"
 import { SyntaxStyle } from "@opentui/core"
 import { ManualClock } from "@opentui/core/testing"
 import { testRender, useRenderer } from "@opentui/solid"
+import { onCleanup } from "solid-js"
 import { linkDirectoryMarkdown } from "../../src/ui/directory-markdown"
 import { clickedLink } from "../../src/ui/link"
 
-const syntaxStyle = SyntaxStyle.fromStyles({ default: { fg: "#ffffff" } })
 let root: string
 
 beforeEach(async () => {
@@ -27,6 +27,8 @@ test("inline code holding an existing absolute directory is a clickable link; fi
   const opened: string[] = []
   function Transcript() {
     const renderer = useRenderer()
+    const syntaxStyle = SyntaxStyle.fromStyles({ default: { fg: "#ffffff" } }, renderer.nativeScene)
+    onCleanup(() => syntaxStyle.destroy())
     return (
       <box
         onMouseUp={(event) => {
