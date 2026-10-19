@@ -380,13 +380,23 @@ test("vertical session tabs switch to horizontal below readable content width", 
     },
   })
   await setup.ready
-  await setup.waitForFrame((frame) => frame.split("\n")[1].slice(0, 42).includes(session.title))
+  await setup.waitForFrame((frame) =>
+    frame
+      .split("\n")
+      .slice(1)
+      .some((line) => line.slice(0, 42).includes(session.title)),
+  )
 
   setup.resize(100, 30)
   await setup.waitForFrame((frame) => frame.split("\n")[0].includes(session.title))
   expect(setup.captureCharFrame()).not.toContain("⌕")
   setup.resize(120, 30)
-  await setup.waitForFrame((frame) => frame.split("\n")[1].slice(0, 42).includes(session.title))
+  await setup.waitForFrame((frame) =>
+    frame
+      .split("\n")
+      .slice(1)
+      .some((line) => line.slice(0, 42).includes(session.title)),
+  )
 })
 
 test("narrow vertical session tabs collapse to a compact rail with the terminal", async () => {
@@ -1274,10 +1284,10 @@ test("ctrl+c dismisses autocomplete and shell mode before exiting", async () => 
 
 test.skipIf(process.platform === "win32").each(["manual", "select"] as const)(
   "selection copy and pane management respect %s mode in the prompt and terminal pane",
-    async (copy) => {
-      await using state = await tmpdir()
-      const setup = await createTestRenderer({ width: 100, height: 30, kittyKeyboard: true })
-      await setup.renderer.setupTerminal()
+  async (copy) => {
+    await using state = await tmpdir()
+    const setup = await createTestRenderer({ width: 100, height: 30, kittyKeyboard: true })
+    await setup.renderer.setupTerminal()
     setup.renderer.start()
     const ready = Promise.withResolvers<void>()
     const session = {
