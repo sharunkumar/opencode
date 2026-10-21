@@ -228,7 +228,7 @@ it.effect("collects loaded skills from mentions, skill messages, and completed s
       status: "completed",
       reason: "auto",
       summary: "[Skill activated: ignored]",
-      recent: "[Skill activated: delta]\ndelta body\n\n[User]: hi\n[Skill activated: alpha]\nalpha body",
+      metadata: { recent: "[Skill activated: delta]\ndelta body\n\n[User]: hi\n[Skill activated: alpha]\nalpha body" },
       time,
     })
     expect(CustomContextPlugin.contextSkills(history)).toEqual(["alpha", "beta", "gamma"])

@@ -887,7 +887,7 @@ export function createData(config: CreateDataInput) {
             existing.error = undefined
             existing.finish = undefined
             existing.rawFinish = undefined
-            existing.providerState = undefined
+            existing.native = undefined
             existing.time.created = event.data.started
             existing.time.streamed = undefined
             existing.time.completed = undefined
@@ -921,7 +921,7 @@ export function createData(config: CreateDataInput) {
           assistant.time.completed = event.created
           assistant.finish = event.data.finish
           assistant.rawFinish = event.data.rawFinish
-          assistant.providerState = event.data.providerState
+          assistant.native = event.data.native
           assistant.cost = event.data.cost
           assistant.tokens = event.data.tokens
           if (event.data.snapshot) assistant.snapshot = { ...assistant.snapshot, end: event.data.snapshot }
@@ -933,7 +933,7 @@ export function createData(config: CreateDataInput) {
           assistant.time.completed = event.created
           assistant.finish = event.data.finish ?? "error"
           assistant.rawFinish = event.data.rawFinish
-          assistant.providerState = event.data.providerState
+          assistant.native = event.data.native
           assistant.error = event.data.error
           assistant.retry = undefined
           if (event.data.cost !== undefined && event.data.tokens !== undefined) {
@@ -982,7 +982,7 @@ export function createData(config: CreateDataInput) {
         message.editTool(event.data.sessionID, event.data.assistantMessageID, event.data.id, (tool) => {
           tool.time.ran = event.created
           tool.executed = event.data.executed
-          tool.providerState = event.data.state
+          tool.native = event.data.native
           tool.state = { status: "running", input: event.data.input, metadata: {} }
         })
         return
@@ -1001,7 +1001,7 @@ export function createData(config: CreateDataInput) {
             content: [...event.data.content],
           }
           tool.executed = event.data.executed || tool.executed === true
-          tool.providerResultState = event.data.resultState
+          if (event.data.native) tool.native = { ...tool.native, ...event.data.native }
           tool.time.completed = event.created
         })
         return
@@ -1016,7 +1016,7 @@ export function createData(config: CreateDataInput) {
             content: event.data.content,
           }
           tool.executed = event.data.executed || tool.executed === true
-          tool.providerResultState = event.data.resultState
+          if (event.data.native) tool.native = { ...tool.native, ...event.data.native }
           tool.time.completed = event.created
         })
         return
@@ -1025,7 +1025,7 @@ export function createData(config: CreateDataInput) {
           assistant.content.push({
             type: "reasoning",
             text: "",
-            state: event.data.state,
+            native: event.data.native,
             time: { created: event.created },
           })
         })
@@ -1039,7 +1039,7 @@ export function createData(config: CreateDataInput) {
         message.editReasoning(event.data.sessionID, event.data.assistantMessageID, (reasoning) => {
           reasoning.text = event.data.text
           reasoning.time = { created: reasoning.time?.created ?? event.created, completed: event.created }
-          if (event.data.state !== undefined) reasoning.state = event.data.state
+          if (event.data.native !== undefined) reasoning.native = event.data.native
         })
         return
       case "session.retry.scheduled":
@@ -1058,7 +1058,6 @@ export function createData(config: CreateDataInput) {
           status: "running",
           reason: event.data.reason,
           summary: "",
-          recent: event.data.recent ?? "",
           time: { created: event.created },
         })
         if (event.data.inputID) compacting.get(event.data.sessionID)?.observed.add(event.data.inputID)
@@ -1148,10 +1147,8 @@ export function createData(config: CreateDataInput) {
               status: "completed",
               reason: event.data.reason,
               model: event.data.model,
-              providerState: event.data.providerState,
-              providerContext: event.data.providerContext,
+              native: event.data.native,
               summary: event.data.text,
-              recent: event.data.recent,
               cost: event.data.cost,
               tokens: event.data.tokens,
             })
@@ -1163,10 +1160,8 @@ export function createData(config: CreateDataInput) {
             status: "completed",
             reason: event.data.reason,
             model: event.data.model,
-            providerState: event.data.providerState,
-            providerContext: event.data.providerContext,
+            native: event.data.native,
             summary: event.data.text,
-            recent: event.data.recent,
             cost: event.data.cost,
             tokens: event.data.tokens,
             time: { created: event.created },

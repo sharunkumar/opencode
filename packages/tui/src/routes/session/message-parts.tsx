@@ -31,6 +31,7 @@ const toolDisplays = new Set([
   "subagent",
   "execute",
   "patch",
+  "todowrite",
   "question",
   "skill",
 ])

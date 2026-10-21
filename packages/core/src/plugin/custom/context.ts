@@ -11,6 +11,7 @@ import { InstructionDiscovery } from "../../instruction-discovery.js"
 import { Instructions } from "../../instructions/index.js"
 import { Location } from "../../location.js"
 import { SessionMessage } from "../../session/message.js"
+import { SessionRecentText } from "../../session/recent-text.js"
 import { SessionRoots } from "../../session/roots.js"
 import { Skill } from "../../skill.js"
 
@@ -131,7 +132,7 @@ export function contextSkills(history: ReadonlyArray<SessionMessage.Info>) {
     // Text compaction renders skills in its recent section as `[Skill activated: name]` (see messageToText).
     if (message.type === "compaction")
       return message.status === "completed"
-        ? Array.from(message.recent.matchAll(/^\[Skill activated: (.+)\]$/gm), (match) => match[1])
+        ? Array.from(SessionRecentText.kept(message).matchAll(/^\[Skill activated: (.+)\]$/gm), (match) => match[1])
         : []
     if (message.type === "user") return message.skills?.map((skill) => skill.name) ?? []
     if (message.type === "skill") return [message.name]

@@ -1328,7 +1328,6 @@ describe("SessionTransfer", () => {
       yield* bus.publish(SessionEvent.Compaction.Started, {
         sessionID: source.id,
         reason: "manual",
-        recent: "pending",
       })
 
       expect((yield* transfer.export({ sessionID: source.id })).messages).toMatchObject([Expected.user("Settled")])
@@ -1350,7 +1349,7 @@ describe("SessionTransfer", () => {
       const runningCompactionID = SessionMessage.ID.create()
       const completedCompactionID = SessionMessage.ID.create()
       const model = Model.Ref.make({ id: Model.ID.make("model"), providerID: Provider.ID.make("provider") })
-      const providerState = { responseId: "summary-response" }
+      const native = { responseId: "summary-response" }
 
       yield* transfer.import({
         data: {
@@ -1397,7 +1396,6 @@ describe("SessionTransfer", () => {
               status: "running",
               reason: "manual",
               summary: "pending",
-              recent: "pending",
               time: { created: DateTime.makeUnsafe(8) },
             },
             {
@@ -1406,9 +1404,8 @@ describe("SessionTransfer", () => {
               status: "completed",
               reason: "manual",
               model,
-              providerState,
+              native,
               summary: "summary",
-              recent: "recent",
               time: { created: DateTime.makeUnsafe(9) },
             },
           ],
@@ -1423,10 +1420,10 @@ describe("SessionTransfer", () => {
         completedCompactionID,
       ])
       expect(yield* Bus.latestSequence(db, sessionID)).toBe(4)
-      expect((yield* transfer.export({ sessionID })).messages.at(-1)).toMatchObject({ model, providerState })
+      expect((yield* transfer.export({ sessionID })).messages.at(-1)).toMatchObject({ model, native })
       expect((yield* transfer.export({ sessionID, sanitize: true })).messages.at(-1)).toMatchObject({
         model,
-        providerState: { redacted: `compaction-provider-state:${completedCompactionID}` },
+        native: { redacted: `compaction-native:${completedCompactionID}` },
       })
     }),
   )
