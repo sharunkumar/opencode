@@ -24,7 +24,8 @@ export function Link(props: LinkProps) {
       bg={props.bg}
       width={props.width}
       wrapMode={props.wrapMode}
-      onMouseUp={() => {
+      onMouseUp={(event) => {
+        event.stopPropagation()
         openUrl(props.href).catch(() => {})
       }}
     >
