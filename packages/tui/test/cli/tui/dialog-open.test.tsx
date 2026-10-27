@@ -654,6 +654,48 @@ test("shows hydrated sessions immediately without waiting for either read", asyn
   }
 })
 
+test("keeps an uncached moved session in the first successful refresh", async () => {
+  const response = Promise.withResolvers<Response>()
+  const destination = { directory: "/fixture/destination" }
+  const fixture = await renderOpen((url) => (url.pathname === "/api/session" ? response.promise : undefined))
+  try {
+    await fixture.app.waitForFrame((frame) => frame.includes("Refreshing"))
+    fixture.emit({
+      id: "evt_uncached_move",
+      created: 3,
+      type: "session.moved",
+      durable: { aggregateID: recentSession.id, seq: 1, version: 1 },
+      data: { sessionID: recentSession.id, location: destination, projectID: "proj_destination" },
+    })
+    // The following event supplies an ordered-stream receipt barrier without hydrating metadata.
+    fixture.emit({
+      id: "evt_move_received",
+      created: 4,
+      type: "session.execution.started",
+      durable: { aggregateID: recentSession.id, seq: 2, version: 1 },
+      data: { sessionID: recentSession.id },
+    })
+    await fixture.app.waitFor(() => fixture.data.session.status(recentSession.id) === "running")
+    expect(fixture.data.session.get(recentSession.id)).toBeUndefined()
+    response.resolve(
+      json({
+        data: [
+          { ...recentSession, location: destination, projectID: "proj_destination", time: { created: 1, updated: 3 } },
+        ],
+        cursor: {},
+      }),
+    )
+    await fixture.app.waitForFrame((frame) => frame.includes(recentSession.title) && !frame.includes("Refreshing"))
+    fixture.app.mockInput.pressEnter()
+    await fixture.app.waitFor(() => fixture.route.data.type === "session")
+    expect(fixture.route.data).toEqual({ type: "session", sessionID: recentSession.id })
+    expect(fixture.location.ref).toEqual(destination)
+  } finally {
+    response.resolve(json({ data: [], cursor: {} }))
+    await fixture.dispose()
+  }
+})
+
 test("keeps the previous recent list usable when reopening fails to refresh", async () => {
   let requests = 0
   const fixture = await renderOpen((url) => {
@@ -891,7 +933,9 @@ test("surfaces sessions awaiting permissions or questions at the top with attent
         value.includes("? Parent awaiting question") &&
         value.includes("Recent session 1"),
     )
-    expect(frame.indexOf("? Parent awaiting question")).toBeLessThan(frame.indexOf("! Old session awaiting permission"))
+    expect(frame.indexOf("? Parent awaiting question")).toBeLessThan(
+      frame.indexOf("! Old session awaiting permission"),
+    )
     expect(frame.indexOf("! Old session awaiting permission")).toBeLessThan(frame.indexOf("Recent session 1"))
 
     fixture.app.mockInput.pressEnter()

@@ -108,6 +108,118 @@ test.each([100, 44])("Ctrl-O is immediate, dismissible, and prunes cached deleti
   }
 })
 
+test.each(["dismissed", "refreshing"])(
+  "Ctrl-O retains committed movement of a cached-only session while %s",
+  async (phase) => {
+    await using state = await tmpdir()
+    const refresh = Promise.withResolvers<Response>()
+    const metadata = Promise.withResolvers<Response>()
+    const destinationRequested = Promise.withResolvers<void>()
+    const cached = {
+      id: "ses_cached_move",
+      title: "Cached movement",
+      projectID: "proj_old",
+      location: { directory: "/fixture/old" },
+      cost: 0,
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      time: { created: 1, updated: 2 },
+    }
+    let requests = 0
+    const locations: string[] = []
+    await using setup = await createAppFixture({
+      state: state.path,
+      config: { animations: false, tabs: { mode: "off" } },
+      fetch: (url) => {
+        if (url.pathname === "/api/session") {
+          if (url.searchParams.has("parentID")) {
+            const parent = url.searchParams.get("parentID")
+            if (parent && parent !== "null") return json({ data: [], cursor: {} })
+          }
+          return requests++ === 0
+            ? json({ data: [cached], cursor: {} })
+            : refresh.promise.then((response) => response.clone())
+        }
+        if (url.pathname === `/api/session/${cached.id}`) return metadata.promise
+        if (url.pathname === `/api/session/${cached.id}/message`) return json({ data: [], cursor: {} })
+        if (
+          url.pathname === `/api/session/${cached.id}/inbox` ||
+          url.pathname === `/api/session/${cached.id}/permission`
+        )
+          return json({ data: [] })
+        if (url.pathname === "/api/project")
+          return json(
+            ["old", "new"].map((name) => ({
+              id: `proj_${name}`,
+              canonical: `/fixture/${name}`,
+              name: name === "old" ? "Old" : "New",
+              time: { created: 1, updated: 2 },
+              sandboxes: [],
+            })),
+          )
+        if (url.pathname === "/api/location") {
+          const query = url.searchParams.get("location[directory]") ?? ""
+          locations.push(query)
+          if (query.includes("/fixture/new")) {
+            destinationRequested.resolve()
+            return json({
+              directory: "/fixture/new",
+              project: { id: "proj_new", directory: "/fixture/new", canonical: "/fixture/new" },
+            })
+          }
+        }
+        return undefined
+      },
+    })
+    try {
+      await setup.ready
+      await setup.waitForFrame((frame) => frame.includes("commands"))
+      setup.mockInput.pressKey("o", { ctrl: true })
+      await setup.waitForFrame((frame) => frame.includes(cached.title) && !frame.includes("Refreshing"))
+      setup.mockInput.pressEscape()
+      await setup.waitForFrame((frame) => !frame.includes("Search sessions"))
+      if (phase === "refreshing") {
+        setup.mockInput.pressKey("o", { ctrl: true })
+        await setup.waitForFrame((frame) => frame.includes(cached.title) && frame.includes("Refreshing"))
+      }
+      setup.events.emit({
+        id: "evt_cached_moved",
+        created: 3,
+        type: "session.moved",
+        durable: { aggregateID: cached.id, seq: 1, version: 1 },
+        data: { sessionID: cached.id, location: { directory: "/fixture/new" }, projectID: "proj_new" },
+      })
+      if (phase === "dismissed") {
+        setup.mockInput.pressKey("o", { ctrl: true })
+        refresh.resolve(new Response("Unavailable", { status: 503 }))
+        await setup.waitForFrame((frame) => frame.includes("Could not refresh sessions"))
+      }
+      if (phase === "refreshing") {
+        await setup.waitForFrame((frame) =>
+          frame.split("\n").some((line) => line.includes(cached.title) && line.includes("New")),
+        )
+        refresh.resolve(json({ data: [cached], cursor: {} }))
+        await setup.waitForFrame((frame) => frame.includes(cached.title) && !frame.includes("Refreshing"))
+      }
+      await setup.waitForFrame((frame) =>
+        frame.split("\n").some((line) => line.includes(cached.title) && line.includes("New")),
+      )
+      expect(
+        setup
+          .captureCharFrame()
+          .split("\n")
+          .find((line) => line.includes(cached.title)),
+      ).toContain("New")
+      locations.length = 0
+      setup.mockInput.pressEnter()
+      await destinationRequested.promise
+      expect(locations.some((query) => query.includes("/fixture/old"))).toBe(false)
+    } finally {
+      refresh.resolve(json({ data: [], cursor: {} }))
+      metadata.resolve(json({ data: { ...cached, projectID: "proj_new", location: { directory: "/fixture/new" } } }))
+    }
+  },
+)
+
 test("boots on the simulation renderer with the terminal title enabled", async () => {
   await Effect.runPromise(
     Effect.scoped(
@@ -1885,9 +1997,7 @@ test("free usage limit offers OpenCode Go once per 24h, transitions Subscribe to
   setup.mockInput.pressEnter()
   await setup.waitForFrame((frame) => frame.includes("GOGO-1234"))
   expect(openSpy).toHaveBeenCalledWith("https://opencode.ai/go")
-  expect(oauthRequests).toEqual([
-    { methodID: "device", answer: { server: "https://opencode.ai/console" } },
-  ])
+  expect(oauthRequests).toEqual([{ methodID: "device", answer: { server: "https://opencode.ai/console" } }])
   const connectFrame = setup.captureCharFrame()
   expect(connectFrame).toContain("OpenCode Console account")
   expect(connectFrame).not.toContain("Enter Go API key")
@@ -2176,7 +2286,13 @@ test("free usage limit Subscribe handles mid-auth/mid-sync Escape, sync failure,
     created: 6,
     type: "session.step.started",
     durable: { aggregateID: session.id, seq: 6, version: 1 },
-    data: { sessionID: session.id, assistantMessageID: "msg_free_assistant_expired", agent: "build", model, started: 6 },
+    data: {
+      sessionID: session.id,
+      assistantMessageID: "msg_free_assistant_expired",
+      agent: "build",
+      model,
+      started: 6,
+    },
   })
   setup.events.emit({
     id: "evt_free_limit_expired_fail",
@@ -2669,4 +2785,3 @@ test.each([44, 100])(
   },
   15_000,
 )
-

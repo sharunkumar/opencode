@@ -323,6 +323,20 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
       ),
     )
     .add(
+      HttpApiEndpoint.post("session.move", "/api/session/:sessionID/move", {
+        params: { sessionID: Session.ID },
+        payload: Schema.Struct({ ...Location.PublicRef.fields, delivery: SessionInbox.Delivery.pipe(Schema.optional) }),
+        success: HttpApiSchema.NoContent,
+        error: [SessionNotFoundError, InvalidRequestError],
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "session.move",
+          summary: "Move session",
+          description: "Move a session to another project directory at the requested delivery boundary.",
+        }),
+      ),
+    )
+    .add(
       HttpApiEndpoint.post("session.root.add", "/api/session/:sessionID/root", {
         params: { sessionID: Session.ID },
         payload: Schema.Struct({ directory: Schema.String }),

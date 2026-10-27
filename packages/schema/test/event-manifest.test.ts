@@ -158,9 +158,7 @@ describe("public event manifest", () => {
       ...SessionEvent.Definitions.filter((definition) => definition.durability === "durable"),
       SessionEvent.UsageRecorded,
       SessionEvent.MessageContentUpdated,
-      SessionEvent.Moved,
     ])
-    expect(SessionEvent.Definitions).not.toContain(SessionEvent.Moved)
     expect(SessionEvent.UsageRecorded.durability).toBe("durable")
     expect(EventManifest.Durable.get("session.usage.recorded.1")).toBe(SessionEvent.UsageRecorded)
     expect(SessionEvent.Definitions).not.toContain(SessionEvent.UsageRecorded)

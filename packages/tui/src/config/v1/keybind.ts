@@ -287,6 +287,7 @@ export const CommandMap = {
   debug_view: "opencode.debug",
   session_export: "session.export",
   session_copy: "session.copy",
+  session_move: "session.move",
   session_new: "session.new",
   session_list: "session.list",
   open_menu: "open.menu",

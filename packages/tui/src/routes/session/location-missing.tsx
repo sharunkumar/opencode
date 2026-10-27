@@ -10,14 +10,12 @@ import { useToast } from "../../ui/toast"
 import { errorMessage } from "../../util/error"
 import { DialogWorkspaces, type WorkspaceSelection } from "../../component/dialog-workspaces"
 import { useData } from "../../context/data"
-import { useRoute } from "../../context/route"
 
 export function SessionLocationMissing(props: { directory: string; projectID: string; sessionID: string }) {
   const dialog = useDialog()
   const client = useClient()
   const toast = useToast()
   const data = useData()
-  const route = useRoute()
 
   function open() {
     dialog.replace(() => (
@@ -50,12 +48,9 @@ export function SessionLocationMissing(props: { directory: string; projectID: st
               return undefined
             })
     if (!directory) return
-    const forked = await client.api.session.fork({ sessionID: props.sessionID, directory }).catch((error) => {
-      toast.show({ title: "Failed to fork session", message: errorMessage(error), variant: "error" })
-      return undefined
+    await client.api.session.move({ sessionID: props.sessionID, directory }).catch((error) => {
+      toast.show({ title: "Failed to move session", message: errorMessage(error), variant: "error" })
     })
-    if (!forked) return
-    route.navigate({ type: "session", sessionID: forked.id })
   }
 
   return <SessionLocationUnavailable directory={props.directory} onMove={open} />
@@ -76,10 +71,10 @@ export function SessionLocationUnavailable(props: { directory: string; onMove: (
       body={
         <box paddingLeft={1} gap={1}>
           <text fg={theme.text.muted}>{directory()}</text>
-          <text fg={theme.text.base}>Fork this session into another directory. This session stays as it is.</text>
+          <text fg={theme.text.base}>Choose another directory to continue this session.</text>
         </box>
       }
-      options={{ fork: "Choose directory" }}
+      options={{ move: "Choose directory" }}
       onSelect={props.onMove}
     />
   )

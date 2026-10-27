@@ -166,6 +166,7 @@ export type SessionDomain = Pick<
   | "synthetic"
   | "interrupt"
   | "update"
+  | "move"
   | "root"
   | "wait"
   | "context"

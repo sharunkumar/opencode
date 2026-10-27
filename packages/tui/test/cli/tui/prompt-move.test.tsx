@@ -145,17 +145,44 @@ test("refresh explicitly scans the project and preserves the worktree filter", a
   }
 })
 
-test.each([false, true])("Ctrl+M adds a directory only for an existing session (home=%s)", async (home) => {
+test.each([false, true])("Ctrl+M moves only an existing session (home=%s)", async (home) => {
   const fixture = await renderMove({ directory: clone, home })
   try {
     await fixture.move.open()
     const frame = await fixture.app.waitForFrame((frame) => frame.includes("Worktrees") && frame.includes(linked))
     expect(frame).toContain("new ctrl+a")
-    expect(frame.includes("add ctrl+m")).toBe(!home)
+    expect(frame.includes("move ctrl+m")).toBe(!home)
     await fixture.app.waitFor(() => fixture.app.renderer.currentFocusedEditor instanceof InputRenderable)
     await fixture.app.mockInput.typeText("linked")
     await fixture.app.waitForFrame((frame) => frame.includes(linked) && !frame.includes(clone))
     fixture.app.mockInput.pressKey("m", { ctrl: true })
+    if (home) {
+      await fixture.app.renderOnce()
+      expect(fixture.moves).toEqual([])
+      expect(fixture.route.data).toEqual({ type: "home" })
+      expect(fixture.requests).toEqual([])
+      return
+    }
+    await fixture.app.waitFor(() => fixture.moves.length === 1)
+    expect(fixture.moves).toEqual([{ directory: linked }])
+    expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_clone" })
+    expect(fixture.requests).toEqual([])
+  } finally {
+    fixture.app.renderer.destroy()
+  }
+})
+
+test.each([false, true])("Ctrl+Y adds a directory only for an existing session (home=%s)", async (home) => {
+  const fixture = await renderMove({ directory: clone, home })
+  try {
+    await fixture.move.open()
+    const frame = await fixture.app.waitForFrame((frame) => frame.includes("Worktrees") && frame.includes(linked))
+    expect(frame).toContain("new ctrl+a")
+    expect(frame.includes("add ctrl+y")).toBe(!home)
+    await fixture.app.waitFor(() => fixture.app.renderer.currentFocusedEditor instanceof InputRenderable)
+    await fixture.app.mockInput.typeText("linked")
+    await fixture.app.waitForFrame((frame) => frame.includes(linked) && !frame.includes(clone))
+    fixture.app.mockInput.pressKey("y", { ctrl: true })
     if (home) {
       await fixture.app.renderOnce()
       expect(fixture.roots).toEqual([])
@@ -182,10 +209,10 @@ test("choosing a directory recovers the session when its location is unavailable
     await fixture.app.mockInput.typeText("linked")
     await fixture.app.waitForFrame((frame) => frame.includes(linked) && !frame.includes(main))
     fixture.app.mockInput.pressEnter()
-    await fixture.app.waitFor(() => fixture.forks.length === 1)
+    await fixture.app.waitFor(() => fixture.moves.length === 1)
 
-    expect(fixture.forks).toEqual([{ directory: linked }])
-    expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_forked" })
+    expect(fixture.moves).toEqual([{ directory: linked }])
+    expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_clone" })
     expect(fixture.requests).toEqual([])
   } finally {
     fixture.app.renderer.destroy()
@@ -203,11 +230,11 @@ test("creating a worktree recovers the session without reading its removed locat
     await fixture.app.waitFor(() => fixture.app.renderer.currentFocusedEditor instanceof TextareaRenderable)
     await fixture.app.mockInput.typeText("fresh")
     fixture.app.mockInput.pressEnter()
-    await fixture.app.waitFor(() => fixture.forks.length === 1)
+    await fixture.app.waitFor(() => fixture.moves.length === 1)
 
     expect(fixture.requests).toEqual([{ payload: { projectID: "proj_test", name: "fresh" }, directory: null }])
-    expect(fixture.forks).toEqual([{ directory: created }])
-    expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_forked" })
+    expect(fixture.moves).toEqual([{ directory: created }])
+    expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_clone" })
     expect(fixture.reads.locations).not.toContain(clone)
   } finally {
     fixture.app.renderer.destroy()
@@ -231,9 +258,9 @@ test("failed recovery does not navigate away from the session", async () => {
     fixture.app.mockInput.pressEnter()
     await fixture.app.waitFor(() => fixture.toast.currentToast !== null)
 
-    expect(fixture.forks).toEqual([{ directory: linked }])
+    expect(fixture.moves).toEqual([{ directory: linked }])
     expect(fixture.route.data).toEqual({ type: "session", sessionID: "ses_clone" })
-    expect(fixture.toast.currentToast).toMatchObject({ title: "Failed to fork session", variant: "error" })
+    expect(fixture.toast.currentToast).toMatchObject({ title: "Failed to move session", variant: "error" })
   } finally {
     fixture.app.renderer.destroy()
   }
@@ -295,7 +322,6 @@ async function renderMove(input: {
   const removals: unknown[] = []
   const moves: unknown[] = []
   const roots: unknown[] = []
-  const forks: unknown[] = []
   const reads = { session: 0, locations: [] as string[], worktrees: [] as string[], refresh: [] as unknown[] }
   const calls = createFetch(async (url, request) => {
     if (url.pathname === "/api/location") {
@@ -364,20 +390,10 @@ async function renderMove(input: {
       roots.push(await request.json())
       return json({ data: { directory: linked } })
     }
-    if (url.pathname === "/api/session/ses_clone/fork") {
-      const payload = await request.json()
-      forks.push(payload)
+    if (url.pathname === "/api/session/ses_clone/move") {
+      moves.push(await request.json())
       if (input.moveFails) return json({ message: "Destination unavailable" }, { status: 503 })
-      return json({
-        data: {
-          id: "ses_forked",
-          projectID: "proj_test",
-          location: { directory: (payload as { directory?: string }).directory ?? created },
-          cost: 0,
-          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          time: { created: 2, updated: 2 },
-        },
-      })
+      return new Response(null, { status: 204 })
     }
     return undefined
   }, createEventStream())
@@ -441,7 +457,6 @@ async function renderMove(input: {
     removals,
     moves,
     roots,
-    forks,
     reads,
     async create() {
       await move.open()

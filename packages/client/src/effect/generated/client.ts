@@ -47,6 +47,8 @@ import type {
   SessionSwitchModelOutput,
   SessionUpdateInput,
   SessionUpdateOutput,
+  SessionMoveInput,
+  SessionMoveOutput,
   SessionRootAddInput,
   SessionRootAddOutput,
   SessionRootRemoveInput,
@@ -532,6 +534,14 @@ const EndpointSessionUpdate = (raw: RawClient["server.session"]) => (input: Sess
     }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointSessionMove = (raw: RawClient["server.session"]) => (input: SessionMoveInput) =>
+  preserveEffect<SessionMoveOutput>()(
+    raw["session.move"]({
+      params: { sessionID: input["sessionID"] },
+      payload: { directory: input["directory"], delivery: input["delivery"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const EndpointSessionRootAdd = (raw: RawClient["server.session"]) => (input: SessionRootAddInput) =>
   preserveEffect<SessionRootAddOutput>()(
     raw["session.root.add"]({
@@ -840,6 +850,7 @@ const adaptGroupSession = (raw: RawClient["server.session"]) => ({
   switchAgent: EndpointSessionSwitchAgent(raw),
   switchModel: EndpointSessionSwitchModel(raw),
   update: EndpointSessionUpdate(raw),
+  move: EndpointSessionMove(raw),
   root: { add: EndpointSessionRootAdd(raw), remove: EndpointSessionRootRemove(raw) },
   prompt: EndpointSessionPrompt(raw),
   command: EndpointSessionCommand(raw),

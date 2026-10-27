@@ -17,6 +17,7 @@ const SESSION_ACTIVITY = [
   "session.model.selected",
   "session.metadata.updated",
   "session.permissions",
+  "session.moved",
   "session.archived",
   "session.unarchived",
   "session.revert.staged",

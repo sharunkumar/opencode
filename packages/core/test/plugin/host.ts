@@ -185,6 +185,7 @@ export function host(overrides: Overrides = {}): Plugin.Context {
       command: overrides.session?.command ?? (() => Effect.die("unused session.command")),
       compact: overrides.session?.compact ?? (() => Effect.die("unused session.compact")),
       update: overrides.session?.update ?? (() => Effect.die("unused session.update")),
+      move: overrides.session?.move ?? (() => Effect.die("unused session.move")),
       root: overrides.session?.root ?? {
         add: () => Effect.die("unused session.root.add"),
         remove: () => Effect.die("unused session.root.remove"),

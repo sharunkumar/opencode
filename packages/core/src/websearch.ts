@@ -91,7 +91,7 @@ const layer = Layer.effect(
     const cooldowns = new Map<ID, { until: number; error: RequestError }>()
     const preferred = new Map<Session.ID | undefined, { provider?: ID }>()
     yield* Effect.addFinalizer(() => Effect.sync(() => preferred.clear()))
-    yield* bus.subscribe(SessionEvent.Deleted).pipe(
+    yield* bus.subscribe([SessionEvent.Deleted, SessionEvent.Moved]).pipe(
       Stream.runForEach((event) =>
         Effect.sync(() => {
           preferred.delete(event.data.sessionID)

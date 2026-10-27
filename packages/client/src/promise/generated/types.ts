@@ -1083,6 +1083,16 @@ export type SessionModelSelected = {
   data: { sessionID: SessionID; model: ModelRef; previous?: ModelRef }
 }
 
+export type SessionMoved = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "session.moved"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: { sessionID: SessionID; location: LocationRef; projectID: ProjectID; subpath?: RelativePath }
+}
+
 export type SessionRootAdded = {
   id: EventID
   created: number
@@ -1547,16 +1557,6 @@ export type SessionUsageRecorded = {
   durable: { aggregateID: string; seq: EventSeq; version: 1 }
   location?: LocationRef
   data: { sessionID: SessionID; source: "title" | "compaction"; cost: MoneyUSD; tokens: TokenUsageInfo }
-}
-
-export type SessionMoved = {
-  id: EventID
-  created: number
-  metadata?: { [x: string]: any }
-  type: "session.moved"
-  durable: { aggregateID: string; seq: EventSeq; version: 1 }
-  location?: LocationRef
-  data: { sessionID: SessionID; location: LocationRef; projectID: ProjectID; subpath?: RelativePath }
 }
 
 export type LocationShutdown = {
@@ -2657,6 +2657,7 @@ export type SessionEventDurable =
   | SessionCreated
   | SessionAgentSelected
   | SessionModelSelected
+  | SessionMoved
   | SessionRootAdded
   | SessionRootRemoved
   | SessionRenamed
@@ -2702,7 +2703,6 @@ export type SessionEventDurable =
   | SessionRevertCommitted
   | SessionUsageRecorded
   | SessionMessageContentUpdated
-  | SessionMoved
 
 export type IntegrationInfo = {
   id: IntegrationID
@@ -2724,6 +2724,7 @@ export type V2Event =
   | SessionCreated
   | SessionAgentSelected
   | SessionModelSelected
+  | SessionMoved
   | SessionRootAdded
   | SessionRootRemoved
   | SessionRenamed
@@ -3297,6 +3298,14 @@ export type SessionUpdateInput = {
 }
 
 export type SessionUpdateOutput = void
+
+export type SessionMoveInput = {
+  readonly sessionID: string
+  readonly directory: string
+  readonly delivery?: ("steer" | "queue") | undefined
+}
+
+export type SessionMoveOutput = void
 
 export type SessionRootAddInput = { readonly sessionID: string; readonly directory: string }
 
@@ -4191,6 +4200,7 @@ export type EventSubscribeInput = {
         | "session.created"
         | "session.agent.selected"
         | "session.model.selected"
+        | "session.moved"
         | "session.root.added"
         | "session.root.removed"
         | "session.renamed"

@@ -309,6 +309,40 @@ test("groups vertical tabs by project and ignores manual moves", async () => {
   }
 })
 
+test("loads location metadata when an open session moves", async () => {
+  const destination = `${directory}/moved-worktree`
+  const setup = await renderSessionTabs("first")
+
+  try {
+    // server.connected loads the default location on its own, so also wait for the session and its tab:
+    // a move that arrives before either has loaded is dropped.
+    await wait(
+      () =>
+        setup.data.session.get("first") !== undefined &&
+        setup.tabs.tabs().some((tab) => tab.sessionID === "first") &&
+        setup.locations.includes(directory) &&
+        setup.vcsLocations.includes(directory),
+    )
+    setup.emit({
+      id: "evt_moved",
+      created: 1,
+      type: "session.moved",
+      durable: { aggregateID: "first", seq: 1, version: 1 },
+      data: {
+        sessionID: "first",
+        location: { directory: destination },
+        projectID: "project",
+      },
+    })
+
+    await wait(() => setup.data.session.get("first")?.location.directory === destination)
+    await wait(() => setup.locations.includes(destination))
+    await wait(() => setup.vcsLocations.includes(destination))
+  } finally {
+    await setup.destroy()
+  }
+})
+
 test("keeps each visited session open", async () => {
   const setup = await renderSessionTabs("first", { persisted: ["first"] })
 

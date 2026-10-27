@@ -41,6 +41,8 @@ import type {
   SessionSwitchModelOutput,
   SessionUpdateInput,
   SessionUpdateOutput,
+  SessionMoveInput,
+  SessionMoveOutput,
   SessionRootAddInput,
   SessionRootAddOutput,
   SessionRootRemoveInput,
@@ -739,6 +741,18 @@ export function make(options: ClientOptions) {
               permissions: input["permissions"],
               archived: input["archived"],
             },
+            successStatus: 204,
+            declaredStatuses: [400, 401, 404],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      move: (input: SessionMoveInput, requestOptions?: RequestOptions) =>
+        request<SessionMoveOutput>(
+          {
+            method: "POST",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/move`,
+            body: { directory: input["directory"], delivery: input["delivery"] },
             successStatus: 204,
             declaredStatuses: [400, 401, 404],
             empty: true,

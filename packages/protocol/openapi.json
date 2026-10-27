@@ -2117,6 +2117,87 @@
         }
       }
     },
+    "/api/session/{sessionID}/move": {
+      "post": {
+        "tags": ["session"],
+        "operationId": "session.move",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/Session.ID"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestErrorEncoded"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionNotFoundErrorEncoded"
+                }
+              }
+            }
+          }
+        },
+        "description": "Move a session to another project directory at the requested delivery boundary.",
+        "summary": "Move session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "directory": {
+                    "$ref": "#/components/schemas/AbsolutePath"
+                  },
+                  "delivery": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Session.Inbox.Delivery"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["directory"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
     "/api/session/{sessionID}/root": {
       "post": {
         "tags": ["session"],
@@ -10727,6 +10808,7 @@
                             "session.created",
                             "session.agent.selected",
                             "session.model.selected",
+                            "session.moved",
                             "session.root.added",
                             "session.root.removed",
                             "session.renamed",
@@ -10837,6 +10919,7 @@
                               "session.created",
                               "session.agent.selected",
                               "session.model.selected",
+                              "session.moved",
                               "session.root.added",
                               "session.root.removed",
                               "session.renamed",

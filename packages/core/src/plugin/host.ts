@@ -597,6 +597,7 @@ export const make = Effect.fn("PluginHost.make")(function* (
         if (input.permissions !== undefined)
           yield* sessions.setPermissions({ sessionID: input.sessionID, permissions: input.permissions })
       }),
+      move: sessions.move,
       root: {
         add: (input) => sessions.addRoot(input).pipe(Effect.map((directory) => ({ directory }))),
         remove: (input) => sessions.removeRoot(input).pipe(Effect.map((directory) => ({ directory }))),

@@ -137,13 +137,19 @@ Plugin (`custom.pull-requests` + TUI `custom.sidebar.pull-requests`): the sideba
 
 `cancel` tool: agents cancel a background `shell` or `subagent` they started by passing the shell ID or subagent `sessionID` from its `background: true` result (which now names the id); jobs owned by another session are refused.
 
-## Session Roots (Move Removed)
+## Session Roots
 
 Sessions keep one working directory (`location`) plus optional `roots`: extra directories that are in scope like the working directory, so reading and editing inside them skips `external_directory` approval. Add and remove roots with `session_root_add` / `session_root_remove` (Code Mode `opencode` namespace), `POST`/`DELETE /api/session/:sessionID/root`, or `session.root.add` / `session.root.remove` on the client and plugin APIs. Roots are event-sourced (`session.root.added` / `session.root.removed`), inherited by child sessions and forks, and listed in the system prompt; commands still run in the working directory.
 
 Roots are first-class context. `SessionRoots` (Location-scoped) discovers each root's instruction files (walked up to the root's project root, minus files the primary Location already loads and global config files) and skills (`.opencode/skill(s)`, `.claude/skills`, `.agents/skills`). `SessionContext.select` adds the root instructions as one `core/roots` instruction source and merges root skills into the available-skills list. The skill tool, `/skill` mentions, and `Session.skill` resolve skills through `SessionRoots.skill`: the primary Location wins an ID collision, then earlier roots. Discovery is not watched; it re-reads the filesystem on each step. A root's own `opencode.json` (config, `instructions`, `skills` entries, plugins) is not loaded.
 
-Moving a session is gone: the `session_move` tool, `/api/session/:sessionID/move`, the `SessionMove` service, and every UI entry point. `session.moved` and inbox `move` items stay decodable for old logs; the runner consumes legacy move items as no-ops. A session whose directory is missing is recovered by forking it into another directory (`session.fork` takes an optional `directory`).
+Session move is upstream's and unchanged: the `SessionMove` service, `/api/session/:sessionID/move`, the TUI and app entry points, and missing-directory recovery by moving. Roots and move are independent: a move changes `location` and keeps `roots`. `session.fork` also takes an optional `directory` that places the fork in another directory.
+
+In the TUI workspaces dialog, `ctrl+m` moves the session and `ctrl+y` (`dialog.workspaces.add_root`) adds the selected directory as a root.
+
+## Session Move Disabled for Models
+
+Plugin (`custom.tool.session-move.disable`): removes the `opencode_session_move` Code Mode tool after the builtin opencode tools register, so models cannot move a session. Users can still move sessions from the TUI, app, API, and SDK. The tool definition in `tool/plugin/opencode.ts` stays as upstream has it.
 
 ## Instruction Filenames
 

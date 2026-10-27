@@ -279,6 +279,30 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         }),
       )
       .handle(
+        "session.move",
+        Effect.fn(function* (ctx) {
+          yield* session
+            .move({
+              sessionID: ctx.params.sessionID,
+              directory: ctx.payload.directory,
+              delivery: ctx.payload.delivery,
+            })
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.DestinationNotFoundError", (error) =>
+                Effect.fail(new InvalidRequestError({ message: `Directory does not exist: ${error.directory}` })),
+              ),
+              Effect.catchTag("Session.DestinationNotDirectoryError", (error) =>
+                Effect.fail(new InvalidRequestError({ message: `Not a directory: ${error.directory}` })),
+              ),
+              Effect.catchTag("Session.DestinationUnavailableError", (error) =>
+                Effect.fail(new InvalidRequestError({ message: `Directory is unavailable: ${error.directory}` })),
+              ),
+            )
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
         "session.root.add",
         Effect.fn(function* (ctx) {
           const directory = yield* session

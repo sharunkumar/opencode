@@ -6,13 +6,11 @@ import { Loader } from "@opencode/ui/loader"
 import { Menu } from "@opencode/ui/menu"
 import { getFilename, sameDirectory } from "@opencode/util/path"
 import { makeEventListener } from "@solid-primitives/event-listener"
-import { useNavigate } from "@solidjs/router"
 import { useMutation } from "@tanstack/solid-query"
 import { createEffect, createResource, createUniqueId, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useData, useServer } from "@/runtime/server/current"
-import { sessionHref } from "@/shell/routes/session"
 import { showToast } from "@/shell/notifications/toast"
 import { createWorktree } from "@/workspaces/create"
 import { useDirectoryPicker } from "@/workspaces/selection/picker"
@@ -20,7 +18,6 @@ import "./location-missing.css"
 
 export function SessionLocationMissing(props: { sessionID: string; projectID: string; directory: string }) {
   const language = useLanguage()
-  const navigate = useNavigate()
   const server = useServer()
   const data = useData()
   const dialog = useDialog()
@@ -59,7 +56,7 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
   let button: HTMLButtonElement | undefined
   let searchInput: HTMLInputElement | undefined
 
-  const fork = useMutation(() => ({
+  const move = useMutation(() => ({
     mutationFn: async (input: { source: "worktree" | "directory"; directory?: string }) => {
       // The missing worktree cannot resolve its own Location, so create from the project's saved checkout.
       const current = project()
@@ -75,9 +72,7 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
           })))
 
       if (!destination) return
-      const forked = await server.ctx.sdk.api.session.fork({ sessionID: props.sessionID, directory: destination })
-      data.session.remember(forked)
-      navigate(sessionHref(server.key, forked.id))
+      await server.ctx.sdk.api.session.move({ sessionID: props.sessionID, directory: destination })
     },
     onError: (error) => {
       setState("restoreFocus", true)
@@ -89,24 +84,24 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
     },
   }))
 
-  const pending = (source: "worktree" | "directory") => fork.isPending && fork.variables?.source === source
+  const pending = (source: "worktree" | "directory") => move.isPending && move.variables?.source === source
   const id = createUniqueId()
 
   createEffect(() => {
-    if (!state.restoreFocus || fork.isPending || dialog.active) return
+    if (!state.restoreFocus || move.isPending || dialog.active) return
     setState("restoreFocus", false)
     button?.focus()
   })
 
   function choose() {
-    if (fork.isPending) return
+    if (move.isPending) return
     pickDirectory({
       server: server.conn,
       title: language.t("session.location.choose"),
       onSelect: (result) => {
         const selected = Array.isArray(result) ? result[0] : result
 
-        if (selected) fork.mutate({ source: "directory", directory: selected })
+        if (selected) move.mutate({ source: "directory", directory: selected })
 
         if (!selected) setState("restoreFocus", true)
       },
@@ -143,7 +138,7 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
               as={Button}
               variant={pending("worktree") ? "loading" : "neutral"}
               size="large"
-              disabled={fork.isPending}
+              disabled={move.isPending}
             >
               <Show when={pending("worktree")}>
                 <Loader />
@@ -173,7 +168,7 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
                 }
                 class="max-h-[66.667dvh] w-[200px] overflow-y-auto"
               >
-                <Menu.Item onSelect={() => fork.mutate({ source: "worktree" })} disabled={fork.isPending}>
+                <Menu.Item onSelect={() => move.mutate({ source: "worktree" })} disabled={move.isPending}>
                   <Icon name="plus" />
                   <span class="min-w-0 flex-1 truncate">{language.t("workspace.new")}</span>
                 </Menu.Item>
@@ -190,7 +185,9 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
                       // Worktrees load after the menu opens, so focus the field once it mounts.
                       ref={(element) => {
                         searchInput = element
-                        requestAnimationFrame(() => requestAnimationFrame(() => element.focus({ preventScroll: true })))
+                        requestAnimationFrame(() =>
+                          requestAnimationFrame(() => element.focus({ preventScroll: true })),
+                        )
                       }}
                       value={state.search}
                       placeholder={language.t("session.new.workspace.search.placeholder")}
@@ -219,8 +216,8 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
                   {(worktree) => (
                     <Menu.Item
                       title={worktree.directory}
-                      onSelect={() => fork.mutate({ source: "worktree", directory: worktree.directory })}
-                      disabled={fork.isPending}
+                      onSelect={() => move.mutate({ source: "worktree", directory: worktree.directory })}
+                      disabled={move.isPending}
                     >
                       <Icon name="outline-worktree" />
                       <span class="min-w-0 flex-1 truncate">{getFilename(worktree.directory)}</span>
@@ -236,7 +233,7 @@ export function SessionLocationMissing(props: { sessionID: string; projectID: st
           variant={pending("directory") ? "loading" : "submit"}
           size="large"
           onClick={choose}
-          disabled={fork.isPending}
+          disabled={move.isPending}
         >
           <Show when={pending("directory")}>
             <Loader />

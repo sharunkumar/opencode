@@ -22,13 +22,14 @@ export type Continuation = { readonly step: number }
 
 export type DrainResult = Data.TaggedEnum<{
   Complete: {}
+  Moved: { readonly continuation?: Continuation }
   Reloaded: { readonly force: boolean; readonly continuation?: Continuation }
 }>
 export const DrainResult = Data.taggedEnum<DrainResult>()
 
 /** Runs one local continuation from already-recorded Session history. */
 export interface Interface {
-  /** Drains eligible durable work, returning transient state when execution must reload and continue. */
+  /** Drains eligible durable work, returning transient state when execution must continue at a new Location. */
   readonly drain: (input: {
     readonly sessionID: SessionSchema.ID
     readonly force: boolean

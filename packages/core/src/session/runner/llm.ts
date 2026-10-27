@@ -92,9 +92,16 @@ const layer = Layer.effect(
                       [SessionEvent.InboxDelivered, { sessionID, inboxID: next.id }],
                       [SessionEvent.Compaction.Started, { sessionID, reason: "manual", inputID: next.id }],
                     ])
-                  // Legacy move controls from older releases are consumed without relocating the Session.
                   if (next?.type === "move")
-                    yield* bus.publish(SessionEvent.InboxDelivered, { sessionID, inboxID: next.id })
+                    yield* restore(
+                      Effect.gen(function* () {
+                        yield* modelTransport.close(sessionID)
+                        yield* bus.publishAll([
+                          [SessionEvent.InboxDelivered, { sessionID, inboxID: next.id }],
+                          [SessionEvent.Moved, { sessionID, ...next.payload }],
+                        ])
+                      }),
+                    )
                   return next
                 }),
               )
@@ -102,10 +109,8 @@ const layer = Layer.effect(
                 entering = true
                 step = 1
               }
-              if (pending?.type === "move") {
-                force = false
-                continue
-              }
+              if (pending?.type === "move")
+                return DrainResult.Moved({ continuation: continuing ? { step } : undefined })
               if (pending?.type === "compaction") {
                 const compacted = yield* restore(
                   Effect.gen(function* () {

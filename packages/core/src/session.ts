@@ -50,11 +50,12 @@ import { InstructionState } from "./session/instruction-state.js"
 import { SessionGenerate } from "./session/generate.js"
 import { SessionCommand } from "./session/command.js"
 import {
-  SessionDestination,
+  SessionMove,
   DestinationNotFoundError,
   DestinationNotDirectoryError,
   DestinationUnavailableError,
-} from "./session/destination.js"
+} from "./session/move.js"
+import { SessionDestination } from "./session/destination.js"
 import { SessionModelTransport } from "./session/model-transport.js"
 import { llmClient } from "./effect/app-node-platform.js"
 import { Snapshot } from "./snapshot.js"
@@ -219,6 +220,7 @@ export interface Interface {
     sessionID: SessionSchema.ID
     permissions: Permission.Ruleset
   }) => Effect.Effect<void, NotFoundError>
+  readonly move: SessionMove.Interface["move"]
   /** Adds an existing directory to the Session's roots, resolved relative to its directory. */
   readonly addRoot: (
     input: RootInput,
@@ -292,6 +294,7 @@ const layer = Layer.effect(
     const transport = yield* SessionModelTransport.Service
     const store = yield* SessionStore.Service
     const instances = yield* Instance.Service
+    const moves = yield* SessionMove.Service
     const destinations = yield* SessionDestination.Service
     const jobs = yield* Job.Service
     const environments = yield* SessionEnvironment.Service
@@ -529,6 +532,7 @@ const layer = Layer.effect(
       unarchive: (sessionID) => sessions.forSession(sessionID).unarchive(),
       setMetadata: (input) => sessions.forSession(input.sessionID).setMetadata(input),
       setPermissions: (input) => sessions.forSession(input.sessionID).setPermissions(input),
+      move: moves.move,
       addRoot: Effect.fn("Session.addRoot")(function* (input) {
         const session = yield* result.get(input.sessionID)
         const lexical = AbsolutePath.make(FileAccess.resolvePath(session.location.directory, input.directory.trim()))
@@ -584,6 +588,7 @@ export const node: LayerNode.Provider<Service, never, typeof Node.tags.values.gl
     SessionStore.node,
     Instance.node,
     SessionInbox.node,
+    SessionMove.node,
     SessionDestination.node,
     SessionProjector.node,
     LocationServiceMap.node,

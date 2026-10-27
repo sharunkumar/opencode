@@ -4,8 +4,6 @@ import { LanguageModel } from "@opencode/ai/effect"
 import { OpenAIChat } from "@opencode/ai/protocols"
 import { TestLLM } from "@opencode/ai/testing"
 import { Agent } from "@opencode/core/agent"
-import { Bus } from "@opencode/core/bus"
-import { SessionEvent } from "@opencode/core/session/event"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNodePlatform } from "@opencode/core/effect/app-node-platform"
 import { Watcher } from "@opencode/core/filesystem/watcher"
@@ -30,7 +28,7 @@ const llmLayer = TestLLM.testLayer({ fallback: TestLLM.text("Review complete", "
 const it = testEffect(
   Layer.merge(
     llmLayer,
-    AppNodeBuilder.build(LayerNode.group([Session.node, Job.node, LocationServiceMap.node, Bus.node]), [
+    AppNodeBuilder.build(LayerNode.group([Session.node, Job.node, LocationServiceMap.node]), [
       Global.node.replace(tempGlobalLayer),
       offlineModels,
       Watcher.node.replace(Watcher.configured({ enabled: false })),
@@ -88,13 +86,8 @@ describe("subagent observer lifetime", () => {
             model: Model.Ref.make({ id: Model.ID.make("parent"), providerID: Provider.ID.make("test") }),
           })
           const child = yield* sessions.create({ parentID: parent.id, agent: Agent.ID.make("reviewer") })
-          // Sessions moved by older releases keep a placement different from their parent's.
-          const bus = yield* Bus.Service
-          yield* bus.publish(SessionEvent.Moved, {
-            sessionID: child.id,
-            location: { directory: AbsolutePath.make(childDir.path) },
-            projectID: child.projectID,
-          })
+          yield* sessions.move({ sessionID: child.id, directory: AbsolutePath.make(childDir.path) })
+          yield* sessions.wait(child.id)
           expect((yield* sessions.get(child.id)).location.directory).toBe(AbsolutePath.make(childDir.path))
           yield* Plugin.Service.use((plugins) => plugins.awaitActivation).pipe(
             Effect.provide(locations.get(parent.location)),

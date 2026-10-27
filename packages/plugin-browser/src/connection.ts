@@ -170,7 +170,7 @@ export const make = Effect.fn("BrowserConnection.make")(function* (
         ),
     })
     .pipe(Effect.orDie)
-  yield* ctx.event.subscribe({ types: ["session.deleted"] }).pipe(
+  yield* ctx.event.subscribe({ types: ["session.deleted", "session.moved"] }).pipe(
     Stream.runForEach((event) => close(event.data.sessionID)),
     Effect.forkScoped({ startImmediately: true }),
   )

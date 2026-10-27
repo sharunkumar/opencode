@@ -4,27 +4,13 @@ import type { SessionFork } from "@opencode/schema/session-fork"
 import { makeGlobalNode } from "@opencode/util/effect/app-node"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Global } from "@opencode/util/global"
-import { Cause, Context, Effect, Layer, Schema } from "effect"
+import { Cause, Context, Effect, Layer } from "effect"
 import path from "path"
 import { Location } from "../location.js"
 import { LocationServiceMap } from "../location-service-map.js"
 import { Project } from "../project.js"
 import { AbsolutePath, RelativePath } from "../schema.js"
-
-export class DestinationNotFoundError extends Schema.TaggedError<DestinationNotFoundError>()(
-  "Session.DestinationNotFoundError",
-  { directory: AbsolutePath },
-) {}
-
-export class DestinationNotDirectoryError extends Schema.TaggedError<DestinationNotDirectoryError>()(
-  "Session.DestinationNotDirectoryError",
-  { directory: AbsolutePath },
-) {}
-
-export class DestinationUnavailableError extends Schema.TaggedError<DestinationUnavailableError>()(
-  "Session.DestinationUnavailableError",
-  { directory: AbsolutePath },
-) {}
+import { DestinationNotDirectoryError, DestinationNotFoundError, DestinationUnavailableError } from "./move.js"
 
 export interface Interface {
   /** Resolves an existing directory relative to `from`, expanding `~`. */

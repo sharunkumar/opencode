@@ -6,6 +6,7 @@ import { Location } from "@opencode/core/location"
 import { Permission } from "@opencode/core/permission"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHost } from "@opencode/core/plugin/host"
+import { CustomDisableSessionMovePlugin } from "@opencode/core/plugin/custom/disable-session-move"
 import { ProjectTable } from "@opencode/core/project/sql"
 import { Provider } from "@opencode/core/provider"
 import { AbsolutePath } from "@opencode/core/schema"
@@ -254,5 +255,19 @@ worktreeIt.live("creates, lists, and removes worktrees for the plugin's project"
       { action: "edit", resources: [resource], save: ["*"], sessionID: session.id },
     ])
     expect((yield* run("worktree_list", {})).worktrees).not.toContainEqual({ directory, strategy: "git" })
+  }),
+)
+
+it.effect("the fork removes the session move tool so models cannot move a session", () =>
+  Effect.gen(function* () {
+    const registry = yield* Tool.Service
+    const host = yield* PluginHost.make(yield* Plugin.Service)
+    const names = registry.list().pipe(Effect.map((tools) => tools.map((tool) => tool.name)))
+    yield* OpenCodeTools.Plugin.effect(host)
+    expect(yield* names).toContain("session_move")
+    yield* CustomDisableSessionMovePlugin.Plugin.effect(host)
+    const remaining = yield* names
+    expect(remaining).not.toContain("session_move")
+    expect(remaining).toContain("session_root_add")
   }),
 )

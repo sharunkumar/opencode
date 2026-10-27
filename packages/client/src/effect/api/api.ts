@@ -12,9 +12,9 @@ import type { Model } from "@opencode/schema/model"
 import type { DateTime } from "effect"
 import type { Permission } from "@opencode/schema/permission"
 import type { SessionMessage } from "@opencode/schema/session-message"
+import type { SessionInbox } from "@opencode/schema/session-inbox"
 import type { PromptInput } from "@opencode/schema/prompt-input"
 import type { AgentAttachment } from "@opencode/schema/prompt"
-import type { SessionInbox } from "@opencode/schema/session-inbox"
 import type { Skill } from "@opencode/schema/skill"
 import type { FileDiff } from "@opencode/schema/file-diff"
 import type { InstructionEntry } from "@opencode/schema/instruction-entry"
@@ -278,6 +278,14 @@ export type SessionUpdateInput = {
 export type SessionUpdateOutput = void
 export type SessionUpdateOperation<E = never> = (input: SessionUpdateInput) => Effect.Effect<SessionUpdateOutput, E>
 
+export type SessionMoveInput = {
+  readonly sessionID: Session.ID
+  readonly directory: AbsolutePath
+  readonly delivery?: SessionInbox.Delivery | undefined
+}
+export type SessionMoveOutput = void
+export type SessionMoveOperation<E = never> = (input: SessionMoveInput) => Effect.Effect<SessionMoveOutput, E>
+
 export type SessionRootAddInput = { readonly sessionID: Session.ID; readonly directory: string }
 export type SessionRootAddOutput = { readonly directory: AbsolutePath }
 export type SessionRootAddOperation<E = never> = (input: SessionRootAddInput) => Effect.Effect<SessionRootAddOutput, E>
@@ -501,6 +509,22 @@ export type SessionLogOutput =
             readonly sessionID: Session.ID
             readonly model: Model.Ref
             readonly previous?: Model.Ref | undefined
+          }
+        }
+      | {
+          readonly id: Event.ID
+          readonly created: number
+          readonly metadata?: { readonly [x: string]: unknown } | undefined
+          readonly type: "session.moved"
+          readonly durable: { readonly aggregateID: string; readonly seq: Event.Seq; readonly version: Event.Version }
+          readonly location?:
+            | { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
+            | undefined
+          readonly data: {
+            readonly sessionID: Session.ID
+            readonly location: { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
+            readonly projectID: Project.ID
+            readonly subpath?: RelativePath | undefined
           }
         }
       | {
@@ -1269,22 +1293,6 @@ export type SessionLogOutput =
             readonly content: ReadonlyArray<SessionMessage.AssistantContentEncoded>
           }
         }
-      | {
-          readonly id: Event.ID
-          readonly created: number
-          readonly metadata?: { readonly [x: string]: unknown } | undefined
-          readonly type: "session.moved"
-          readonly durable: { readonly aggregateID: string; readonly seq: Event.Seq; readonly version: Event.Version }
-          readonly location?:
-            | { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
-            | undefined
-          readonly data: {
-            readonly sessionID: Session.ID
-            readonly location: { readonly directory: AbsolutePath; readonly workspaceID?: Workspace.ID | undefined }
-            readonly projectID: Project.ID
-            readonly subpath?: RelativePath | undefined
-          }
-        }
     )
   | EventLog.Synced
 export type SessionLogOperation<E = never> = (input: SessionLogInput) => Stream.Stream<SessionLogOutput, E>
@@ -1375,6 +1383,7 @@ export interface SessionApi<E = never> {
   readonly switchAgent: SessionSwitchAgentOperation<E>
   readonly switchModel: SessionSwitchModelOperation<E>
   readonly update: SessionUpdateOperation<E>
+  readonly move: SessionMoveOperation<E>
   readonly root: { readonly add: SessionRootAddOperation<E>; readonly remove: SessionRootRemoveOperation<E> }
   readonly prompt: SessionPromptOperation<E>
   readonly command: SessionCommandOperation<E>
@@ -1979,6 +1988,7 @@ export type EventSubscribeInput = {
         | "session.created"
         | "session.agent.selected"
         | "session.model.selected"
+        | "session.moved"
         | "session.root.added"
         | "session.root.removed"
         | "session.renamed"

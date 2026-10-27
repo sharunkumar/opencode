@@ -25,6 +25,7 @@ export function SessionWorkspaceMenu(props: {
     directories: workspaceDirectories(props.project),
   })
 
+  const blocked = () => data().session.status(props.session.id) === "running"
   const currentWorkspace = () => store.directories.find((workspace) => containsDirectory(workspace, props.directory))
 
   const workspaces = () =>
@@ -71,8 +72,8 @@ export function SessionWorkspaceMenu(props: {
     return created.directory
   }
 
-  const add = async (selection: "create" | string) => {
-    if (store.selected) return
+  const move = async (selection: "create" | string) => {
+    if (store.selected || blocked()) return
     const client = props.session.server.client
     const sessionID = props.session.id
     setStore("selected", selection)
@@ -82,11 +83,11 @@ export function SessionWorkspaceMenu(props: {
 
       if (!destination) return
 
-      await client.session.root.add({ sessionID, directory: destination })
+      await client.session.move({ sessionID, directory: destination })
     } catch (error) {
       showToast({
         variant: "error",
-        title: ctx.t("root.failed"),
+        title: ctx.t("move.failed"),
         description: error instanceof Error ? error.message : ctx.t("common.requestFailed"),
       })
     } finally {
@@ -96,14 +97,14 @@ export function SessionWorkspaceMenu(props: {
 
   const items = () => (
     <Menu.Group>
-      <Menu.GroupLabel>{ctx.t("root.menu")}</Menu.GroupLabel>
+      <Menu.GroupLabel>{ctx.t("move.menu")}</Menu.GroupLabel>
       <Show when={comparablePath(props.directory) !== comparablePath(props.project.worktree)}>
-        <Menu.Item disabled={!!store.selected} onSelect={() => void add(props.project.worktree)}>
+        <Menu.Item disabled={!!store.selected || blocked()} onSelect={() => void move(props.project.worktree)}>
           <Icon name="monitor" class="text-v2-icon-icon-muted" />
           {ctx.t("workspace.local")}
         </Menu.Item>
       </Show>
-      <Menu.Item disabled={!!store.selected} onSelect={() => void add("create")}>
+      <Menu.Item disabled={!!store.selected || blocked()} onSelect={() => void move("create")}>
         <Icon name="plus" class="text-v2-icon-icon-muted" />
         {ctx.t("workspace.new")}
       </Menu.Item>
@@ -117,7 +118,7 @@ export function SessionWorkspaceMenu(props: {
             <Menu.SubContent class="max-h-[66.667dvh] w-[200px] overflow-y-auto !pb-0 [&>[data-component=menu-v2-item]:last-child]:mb-0.5 [@media(max-height:600px)]:max-h-[calc(100dvh-48px)]">
               <For each={workspaces()}>
                 {(workspace) => (
-                  <Menu.Item disabled={!!store.selected} onSelect={() => void add(workspace)}>
+                  <Menu.Item disabled={!!store.selected || blocked()} onSelect={() => void move(workspace)}>
                     <Icon name="outline-worktree" class="text-v2-icon-icon-muted" />
                     <span class="min-w-0 flex-1 truncate">{getFilename(workspace)}</span>
                   </Menu.Item>
@@ -133,7 +134,7 @@ export function SessionWorkspaceMenu(props: {
   if (props.sub)
     return (
       <Menu.Sub gutter={4} overflowPadding={24} onOpenChange={onOpenChange}>
-        <Menu.SubTrigger class="[&_[data-slot=menu-v2-item-chevron]]:text-v2-icon-icon-muted">
+        <Menu.SubTrigger class="[&_[data-slot=menu-v2-item-chevron]]:text-v2-icon-icon-muted" disabled={blocked()}>
           {props.children}
         </Menu.SubTrigger>
         <Menu.Portal>
@@ -150,7 +151,9 @@ export function SessionWorkspaceMenu(props: {
       modal={false}
       onOpenChange={onOpenChange}
     >
-      <Menu.Trigger class={props.class}>{props.children}</Menu.Trigger>
+      <Menu.Trigger class={props.class} disabled={blocked()}>
+        {props.children}
+      </Menu.Trigger>
       <Menu.Portal>
         <Menu.Content class="w-[200px]">{items()}</Menu.Content>
       </Menu.Portal>

@@ -310,6 +310,13 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
     props.onSelect({ type: "new", name })
   }
 
+  async function move(option: DialogSelectOption<WorkspaceSelection | undefined>) {
+    if (route.data.type !== "session" || option.value?.type !== "directory") return
+    const sessionID = route.data.sessionID
+    const directory = option.value.directory
+    dialog.clear()
+    await client.api.session.move({ sessionID, directory }).catch(toast.error)
+  }
   async function addRoot(option: DialogSelectOption<WorkspaceSelection | undefined>) {
     if (route.data.type !== "session" || option.value?.type !== "directory") return
     const sessionID = route.data.sessionID
@@ -374,7 +381,10 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
             ? []
             : [
                 ...(route.data.type === "session"
-                  ? [{ command: "dialog.workspaces.add_root", title: "add", onTrigger: addRoot }]
+                  ? [
+                      { command: "dialog.move_session.move", title: "move", onTrigger: move },
+                      { command: "dialog.workspaces.add_root", title: "add", onTrigger: addRoot },
+                    ]
                   : []),
                 {
                   command: "dialog.move_session.new",

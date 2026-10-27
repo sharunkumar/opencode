@@ -788,6 +788,29 @@ export function createData(config: CreateDataInput) {
         if (store.session.info[event.data.sessionID])
           setStore("session", "info", event.data.sessionID, "time", "archived", undefined)
         return
+      case "session.moved": {
+        const current = store.session.info[event.data.sessionID]
+        if (current) {
+          const previous = {
+            location: { ...current.location },
+            projectID: current.projectID,
+            subpath: current.subpath,
+          }
+          setStore("session", "info", event.data.sessionID, "location", event.data.location)
+          setStore("session", "info", event.data.sessionID, "projectID", event.data.projectID)
+          setStore("session", "info", event.data.sessionID, "subpath", event.data.subpath)
+          message.insert(event.data.sessionID, {
+            id: SessionMessage.ID.fromEvent(event.id),
+            type: "location-switched",
+            location: event.data.location,
+            projectID: event.data.projectID,
+            subpath: event.data.subpath,
+            previous,
+            time: { created: event.created },
+          })
+        }
+        return
+      }
       case "session.root.added": {
         const roots = store.session.info[event.data.sessionID]?.roots ?? []
         if (store.session.info[event.data.sessionID] && !roots.includes(event.data.directory))

@@ -19,6 +19,15 @@ export const RenameInput = Schema.Struct({
 
 const RenameOutput = Schema.Struct({ sessionID: Session.ID, title: Schema.String })
 
+export const MoveInput = Schema.Struct({
+  sessionID: Schema.optionalKey(Session.ID).annotate({ description: "Omit to move the current session." }),
+  directory: AbsolutePath.check(Schema.isMinLength(1)).annotate({
+    description: "Destination directory, relative to the target session's directory or absolute. Supports ~.",
+  }),
+})
+
+const MoveOutput = Schema.Struct({ sessionID: Session.ID, directory: AbsolutePath })
+
 export const RootInput = Schema.Struct({
   sessionID: Schema.optionalKey(Session.ID).annotate({ description: "Omit to target the current session." }),
   directory: Schema.String.check(Schema.isMinLength(1)).annotate({
@@ -137,6 +146,31 @@ export const Plugin = {
               Effect.mapError((error) => new ToolFailure({ message: `Unable to rename session ${sessionID}`, error })),
             )
           },
+        })
+        draft.add({
+          name: "session_move",
+          description:
+            "Move a session to another directory, or omit sessionID to move the current session. The current session moves at the next safe boundary; do not run destination-dependent tools in the same execute call.",
+          input: MoveInput,
+          output: MoveOutput,
+          options: { namespace: "opencode", codemode: true, pinned: true },
+          execute: (input, context) =>
+            Effect.gen(function* () {
+              const sessionID = input.sessionID ?? context.sessionID
+              yield* ctx.session.move({
+                sessionID,
+                directory: input.directory,
+                delivery: "steer",
+              })
+              return {
+                output: { sessionID, directory: input.directory },
+                content: `Moved session ${sessionID} to ${input.directory}.`,
+              }
+            }).pipe(
+              Effect.mapError(
+                (error) => new ToolFailure({ message: `Unable to move session to ${input.directory}`, error }),
+              ),
+            ),
         })
         draft.add({
           name: "session_root_add",

@@ -80,7 +80,6 @@ export const ModelSelected = Event.durable({
 })
 export type ModelSelected = typeof ModelSelected.Type
 
-// Replay-only: older releases could move a Session to another directory.
 export const Moved = Event.durable({
   type: "session.moved",
   ...options,
@@ -679,6 +678,7 @@ export const Definitions = Event.inventory(
   Created,
   AgentSelected,
   ModelSelected,
+  Moved,
   RootAdded,
   RootRemoved,
   Renamed,
@@ -735,7 +735,6 @@ export const DurableDefinitions = Event.inventory(
   ...Definitions.filter((definition) => definition.durability === "durable"),
   UsageRecorded,
   MessageContentUpdated,
-  Moved,
 )
 export const EphemeralDefinitions = Event.inventory(
   ...Definitions.filter((definition) => definition.durability === "ephemeral"),

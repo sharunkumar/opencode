@@ -606,6 +606,82 @@ test("truncates committed revert messages without changing lifetime usage", asyn
   }
 })
 
+test("updates session location when moved", async () => {
+  const events = createEventStream()
+  const destination = "/tmp/opencode-moved"
+  const calls = createFetch((url) => {
+    if (url.pathname === "/api/session/ses_test")
+      return json({
+        data: {
+          id: "ses_test",
+          projectID: "proj_test",
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          time: { created: 0, updated: 0 },
+          title: "Test session",
+          location: { directory },
+        },
+      })
+  }, events)
+  let data!: ReturnType<typeof useData>
+  let ready!: () => void
+  const mounted = new Promise<void>((resolve) => {
+    ready = resolve
+  })
+
+  function Probe() {
+    data = useData()
+    onMount(ready)
+    return <box />
+  }
+
+  const app = await testRender(() => (
+    <TestTuiContexts>
+      <ClientProvider api={createApi(calls.fetch)}>
+        <ProjectProvider>
+          <DataProvider>
+            <Probe />
+          </DataProvider>
+        </ProjectProvider>
+      </ClientProvider>
+    </TestTuiContexts>
+  ))
+
+  try {
+    await mounted
+    await data.session.sync("ses_test")
+    emitEvent(events, {
+      id: "evt_moved_1",
+      created: 1,
+      type: "session.moved",
+      durable: durable("ses_test"),
+      data: {
+        sessionID: "ses_test",
+        location: { directory: destination },
+        projectID: "project-moved",
+        subpath: "packages/cli",
+      },
+    })
+    await wait(() => data.session.get("ses_test")?.location.directory === destination)
+    expect(data.session.get("ses_test")?.projectID).toBe("project-moved")
+    expect(data.session.get("ses_test")?.subpath).toBe("packages/cli")
+    expect(data.session.message.list("ses_test")).toContainEqual({
+      id: "msg_moved_1",
+      type: "location-switched",
+      location: { directory: destination },
+      projectID: "project-moved",
+      subpath: "packages/cli",
+      previous: {
+        location: { directory },
+        projectID: "proj_test",
+      },
+      time: { created: 1 },
+    })
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
 test("updates session roots when added and removed", async () => {
   const events = createEventStream()
   const root = "/tmp/opencode-root"
