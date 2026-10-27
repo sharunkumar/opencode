@@ -1,6 +1,6 @@
 export * as CustomAutoLoadSkillsPlugin from "./auto-load-skills.js"
 
-import { SystemPart } from "@opencode/ai"
+import { SystemPart } from "@opencode/ai/effect"
 import { define } from "@opencode/plugin/effect/plugin"
 import type { SessionHooks } from "@opencode/plugin/effect/session"
 import { CustomAutoLoadSkills } from "@opencode/schema/custom-auto-load-skills"

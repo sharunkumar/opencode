@@ -8,7 +8,6 @@ import { LayerNode } from "@opencode/util/effect/layer-node"
 import { makeGlobalNode } from "@opencode/util/effect/app-node"
 import { Bus } from "@opencode/core/bus"
 import { Config } from "@opencode/core/config"
-import { ManagedPolicy } from "@opencode/core/managed-policy"
 import { Image } from "@opencode/core/image"
 import { Location } from "@opencode/core/location"
 import { LocationServiceMap } from "@opencode/core/location-service-map"
@@ -29,9 +28,11 @@ import { Skill } from "@opencode/core/skill"
 import { Event } from "@opencode/schema/event"
 import { testEffect } from "./lib/effect"
 import { globalProjectNode } from "./lib/project"
-import { registerIntegrationPolicy } from "./fixture/policy"
+import { organizationPolicy, registerIntegrationPolicy } from "./fixture/policy"
 
 const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
+// The organization behind this location's Console connection denies the skill.
+const blocked = Location.Ref.make({ directory: AbsolutePath.make("/blocked") })
 const info = Skill.Info.make({
   id: Skill.ID.make("effect"),
   name: Skill.Name.make("Effect"),
@@ -44,10 +45,9 @@ const locations = makeGlobalNode({
   layer: Layer.effect(
     LocationServiceMap.Service,
     Effect.gen(function* () {
-      const managed = yield* ManagedPolicy.Service
       const store = yield* SessionStore.Service
       return yield* LayerMap.make(
-        (_ref: Location.Ref) =>
+        (ref: Location.Ref) =>
           // These tests need skill activation and prompt preparation from the same location services.
           // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
           Layer.mergeAll(
@@ -60,18 +60,20 @@ const locations = makeGlobalNode({
             ).pipe(
               Layer.provideMerge(
                 LayerNode.compile(
-                  LayerNode.group([
-                    PluginHooks.node,
-                    Image.node,
-                    Skill.node,
-                    SessionRoots.node,
-                    Config.node,
-                    ManagedPolicy.node,
-                  ]),
+                  LayerNode.group([PluginHooks.node, Image.node, Skill.node, SessionRoots.node, Config.node]),
                   {
                     replacements: [
-                      Config.node.replace(Config.testLayer()),
-                      ManagedPolicy.node.replace(Layer.succeed(ManagedPolicy.Service, managed)),
+                      Config.node.replace(
+                        Config.testLayer(
+                          ref.directory === blocked.directory
+                            ? [
+                                organizationPolicy([
+                                  { action: "integration.use", resource: "skill:effect", effect: "deny" },
+                                ]),
+                              ]
+                            : [],
+                        ),
+                      ),
                       SessionStore.node.replace(Layer.succeed(SessionStore.Service, store)),
                     ],
                   },
@@ -84,7 +86,7 @@ const locations = makeGlobalNode({
       )
     }),
   ),
-  deps: [ManagedPolicy.node, SessionStore.node],
+  deps: [SessionStore.node],
 })
 const it = testEffect(
   AppNodeBuilder.build(
@@ -94,7 +96,6 @@ const it = testEffect(
       SessionProjector.node,
       SessionStore.node,
       Session.node,
-      ManagedPolicy.node,
       LocationServiceMap.node,
     ]),
     [
@@ -109,9 +110,7 @@ describe("Session.skill", () => {
   it.effect("refuses blocked skill mentions and standalone activation without writing their content", () =>
     Effect.gen(function* () {
       const sessions = yield* Session.Service
-      const managed = yield* ManagedPolicy.Service
-      const session = yield* sessions.create({ location })
-      yield* managed.set({ statements: [{ action: "integration.use", resource: "skill:effect", effect: "deny" }] })
+      const session = yield* sessions.create({ location: blocked })
       expect(
         yield* sessions.skill({ sessionID: session.id, skill: info.id, resume: false }).pipe(Effect.flip),
       ).toMatchObject({ _tag: "Session.SkillNotFoundError", skill: info.id })
