@@ -275,7 +275,7 @@ export type Resolved = Omit<
   leader: { timeout: number }
   mouse: boolean
   model_keywords: string[]
-  cursor?: {
+  cursor: {
     style: "block" | "underline" | "line" | "default"
     blinking: boolean
   }
@@ -340,12 +340,10 @@ export function resolve(
     leader: { timeout: input.leader?.timeout ?? 2000 },
     mouse: input.mouse ?? true,
     model_keywords: normalizeKeywords(input.model_keywords),
-    cursor: input.cursor
-      ? {
-          style: input.cursor.style ?? "block",
-          blinking: input.cursor.blinking ?? true,
-        }
-      : undefined,
+    cursor: {
+      style: input.cursor?.style ?? "block",
+      blinking: input.cursor?.blinking ?? true,
+    },
     session: {
       ...input.session,
       new_location: input.session?.new_location ?? "launch",

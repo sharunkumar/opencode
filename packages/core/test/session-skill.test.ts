@@ -66,11 +66,7 @@ const locations = makeGlobalNode({
                       Config.node.replace(
                         Config.testLayer(
                           ref.directory === blocked.directory
-                            ? [
-                                organizationPolicy([
-                                  { action: "integration.use", resource: "skill:effect", effect: "deny" },
-                                ]),
-                              ]
+                            ? [organizationPolicy([{ action: "skill.use", resource: "effect", effect: "deny" }])]
                             : [],
                         ),
                       ),
