@@ -97,9 +97,9 @@ Session tabs default to vertical in the TUI (`tabs.layout`) and desktop app (`ap
 
 Expanded vertical tab titles word-wrap onto as many rows as they need instead of cropping, and the tab grows to fit; the compact rail and project line still crop.
 
-## Vertical Tab Close Button Removed (TUI)
+## Vertical Tab Close Mark (TUI)
 
-The hover `✕` is gone from vertical tabs (middle-click still closes); horizontal tabs keep it.
+Vertical tabs have no separate close button at the right edge. Instead, in the expanded rail, hovering an idle tab turns its `•` status bullet into `✕`, and clicking it closes the tab without selecting it. Running, unread, and waiting (`!` / `?`) tabs keep their marker, the `numbers` indicator mode shows no close mark, and middle-click still closes any tab. Horizontal tabs keep upstream's right-edge `✕`.
 
 ## Vertical Tab Project Groups (TUI)
 

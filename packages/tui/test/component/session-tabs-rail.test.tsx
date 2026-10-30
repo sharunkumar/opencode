@@ -70,19 +70,7 @@ test("compact rail renders and controls session tabs", async () => {
         .split("\n")
         .slice(0, 11)
         .map((line) => line.slice(0, 5)),
-    ).toEqual([
-      "▄▄▄▄▄",
-      "  ⌕  ",
-      "▄▄▄▄▄",
-      "  F  ",
-      "▀▀▀▀▀",
-      "  S  ",
-      "     ",
-      "  T  ",
-      "     ",
-      "  +  ",
-      "     ",
-    ])
+    ).toEqual(["▄▄▄▄▄", "  ⌕  ", "▄▄▄▄▄", "  F  ", "▀▀▀▀▀", "  S  ", "     ", "  T  ", "     ", "  +  ", "     "])
     expect(app.captureCharFrame().split("\n")[0].indexOf("transcript")).toBe(5)
     expect(app.captureCharFrame()).not.toContain("First session")
     expect(
@@ -96,11 +84,7 @@ test("compact rail renders and controls session tabs", async () => {
 
     setIndicators("numbers")
     await app.waitForFrame((frame) => frame.split("\n")[5].slice(0, 5).trim() === "2")
-    expect([3, 5, 7].map((row) => app.captureCharFrame().split("\n")[row].slice(0, 5).trim())).toEqual([
-      "1",
-      "2",
-      "3",
-    ])
+    expect([3, 5, 7].map((row) => app.captureCharFrame().split("\n")[row].slice(0, 5).trim())).toEqual(["1", "2", "3"])
     setIndicators("status")
     setStatus(EMPTY_SESSION_TAB_STATUS)
 
@@ -112,14 +96,73 @@ test("compact rail renders and controls session tabs", async () => {
 
     await app.mockMouse.click(2, 1)
     expect(searches()).toBe(1)
+    // The fork groups vertical tabs by project, so dragging does not reorder them.
     await app.mockMouse.drag(2, 3, 2, 7)
-    expect(items().map((tab) => tab.sessionID)).toEqual(["second", "third", "first"])
+    expect(items().map((tab) => tab.sessionID)).toEqual(["first", "second", "third"])
   } finally {
     app.renderer.destroy()
   }
 })
 
-test("expanded rail wraps long titles and keeps drag targets aligned", async () => {
+test("expanded rail turns a hovered idle tab's bullet into a close mark", async () => {
+  const closed: Array<string | undefined> = []
+  const selected: string[] = []
+  const controller = {
+    tabs: () => [
+      { sessionID: "first", title: "First" },
+      { sessionID: "second", title: "Second" },
+    ],
+    current: () => "first",
+    add() {},
+    select: (sessionID: string) => selected.push(sessionID),
+    close: (sessionID?: string) => closed.push(sessionID),
+    move() {},
+    status: (sessionID: string) =>
+      sessionID === "second" ? { ...EMPTY_SESSION_TAB_STATUS, busy: true } : EMPTY_SESSION_TAB_STATUS,
+  } satisfies SessionTabsController
+  const app = await testRender(
+    () => (
+      <TestTuiContexts>
+        <ConfigProvider config={createTuiResolvedConfig({ tabs: { indicators: "status" } })}>
+          <Keymap.Provider>
+            <ThemeProvider mode="dark" source={emptyThemeSource}>
+              <box width="100%" height="100%" flexDirection="row">
+                <SessionTabs controller={controller} orientation="vertical" animations={false} width={24} />
+              </box>
+            </ThemeProvider>
+          </Keymap.Provider>
+        </ConfigProvider>
+      </TestTuiContexts>
+    ),
+    { width: 40, height: 10 },
+  )
+  const marker = (row: number) => app.captureCharFrame().split("\n")[row].slice(0, 3)
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("Second"))
+    expect(marker(1)).toBe(" • ")
+
+    await app.mockMouse.moveTo(10, 1)
+    await app.waitForFrame(() => marker(1) === " ✕ ")
+    // A running tab keeps its spinner on hover, so it has no close mark.
+    await app.mockMouse.moveTo(10, 3)
+    await app.waitForFrame(() => marker(1) === " • ")
+    expect(marker(3)).toBe(` ${SPINNER_FRAMES[0]} `)
+    await app.mockMouse.click(1, 3)
+    expect(closed).toEqual([])
+
+    await app.mockMouse.moveTo(1, 1)
+    await app.waitForFrame(() => marker(1) === " ✕ ")
+    await app.mockMouse.click(1, 1)
+    expect(closed).toEqual(["first"])
+    expect(selected).toEqual(["second"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("expanded rail wraps long titles and ignores drags", async () => {
   const [items, setItems] = createSignal<SessionTab[]>([
     { sessionID: "first", title: "Short" },
     { sessionID: "second", title: "alpha bravo charlie delta echo foxtrot golf hotel india juliet" },
@@ -166,7 +209,7 @@ test("expanded rail wraps long titles and keeps drag targets aligned", async () 
     expect(rows[10]).toContain("Third")
 
     await app.mockMouse.drag(2, 10, 2, 1)
-    expect(items().map((tab) => tab.sessionID)).toEqual(["third", "first", "second"])
+    expect(items().map((tab) => tab.sessionID)).toEqual(["first", "second", "third"])
   } finally {
     app.renderer.destroy()
   }

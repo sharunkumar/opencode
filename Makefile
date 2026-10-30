@@ -5,7 +5,7 @@ BUN := mise exec -- bun
 # Tests for changes made in this fork, relative to each package.
 TUI_FORK_TESTS := test/ui/directory-link.test.ts test/ui/directory-markdown.test.tsx test/util/session.test.ts \
 	test/cli/tui/data.test.tsx test/cli/tui/dialog-open.test.tsx test/cli/tui/prompt-move.test.tsx test/config.test.tsx \
-	test/context/session-tabs.test.tsx test/app-lifecycle.test.tsx
+	test/context/session-tabs.test.tsx test/app-lifecycle.test.tsx test/component/session-tabs-rail.test.tsx
 CORE_FORK_TESTS := test/plugin/custom.test.ts test/plugin/supervisor.test.ts test/tool-cancel.test.ts \
 	test/session-create.test.ts test/session-roots.test.ts test/session-skill.test.ts test/session-generate.test.ts \
 	test/session-owned.test.ts test/session-runner.test.ts test/tool-skill.test.ts test/file-access.test.ts \

@@ -747,6 +747,13 @@ function VerticalSessionTabs(props: {
             {(tab, index) => {
               const selected = () => activeID() === tab.sessionID
               const status = createMemo(() => itemStatus(tab))
+              // A hovered idle tab swaps its bullet for a close mark; running, unread, and waiting tabs keep their marker.
+              const closable = () =>
+                hovered() === tab.sessionID &&
+                !props.numbers &&
+                !status().busy &&
+                !status().attention &&
+                !status().unread
               const [sweepLevel, setSweepLevel] = createSignal(0)
               const session = createMemo(() => data?.session.get(tab.sessionID))
               const numberWidth = () => Math.max(2, String(items().length).length)
@@ -1037,21 +1044,35 @@ function VerticalSessionTabs(props: {
                           onLevel={setSweepLevel}
                         />
                         <box zIndex={1} width="100%" flexDirection="row" paddingRight={1}>
-                          <TabIndicator
-                            status={status()}
-                            label={sessionTabNumberLabel(index())}
-                            idleLabel="•"
-                            width={numberWidth()}
-                            color={numberColor()}
-                            unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
-                            backgroundColor={pulseBackground()}
-                            flashColor={theme.text.base}
-                            animations={animations()}
-                            numbers={props.numbers}
-                            spinner={props.spinner}
-                            unreadMarker={props.unreadMarker}
-                            attributes={selected() ? TextAttributes.BOLD : undefined}
-                          />
+                          <box
+                            flexShrink={0}
+                            onMouseDown={(event) => {
+                              if (event.button === RIGHT_MOUSE_BUTTON || !closable()) return
+                              didDrag = false
+                              event.stopPropagation()
+                            }}
+                            onMouseUp={(event) => {
+                              if (event.button === RIGHT_MOUSE_BUTTON || suppressClick || !closable()) return
+                              event.stopPropagation()
+                              tabs.close(tab.sessionID)
+                            }}
+                          >
+                            <TabIndicator
+                              status={status()}
+                              label={sessionTabNumberLabel(index())}
+                              idleLabel={closable() ? "✕" : "•"}
+                              width={numberWidth()}
+                              color={numberColor()}
+                              unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
+                              backgroundColor={pulseBackground()}
+                              flashColor={theme.text.base}
+                              animations={animations()}
+                              numbers={props.numbers}
+                              spinner={props.spinner}
+                              unreadMarker={props.unreadMarker}
+                              attributes={selected() ? TextAttributes.BOLD : undefined}
+                            />
+                          </box>
                           <title_shimmer
                             width={hoveredTitleWidth()}
                             fg={foreground()}
