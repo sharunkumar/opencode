@@ -262,6 +262,7 @@ it.effect("collects pull request links from the transcript without duplicates", 
       user("see https://github.com/acme/app/pull/12 and https://GHE.example.com/team/svc/pull/7/files", "msg_a"),
       user("again https://github.com/acme/app/pull/12, plus https://other.example.com/x/y/pull/1", "msg_b"),
       user("an issue https://github.com/acme/app/issues/3", "msg_c"),
+      user("ci https://ghe.example.com/team/svc/actions/runs/1/job/2?pr=10266 and ?pr=7 dup", "msg_ci"),
       SessionMessage.Synthetic.make({
         id: SessionMessage.ID.make("msg_hidden"),
         type: "synthetic",
@@ -296,6 +297,7 @@ it.effect("collects pull request links from the transcript without duplicates", 
     expect(CustomPullRequestsPlugin.pullRequests(["github.com", "ghe.example.com"], history)).toEqual([
       { url: "https://github.com/acme/app/pull/12", label: "acme/app#12" },
       { url: "https://ghe.example.com/team/svc/pull/7", label: "team/svc#7" },
+      { url: "https://ghe.example.com/team/svc/pull/10266", label: "team/svc#10266" },
       { url: "https://github.com/acme/reply/pull/5", label: "acme/reply#5" },
     ])
     expect(CustomPullRequestsPlugin.pullRequests(["github.com"], history).map((pr) => pr.label)).toEqual([

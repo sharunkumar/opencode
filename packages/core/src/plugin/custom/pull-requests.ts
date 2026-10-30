@@ -34,14 +34,15 @@ export function hostList(options: unknown) {
 
 export function pullRequests(hosts: ReadonlyArray<string>, history: ReadonlyArray<SessionMessage.Info>) {
   const hostPattern = hosts.map((host) => host.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")
-  const pattern = new RegExp(`https?://(${hostPattern})/([\\w.-]+)/([\\w.-]+)/pull/(\\d+)`, "gi")
+  const pattern = new RegExp(`https?://(${hostPattern})/([\\w.-]+)/([\\w.-]+)/(?:pull/(\\d+)|[^\\s?#]*\\?(?:[^\\s#]*&)?pr=(\\d+))`, "gi")
   const found = new Map<string, { url: string; label: string }>()
   history
     .flatMap(messageText)
     .flatMap((text) => [...text.matchAll(pattern)])
     .forEach((match) => {
-      const url = `https://${match[1].toLowerCase()}/${match[2]}/${match[3]}/pull/${match[4]}`
-      if (!found.has(url)) found.set(url, { url, label: `${match[2]}/${match[3]}#${match[4]}` })
+      const number = match[4] ?? match[5]
+      const url = `https://${match[1].toLowerCase()}/${match[2]}/${match[3]}/pull/${number}`
+      if (!found.has(url)) found.set(url, { url, label: `${match[2]}/${match[3]}#${number}` })
     })
   return [...found.values()]
 }
