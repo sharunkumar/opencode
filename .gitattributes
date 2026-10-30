@@ -1,5 +1,6 @@
 packages/core/migration/**/snapshot.json linguist-generated
-packages/core/src/database/migration.gen.ts linguist-generated
+packages/core/src/database/migration.gen.ts linguist-generated merge=opencode-migration-registry
+packages/core/schema.json merge=opencode-schema-snapshot
 packages/core/src/models-dev/snapshot.txt linguist-generated
 packages/core/src/database/schema.gen.ts linguist-generated
 packages/desktop/src/main/storage/migration.gen.ts linguist-generated

@@ -1,4 +1,4 @@
-.PHONY: install-deps typecheck build-single generate tests
+.PHONY: install-deps git-setup typecheck build-single generate tests
 
 BUN := mise exec -- bun
 
@@ -10,12 +10,19 @@ CORE_FORK_TESTS := test/plugin/custom.test.ts test/plugin/supervisor.test.ts tes
 	test/session-create.test.ts test/session-roots.test.ts test/session-skill.test.ts test/session-generate.test.ts \
 	test/session-owned.test.ts test/session-runner.test.ts test/tool-skill.test.ts test/file-access.test.ts \
 	test/bus-session-routing.test.ts test/subagent-lifetime.test.ts test/websearch.test.ts test/v1-migration.test.ts \
-	test/session-move.test.ts test/tool-opencode.test.ts
+	test/session-move.test.ts test/tool-opencode.test.ts test/merge-driver.test.ts
 SCHEMA_FORK_TESTS := test/event-manifest.test.ts
 SDK_FORK_TESTS := test/instances-effect.test.ts
 
-install-deps:
+install-deps: git-setup
 	$(BUN) install
+
+# Merge drivers for the generated migration files named in .gitattributes.
+git-setup:
+	git config merge.opencode-migration-registry.name "opencode migration registry"
+	git config merge.opencode-migration-registry.driver "$(BUN) packages/core/script/merge-driver.ts registry %O %A %B"
+	git config merge.opencode-schema-snapshot.name "opencode schema snapshot"
+	git config merge.opencode-schema-snapshot.driver "$(BUN) packages/core/script/merge-driver.ts snapshot %O %A %B"
 
 typecheck: install-deps
 	$(BUN) run typecheck

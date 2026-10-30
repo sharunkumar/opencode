@@ -35,6 +35,15 @@ Deleted `.opencode/tool/github-pr-search.ts` and `github-triage.ts`: v1-style to
 
 Added `make build-single` (builds the single-file `opencode` binary from `packages/cli`) and `make generate` (regenerates the protocol, client, and docs, then formats only the files generation touched; upstream's script formats the whole repo, which is not prettier-clean).
 
+## Migration Merge Drivers
+
+The fork's `session_roots` migration means every new upstream migration conflicts in two generated files. `.gitattributes` maps them to merge drivers in `packages/core/script/merge-driver.ts`, which `make git-setup` registers in the local git config (`make install-deps`, and so `make tests`, runs it):
+
+- `migration.gen.ts` (`opencode-migration-registry`): keeps every migration either side has, minus ones either side deleted, renumbered in timestamp order; the same output as `bun script/migration.ts`.
+- `schema.json` (`opencode-schema-snapshot`): merges the DDL with `git merge-file`, then writes a new snapshot `id` whose `prevIds` are both sides' ids. A real DDL conflict still stops the merge with markers.
+
+After a merge, `bun script/migration.ts --check` in `packages/core` confirms the snapshot matches the schema.
+
 ## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`)
 
 Submitting while the assistant is working normally steers/queues the message (shown with a `QUEUED` badge). The new `prompt_interrupt_submit` keybind (default `ctrl+return`, command `prompt.interrupt_submit`) instead aborts the active run and then submits, so the prompt starts a fresh run. No-op on an empty prompt; behaves like a normal submit when idle.
