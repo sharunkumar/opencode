@@ -2,14 +2,17 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { Job } from "@opencode/core/job"
-import { KV } from "@opencode/core/kv"
+import { Permission } from "@opencode/core/permission"
+import { Database } from "@opencode/core/database/database"
 import { Session } from "@opencode/core/session"
 import { SessionSchema } from "@opencode/core/session/schema"
 import { Tool } from "@opencode/core/tool"
 import { CancelTool } from "@opencode/core/tool/plugin/cancel"
 import { makeLocationNode } from "@opencode/util/effect/app-node"
 import { LayerNode } from "@opencode/util/effect/layer-node"
+import { Global } from "@opencode/util/global"
 import { testEffect } from "./lib/effect"
+import { permissionLayer } from "./lib/permission"
 import { executeTool, registerToolPlugin, toolIdentity } from "./lib/tool"
 
 const sessionID = SessionSchema.ID.make("ses_cancel_tool")
@@ -30,8 +33,9 @@ const cancelToolNode = makeLocationNode({
 })
 
 const it = testEffect(
-  AppNodeBuilder.build(LayerNode.group([Tool.node, Job.node, KV.node, cancelToolNode]), [
+  AppNodeBuilder.build(LayerNode.group([Tool.node, Job.node, Database.node, Global.node, cancelToolNode]), [
     Session.node.replace(session),
+    Permission.node.replace(permissionLayer()),
   ]),
 )
 
