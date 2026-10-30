@@ -10,18 +10,17 @@ A `plugins` config entry whose `package` exactly matches a builtin (or SDK/insta
 
 ## Disabled Workflows
 
-Upstream workflows disabled for this fork:
+Upstream workflows disabled for this fork (in GitHub Actions, via `gh workflow disable`):
 
-- close-issues, containers, deploy, docs-locale-sync
-- nix-eval, nix-hashes, pr-management, pr-standards
-- publish, release-github-action, storybook
-- vouch-check-pr, vouch-manage-by-issue
+- build, deploy, deploy-changelog, deploy-files
+- deploy-posts, deploy-update, deploy-www
+- bot-nix-hashes, check-nix, check-process-daemon
 
-Kept: test, typecheck, generate
+Kept: check, check-test, release. The other workflows left active are not triggered by pushes to `dev` (`bot-docs-locale` is `if: false`, `release-process-daemon` runs on tags, the `triage-*` ones are scheduled or run on pull requests). Upstream renames workflows often; re-check with `gh workflow list -R sharunkumar/opencode --all` after a merge.
 
 ## CI Runners
 
-Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-latest`) in `check` and `test`.
+Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-latest`) in `check` and `check-test`.
 
 ## Removed Upstream Custom Tools
 
