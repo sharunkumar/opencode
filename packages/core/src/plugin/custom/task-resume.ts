@@ -16,7 +16,7 @@ export const Plugin = define({
           const sessionID = event.input.sessionID
           if (sessionID === undefined) return
           const child = isSessionID(sessionID)
-            ? yield* ctx.session.get({ sessionID }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+            ? yield* ctx.session.get({ sessionID }).pipe(Effect.orElseSucceed(() => undefined))
             : undefined
           if (child?.parentID === event.sessionID) return
           const input = { ...event.input }
