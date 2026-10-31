@@ -14,7 +14,8 @@ import {
 import type { JSX } from "@opentui/solid"
 import { useRenderer } from "@opentui/solid"
 import { batch, createMemo, createSignal, For, onCleanup, Show, splitProps } from "solid-js"
-import { splitAddedPatch, splitPatchHunks, type AddedPatchChunk } from "../util/diff"
+import { splitAddedPatch, splitPatchHunks, type AddedPatchChunk, type PatchLine } from "../util/diff"
+import { createLineSelection, diffLineSource } from "./line-selection"
 
 export interface PatchDiffRef {
   readonly hunks: () => readonly (DiffRenderable | BoxRenderable)[]
@@ -32,10 +33,30 @@ type Props = Omit<JSX.IntrinsicElements["diff"], "diff" | "lineNumberBg" | "ref"
   scroll?: () => ScrollBoxRenderable | undefined
   /** Extra gutter columns before the line numbers, painted in each row's color. */
   gutterPadding?: number
+  /**
+   * Lets a press or drag on the line numbers pick lines within one hunk. The picked lines stay painted in `selectedBg`
+   * until the returned promise settles.
+   */
+  onSelectLines?: (lines: readonly PatchLine[]) => Promise<unknown>
+  selectedBg?: ColorInput
 }
 
 export function PatchDiff(props: Props) {
-  const [local, diffProps] = splitProps(props, ["diff", "hunkFg", "lineNumberBg", "ref", "scroll", "gutterPadding"])
+  const [local, diffProps] = splitProps(props, [
+    "diff",
+    "hunkFg",
+    "lineNumberBg",
+    "ref",
+    "scroll",
+    "gutterPadding",
+    "onSelectLines",
+    "selectedBg",
+  ])
+  const mouse = createLineSelection({
+    select: () => local.onSelectLines,
+    color: () => local.selectedBg,
+    source: diffLineSource,
+  })
   const hunks = createMemo(() => splitPatchHunks(local.diff))
   const chunks = createMemo(() => {
     if (!local.scroll) return
@@ -85,6 +106,7 @@ export function PatchDiff(props: Props) {
               </Show>
               <diff
                 {...diffProps}
+                {...mouse}
                 ref={(node: DiffRenderable) => register(index(), node)}
                 diff={hunk.patch}
                 minHeight={hunk.rows}
@@ -101,6 +123,7 @@ export function PatchDiff(props: Props) {
           chunks={items()}
           scroll={local.scroll!}
           diffProps={diffProps}
+          mouse={mouse}
           lineNumberBg={local.lineNumberBg}
           gutter={gutter()}
           register={register}
@@ -117,6 +140,7 @@ function VirtualAddedPatch(props: {
   chunks: readonly AddedPatchChunk[]
   scroll: () => ScrollBoxRenderable | undefined
   diffProps: Omit<JSX.IntrinsicElements["diff"], "diff" | "lineNumberBg" | "ref">
+  mouse: ReturnType<typeof createLineSelection>
   lineNumberBg: ColorInput
   gutter: DiffGutterOptions
   register: (index: number, node: DiffRenderable) => void
@@ -180,6 +204,7 @@ function VirtualAddedPatch(props: {
           <Show when={index() >= first() - 1 && index() <= last() + 1} fallback={<box height={chunk.rows} />}>
             <diff
               {...props.diffProps}
+              {...props.mouse}
               ref={(node: DiffRenderable) => {
                 props.register(index(), node)
                 // DiffRenderable creates its CodeRenderable after ref runs; setting onHighlight re-highlights.

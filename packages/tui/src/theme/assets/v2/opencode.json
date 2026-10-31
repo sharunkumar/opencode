@@ -105,7 +105,8 @@
       "background": {
         "added": "#20303b",
         "removed": "#37222c",
-        "context": "$hue.neutral.700"
+        "context": "$hue.neutral.700",
+        "selected": "$hue.interactive.700"
       },
       "highlight": {
         "added": "#b8db87",

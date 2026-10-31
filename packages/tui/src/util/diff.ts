@@ -37,6 +37,34 @@ export function splitAddedPatch(patch: string, size: number): AddedPatchChunk[] 
   })
 }
 
+export interface PatchLine {
+  readonly kind: "add" | "remove" | "context"
+  readonly text: string
+  readonly oldLine?: number
+  readonly newLine?: number
+}
+
+/** Lists the lines of every hunk in the order DiffRenderable's unified view shows them, with their file line numbers. */
+export function patchLines(patch: string): PatchLine[] {
+  const lines: PatchLine[] = []
+  const next = { old: 0, new: 0, hunk: false }
+  for (const line of patch.split("\n")) {
+    const header = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line)
+    if (header) {
+      next.old = Number(header[1])
+      next.new = Number(header[2])
+      next.hunk = true
+      continue
+    }
+    if (!next.hunk) continue
+    const text = line.slice(1)
+    if (line[0] === "+") lines.push({ kind: "add", text, newLine: next.new++ })
+    if (line[0] === "-") lines.push({ kind: "remove", text, oldLine: next.old++ })
+    if (line[0] === " ") lines.push({ kind: "context", text, oldLine: next.old++, newLine: next.new++ })
+  }
+  return lines
+}
+
 export function splitPatchHunks(patch: string): PatchHunk[] {
   const starts = [...patch.matchAll(/^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@.*$/gm)].map((match) => match.index)
   if (starts.length <= 1) return [{ patch }]

@@ -22,9 +22,13 @@ import { SplitBorder } from "../../ui/border"
 import { useTuiTerminalEnvironment } from "../../context/runtime"
 import { Spinner, SPINNER_FRAMES } from "../../component/spinner"
 import { PatchDiff } from "../../component/patch-diff"
+import { useLineComment } from "../../component/line-comment"
+import { createLineSelection } from "../../component/line-selection"
+import type { PatchLine } from "../../util/diff"
 import { useTheme, useThemes } from "../../context/theme"
 import {
   BoxRenderable,
+  LineNumberRenderable,
   ScrollBoxRenderable,
   addDefaultParsers,
   TextAttributes,
@@ -3159,6 +3163,19 @@ function Write(props: ToolProps) {
   const code = createMemo(() => {
     return stringValue(props.input.content) ?? ""
   })
+  // Every line of a written file is new, so comments quote them as added lines.
+  const written = createMemo(() =>
+    code()
+      .split("\n")
+      .map((text, index): PatchLine => ({ kind: "add", text, newLine: index + 1 })),
+  )
+  const comment = useDiffComment()
+  const selection = createLineSelection({
+    select: () => (lines) => comment(pathFormatter.format(stringValue(props.input.path)), lines),
+    color: () => theme.diff.background.selected,
+    source: (target) =>
+      target instanceof LineNumberRenderable ? { sides: [target], lineAt: (_, row) => written()[row] } : undefined,
+  })
 
   return (
     <Switch>
@@ -3167,7 +3184,7 @@ function Write(props: ToolProps) {
           path={{ label: "# Wrote", value: pathFormatter.format(stringValue(props.input.path)) }}
           part={props.part}
         >
-          <line_number fg={theme.text.muted} minWidth={3} paddingRight={1}>
+          <line_number fg={theme.text.muted} minWidth={3} paddingRight={1} {...selection}>
             <code
               conceal={false}
               fg={theme.text.base}
@@ -3448,11 +3465,21 @@ function Execute(props: ToolProps) {
   )
 }
 
+/** Comments on lines picked in a tool's diff go to this session as prompts. */
+function useDiffComment() {
+  const ctx = use()
+  const data = useData()
+  const comment = useLineComment()
+  return (file: string, lines: readonly PatchLine[]) =>
+    comment({ file, lines, send: (text) => data.session.prompt({ sessionID: ctx.sessionID, text }) })
+}
+
 function Edit(props: ToolProps) {
   const ctx = use()
   const theme = useTheme()
   const { currentSyntax: syntax } = useThemes()
   const pathFormatter = usePathFormatter()
+  const comment = useDiffComment()
 
   const view = createMemo(() => {
     const diffView = ctx.config.diffs?.view
@@ -3490,6 +3517,8 @@ function Edit(props: ToolProps) {
                 lineNumberBg={theme.diff.background.context}
                 addedLineNumberBg={theme.diff.lineNumber.background.added}
                 removedLineNumberBg={theme.diff.lineNumber.background.removed}
+                selectedBg={theme.diff.background.selected}
+                onSelectLines={(lines) => comment(item().relativePath, lines)}
               />
             </box>
             <Diagnostics diagnostics={props.metadata.diagnostics} filePath={stringValue(props.input.path) ?? ""} />
@@ -3518,6 +3547,7 @@ function ApplyPatch(props: ToolProps) {
   const { currentSyntax: syntax } = useThemes()
   const pathFormatter = usePathFormatter()
   const files = createMemo(() => parseApplyPatchFiles(props.metadata.files))
+  const comment = useDiffComment()
   const targets = createMemo(() => {
     const patch = stringValue(props.input.patchText)
     if (!patch) return []
@@ -3580,6 +3610,8 @@ function ApplyPatch(props: ToolProps) {
                       lineNumberBg={theme.diff.background.context}
                       addedLineNumberBg={theme.diff.lineNumber.background.added}
                       removedLineNumberBg={theme.diff.lineNumber.background.removed}
+                      selectedBg={theme.diff.background.selected}
+                      onSelectLines={(lines) => comment(file.relativePath, lines)}
                     />
                   </box>
                 </Show>

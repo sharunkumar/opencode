@@ -28,6 +28,7 @@ export function expandTokens(definition: ThemeTokensDefinition): ThemeTokensDefi
     ...definition,
     text: expandText(definition.text),
     background: expandBackground(definition.background),
+    diff: expandDiff(definition.diff),
   }
 }
 
@@ -74,6 +75,15 @@ function expandBackground(definition: BackgroundDefinition | undefined): Backgro
     ...definition,
     action: expandActions(definition.action, "background.action"),
     formfield: expandFormfield(definition.formfield, "background.formfield"),
+  }
+}
+
+// Themes from before the selection token pick a tint of their interactive hue.
+function expandDiff(definition: ThemeTokensDefinition["diff"]): ThemeTokensDefinition["diff"] {
+  if (!definition?.background?.context) return definition
+  return {
+    ...definition,
+    background: { ...definition.background, selected: definition.background.selected ?? "$hue.interactive.700" },
   }
 }
 

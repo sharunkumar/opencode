@@ -56,7 +56,13 @@ export type ResolvedThemeTokens = {
       readonly context: RGBA
       readonly hunkHeader: RGBA
     }
-    readonly background: { readonly added: RGBA; readonly removed: RGBA; readonly context: RGBA }
+    readonly background: {
+      readonly added: RGBA
+      readonly removed: RGBA
+      readonly context: RGBA
+      /** Lines picked in a diff, such as the range a review comment covers. */
+      readonly selected: RGBA
+    }
     readonly highlight: { readonly added: RGBA; readonly removed: RGBA }
     readonly lineNumber: {
       readonly text: RGBA

@@ -13,3 +13,11 @@ test.each(["light", "dark"] as const)("resolves %s themes without status tokens"
   expect(theme.hue.accent[800]).toBeDefined()
   expect(theme.hue.interactive[800]).toBeDefined()
 })
+
+test.each(["light", "dark"] as const)(
+  "gives %s themes without a diff selection color a tint of the interactive hue",
+  (mode) => {
+    const theme = resolveThemeDocument(document, mode)
+    expect(theme.diff.background.selected).toEqual(theme.hue.interactive[700])
+  },
+)
