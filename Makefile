@@ -25,7 +25,7 @@ git-setup:
 	git config merge.opencode-schema-snapshot.driver "$(BUN) packages/core/script/merge-driver.ts snapshot %O %A %B"
 
 FORK_REPO := sharunkumar/opencode
-KEPT_WORKFLOWS := release check check-test
+KEPT_WORKFLOWS := release check
 
 # Disables every active workflow not in KEPT_WORKFLOWS; run after merging upstream.
 disable-workflows:

@@ -10,11 +10,11 @@ A `plugins` config entry whose `package` exactly matches a builtin (or SDK/insta
 
 ## Disabled Workflows
 
-Only `check`, `check-test` and `release` run on this fork. After merging upstream, run `make disable-workflows` to disable the rest.
+Only `check` and `release` run on this fork. After merging upstream, run `make disable-workflows` to disable the rest.
 
 ## CI Runners
 
-Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-latest`) in `check` and `check-test`.
+Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-latest`) in `check`.
 
 ## Removed Upstream Custom Tools
 
