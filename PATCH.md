@@ -10,19 +10,15 @@ A `plugins` config entry whose `package` exactly matches a builtin (or SDK/insta
 
 ## Disabled Workflows
 
-Only `check` and `release` run on this fork. After merging upstream, run `make disable-workflows` to disable the rest.
-
-## CI Runners
-
-Changed from Blacksmith to GitHub-hosted runners (`ubuntu-latest`, `windows-latest`) in `check`.
+Only `ci` runs on this fork. After merging upstream, run `make disable-workflows` to disable the rest.
 
 ## Removed Upstream Custom Tools
 
 Deleted `.opencode/tool/github-pr-search.ts` and `github-triage.ts`: v1-style tools (`import { tool } from "@opencode/plugin"`) that fail to load on v2 and break every prompt run in this repo.
 
-## Fork Release Workflow
+## Fork CI Workflow
 
-`release.yml`: on push to `dev` (forks only), runs `bun run check`, builds all `packages/cli` targets, archives them as `opencode-<os>-<arch>[-baseline][-musl].{zip,tar.gz}`, and uploads to a datever GitHub Release.
+`ci.yml` is the fork's only workflow (upstream's `release.yml` is kept as upstream has it, disabled): it checks pull requests and pushes to `dev`, and on a push to `dev` (forks only) builds all `packages/cli` targets, archives them as `opencode-<os>-<arch>[-baseline][-musl].{zip,tar.gz}`, and uploads to a datever GitHub Release.
 
 ## Makefile
 
