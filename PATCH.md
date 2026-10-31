@@ -10,13 +10,7 @@ A `plugins` config entry whose `package` exactly matches a builtin (or SDK/insta
 
 ## Disabled Workflows
 
-Upstream workflows disabled for this fork (in GitHub Actions, via `gh workflow disable`):
-
-- build, deploy, deploy-changelog, deploy-files
-- deploy-posts, deploy-update, deploy-www
-- bot-nix-hashes, check-nix, check-process-daemon
-
-Kept: check, check-test, release. The other workflows left active are not triggered by pushes to `dev` (`bot-docs-locale` is `if: false`, `release-process-daemon` runs on tags, the `triage-*` ones are scheduled or run on pull requests). Upstream renames workflows often; re-check with `gh workflow list -R sharunkumar/opencode --all` after a merge.
+Only `check`, `check-test` and `release` run on this fork. After merging upstream, run `make disable-workflows` to disable the rest.
 
 ## CI Runners
 
