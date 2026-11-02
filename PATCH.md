@@ -117,7 +117,7 @@ The session list (`<leader>l`) previews the highlighted session's latest message
 
 ## Retitle After Compaction
 
-Plugin (`custom.session.retitle`): regenerates the session title from the compaction summary after every compaction.
+Plugin (`custom.session.retitle`): regenerates a top-level session's title from the compaction summary after every compaction, unless the session was renamed by hand.
 
 ## Skill Mentions Use `/`
 
