@@ -22,16 +22,11 @@ Deleted `.opencode/tool/github-pr-search.ts` and `github-triage.ts`: v1-style to
 
 ## Makefile
 
-Added `make build-single` (builds the single-file `opencode` binary from `packages/cli`) and `make generate` (regenerates the protocol, client, and docs, then formats only the files generation touched; upstream's script formats the whole repo, which is not prettier-clean).
+`make build-single` builds the single-file `opencode` binary, `make generate` regenerates the protocol, client, and docs, `make tests` runs the fork's tests, and `make git-setup` registers the merge drivers below.
 
 ## Migration Merge Drivers
 
-The fork's `session_roots` migration means every new upstream migration conflicts in two generated files. `.gitattributes` maps them to merge drivers in `packages/core/script/merge-driver.ts`, which `make git-setup` registers in the local git config (`make install-deps`, and so `make tests`, runs it):
-
-- `migration.gen.ts` (`opencode-migration-registry`): keeps every migration either side has, minus ones either side deleted, renumbered in timestamp order; the same output as `bun script/migration.ts`.
-- `schema.json` (`opencode-schema-snapshot`): merges the DDL with `git merge-file`, then writes a new snapshot `id` whose `prevIds` are both sides' ids. A real DDL conflict still stops the merge with markers.
-
-After a merge, `bun script/migration.ts --check` in `packages/core` confirms the snapshot matches the schema.
+Git merge drivers (`packages/core/script/merge-driver.ts`) resolve `migration.gen.ts` and `schema.json` when upstream adds a migration next to the fork's. Run `make git-setup` once per clone.
 
 ## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`)
 
@@ -89,7 +84,7 @@ Expanded vertical tab titles word-wrap onto as many rows as they need instead of
 
 ## Vertical Tab Close Mark (TUI)
 
-Vertical tabs have no separate close button at the right edge. Instead, in the expanded rail, hovering an idle tab turns its `•` status bullet into `✕`, and clicking it closes the tab without selecting it. Running, unread, and waiting (`!` / `?`) tabs keep their marker, the `numbers` indicator mode shows no close mark, and middle-click still closes any tab. Horizontal tabs keep upstream's right-edge `✕`.
+In the expanded vertical rail, hovering an idle tab turns its `•` into `✕`; click it to close the tab. Horizontal tabs keep upstream's close button.
 
 ## Vertical Tab Project Groups (TUI)
 
@@ -139,21 +134,20 @@ Plugin (`custom.pull-requests` + TUI `custom.sidebar.pull-requests`): the sideba
 
 `cancel` tool: agents cancel a background `shell` or `subagent` they started by passing the shell ID or subagent `sessionID` from its `background: true` result (which now names the id); jobs owned by another session are refused.
 
-Plugin (`custom.tool.cancel-hints`) tells the model about it without editing the upstream shell tool: it rewrites the shell description's background sentence, and an `execute.after` hook appends "Cancel it with the cancel tool, passing id <id>." to background shell results. `tool/plugin/shell.ts` and its test stay as upstream has them. A test fails if upstream rewords the sentences the plugin matches.
+Plugin (`custom.tool.cancel-hints`): tells the model to use `cancel` in the shell tool's description and background results.
 
 ## Session Roots
 
-Sessions keep one working directory (`location`) plus optional `roots`: extra directories that are in scope like the working directory, so reading and editing inside them skips `external_directory` approval. Add and remove roots with `session_root_add` / `session_root_remove` (Code Mode `opencode` namespace, registered by the `custom.session.roots` plugin, which also adds the worktree and roots system hints, so `tool/plugin/opencode.ts` stays as upstream has it), `POST`/`DELETE /api/session/:sessionID/root`, or `session.root.add` / `session.root.remove` on the client and plugin APIs. Roots are event-sourced (`session.root.added` / `session.root.removed`), inherited by child sessions and forks, and listed in the system prompt; commands still run in the working directory.
+A session has one working directory plus optional `roots`: extra directories that are in scope like it, with no `external_directory` approval.
 
-Roots are first-class context. `SessionRoots` (Location-scoped) discovers each root's instruction files (walked up to the root's project root, minus files the primary Location already loads and global config files) and skills (`.opencode/skill(s)`, `.claude/skills`, `.agents/skills`). `SessionContext.select` adds the root instructions as one `core/roots` instruction source and merges root skills into the available-skills list. The skill tool, `/skill` mentions, and `Session.skill` resolve skills through `SessionRoots.skill`: the primary Location wins an ID collision, then earlier roots. Discovery is not watched; it re-reads the filesystem on each step. A root's own `opencode.json` (config, `instructions`, `skills` entries, plugins) is not loaded.
-
-Session move is upstream's and unchanged: the `SessionMove` service, `/api/session/:sessionID/move`, the TUI and app entry points, and missing-directory recovery by moving. Roots and move are independent: a move changes `location` and keeps `roots`. `session.fork` also takes an optional `directory` that places the fork in another directory.
-
-In the TUI workspaces dialog, `ctrl+m` moves the session and `ctrl+y` (`dialog.workspaces.add_root`) adds the selected directory as a root.
+- Models add and remove roots with `session_root_add` / `session_root_remove` (plugin `custom.session.roots`); the API has `/api/session/:sessionID/root`.
+- A root's instruction files and skills load into the session's context.
+- Session move is upstream's and works with roots; `session.fork` also takes an optional `directory`.
+- In the TUI workspaces dialog, `ctrl+m` moves the session and `ctrl+y` adds a root.
 
 ## Session Move Disabled for Models
 
-Plugin (`custom.tool.session-move.disable`): removes the `opencode_session_move` Code Mode tool after the builtin opencode tools register, and drops upstream's system hint that points at it, so models cannot move a session. Users can still move sessions from the TUI, app, API, and SDK. The tool definition in `tool/plugin/opencode.ts` stays as upstream has it.
+Plugin (`custom.tool.session-move.disable`): hides the `session_move` tool from models. Users can still move sessions.
 
 ## Instruction Filenames
 
