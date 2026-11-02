@@ -78,12 +78,13 @@ function expandBackground(definition: BackgroundDefinition | undefined): Backgro
   }
 }
 
-// Themes from before the selection token pick a tint of their interactive hue.
+// Themes from before the selection tokens pick their interactive hue: a tint for picked lines, full for the marker.
 function expandDiff(definition: ThemeTokensDefinition["diff"]): ThemeTokensDefinition["diff"] {
   if (!definition?.background?.context) return definition
   return {
     ...definition,
     background: { ...definition.background, selected: definition.background.selected ?? "$hue.interactive.700" },
+    highlight: { ...definition.highlight, selected: definition.highlight?.selected ?? "$hue.interactive.200" },
   }
 }
 

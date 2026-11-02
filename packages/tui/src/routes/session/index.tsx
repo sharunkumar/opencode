@@ -22,7 +22,7 @@ import { SplitBorder } from "../../ui/border"
 import { useTuiTerminalEnvironment } from "../../context/runtime"
 import { Spinner, SPINNER_FRAMES } from "../../component/spinner"
 import { PatchDiff } from "../../component/patch-diff"
-import { useLineComment } from "../../component/line-comment"
+import { createLineComment } from "../../component/line-comment"
 import { createLineSelection } from "../../component/line-selection"
 import type { PatchLine } from "../../util/diff"
 import { useTheme, useThemes } from "../../context/theme"
@@ -3171,8 +3171,10 @@ function Write(props: ToolProps) {
   )
   const comment = useDiffComment()
   const selection = createLineSelection({
-    select: () => (lines) => comment(pathFormatter.format(stringValue(props.input.path)), lines),
+    select: () => (lines, anchor) =>
+      comment.open("write", pathFormatter.format(stringValue(props.input.path)), lines, anchor),
     color: () => theme.diff.background.selected,
+    marker: () => theme.diff.highlight.selected,
     source: (target) =>
       target instanceof LineNumberRenderable ? { sides: [target], lineAt: (_, row) => written()[row] } : undefined,
   })
@@ -3193,6 +3195,7 @@ function Write(props: ToolProps) {
               content={code()}
             />
           </line_number>
+          <comment.Box at="write" />
           <Diagnostics diagnostics={props.metadata.diagnostics} filePath={stringValue(props.input.path) ?? ""} />
         </BlockTool>
       </Match>
@@ -3465,13 +3468,11 @@ function Execute(props: ToolProps) {
   )
 }
 
-/** Comments on lines picked in a tool's diff go to this session as prompts. */
+/** Comments on lines picked in a tool's output go to this session as prompts. */
 function useDiffComment() {
   const ctx = use()
   const data = useData()
-  const comment = useLineComment()
-  return (file: string, lines: readonly PatchLine[]) =>
-    comment({ file, lines, send: (text) => data.session.prompt({ sessionID: ctx.sessionID, text }) })
+  return createLineComment((text) => data.session.prompt({ sessionID: ctx.sessionID, text }))
 }
 
 function Edit(props: ToolProps) {
@@ -3518,8 +3519,10 @@ function Edit(props: ToolProps) {
                 addedLineNumberBg={theme.diff.lineNumber.background.added}
                 removedLineNumberBg={theme.diff.lineNumber.background.removed}
                 selectedBg={theme.diff.background.selected}
-                onSelectLines={(lines) => comment(item().relativePath, lines)}
+                selectedMarker={theme.diff.highlight.selected}
+                onSelectLines={(lines, anchor) => comment.open("edit", item().relativePath, lines, anchor)}
               />
+              <comment.Box at="edit" />
             </box>
             <Diagnostics diagnostics={props.metadata.diagnostics} filePath={stringValue(props.input.path) ?? ""} />
           </BlockTool>
@@ -3611,8 +3614,12 @@ function ApplyPatch(props: ToolProps) {
                       addedLineNumberBg={theme.diff.lineNumber.background.added}
                       removedLineNumberBg={theme.diff.lineNumber.background.removed}
                       selectedBg={theme.diff.background.selected}
-                      onSelectLines={(lines) => comment(file.relativePath, lines)}
+                      selectedMarker={theme.diff.highlight.selected}
+                      onSelectLines={(lines, anchor) =>
+                        comment.open(file.relativePath, file.relativePath, lines, anchor)
+                      }
                     />
+                    <comment.Box at={file.relativePath} />
                   </box>
                 </Show>
               </BlockTool>

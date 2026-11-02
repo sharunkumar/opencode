@@ -15,7 +15,7 @@ import type { JSX } from "@opentui/solid"
 import { useRenderer } from "@opentui/solid"
 import { batch, createMemo, createSignal, For, onCleanup, Show, splitProps } from "solid-js"
 import { splitAddedPatch, splitPatchHunks, type AddedPatchChunk, type PatchLine } from "../util/diff"
-import { createLineSelection, diffLineSource } from "./line-selection"
+import { createLineSelection, diffLineSource, type LineAnchor } from "./line-selection"
 
 export interface PatchDiffRef {
   readonly hunks: () => readonly (DiffRenderable | BoxRenderable)[]
@@ -35,10 +35,11 @@ type Props = Omit<JSX.IntrinsicElements["diff"], "diff" | "lineNumberBg" | "ref"
   gutterPadding?: number
   /**
    * Lets a press or drag on the line numbers pick lines within one hunk. The picked lines stay painted in `selectedBg`
-   * until the returned promise settles.
+   * and marked by a bar in `selectedMarker` until the returned promise settles.
    */
-  onSelectLines?: (lines: readonly PatchLine[]) => Promise<unknown>
+  onSelectLines?: (lines: readonly PatchLine[], anchor: LineAnchor) => Promise<unknown>
   selectedBg?: ColorInput
+  selectedMarker?: ColorInput
 }
 
 export function PatchDiff(props: Props) {
@@ -51,10 +52,12 @@ export function PatchDiff(props: Props) {
     "gutterPadding",
     "onSelectLines",
     "selectedBg",
+    "selectedMarker",
   ])
   const mouse = createLineSelection({
     select: () => local.onSelectLines,
     color: () => local.selectedBg,
+    marker: () => local.selectedMarker,
     source: diffLineSource,
   })
   const hunks = createMemo(() => splitPatchHunks(local.diff))

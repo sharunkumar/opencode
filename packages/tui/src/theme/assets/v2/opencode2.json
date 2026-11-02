@@ -111,7 +111,8 @@
       },
       "highlight": {
         "added": "#b8db87",
-        "removed": "#e26a75"
+        "removed": "#e26a75",
+        "selected": "$hue.interactive.200"
       },
       "lineNumber": {
         "text": "#8f8f8f",

@@ -1,14 +1,13 @@
 /** @jsxImportSource @opentui/solid */
 import { DiffRenderable, LineNumberRenderable, TextareaRenderable, type Renderable } from "@opentui/core"
-import { testRender } from "@opentui/solid"
+import { testRender, type JSX } from "@opentui/solid"
 import { expect, test } from "bun:test"
-import { useLineComment } from "../../src/component/line-comment"
+import { createLineComment } from "../../src/component/line-comment"
 import { createLineSelection } from "../../src/component/line-selection"
 import { PatchDiff } from "../../src/component/patch-diff"
 import { ConfigProvider } from "../../src/config"
 import { Keymap } from "../../src/context/keymap"
 import { ThemeProvider, useTheme, useThemes } from "../../src/context/theme"
-import { DialogProvider } from "../../src/ui/dialog"
 import { ToastProvider } from "../../src/ui/toast"
 import { emptyThemeSource, tmpdir } from "../fixture/fixture"
 import { TestTuiContexts } from "../fixture/tui-environment"
@@ -22,13 +21,18 @@ const patch = `--- a/src/file.txt
 -const oldFirst = true
 +const newFirst = true
  const afterFirst = true
- const last = true`
+ const last = true
+@@ -20,2 +20,2 @@
+ const second = true
+-const oldSecond = true
++const newSecond = true`
 
-test("dragging unified line numbers comments on the picked lines", async () => {
+test("dragging unified line numbers floats a comment box right below the last picked line and sends the comment", async () => {
   await using setup = await renderComment({ view: "unified", width: 80 })
   const app = setup.app
   const side = diffSides(app.renderer.root)[0]!
   const removed = rowOf(app, "const oldFirst")
+  const lastPicked = rowOf(app, "const afterFirst")
   const original = background(app, removed)
 
   await app.mockMouse.click(side.x + side.width - 2, removed)
@@ -36,22 +40,31 @@ test("dragging unified line numbers comments on the picked lines", async () => {
   expect(app.captureCharFrame()).not.toContain("Leave a comment")
   app.renderer.clearSelection()
 
-  await app.mockMouse.drag(side.x + 1, removed, side.x + 1, rowOf(app, "const afterFirst"))
+  await app.mockMouse.drag(side.x + 1, removed, side.x + 1, lastPicked)
   await app.waitForFrame(
-    (frame) => frame.includes("Leave a comment") && app.renderer.currentFocusedRenderable instanceof TextareaRenderable,
+    (frame) =>
+      rowOf(app, "Leave a comment") === lastPicked + 1 &&
+      app.renderer.currentFocusedRenderable instanceof TextareaRenderable,
   )
-  expect(app.captureCharFrame()).toContain("src/file.txt L2-L3")
+  // The box covers the lines below the pick instead of pushing them down.
+  expect(rowOf(app, "L2-L3 · enter send · esc cancel")).toBe(lastPicked + 2)
+  expect(app.captureCharFrame()).not.toContain("const last")
+  expect(rowOf(app, "const newSecond")).toBe(lastPicked + 5)
   expect(background(app, removed)).not.toBe(original)
   expect(background(app, removed + 1)).toBe(background(app, removed))
   expect(background(app, removed + 2)).toBe(background(app, removed))
   expect(background(app, removed - 1)).not.toBe(background(app, removed))
+  expect([-1, 0, 1, 2].map((offset) => marker(app, side, removed + offset))).toEqual([" ", "+", "▌", "▌"])
 
   app.mockInput.typeText("Rename it")
   app.mockInput.pressEnter()
   await app.waitForFrame(() => setup.sent.length === 1 && background(app, removed) === original)
+  expect(app.captureCharFrame()).not.toContain("Leave a comment")
+  expect(rowOf(app, "const last")).toBe(lastPicked + 1)
+  expect(marker(app, side, removed)).toBe(" ")
   expect(setup.sent).toEqual([
     [
-      "Review comment on src/file.txt L2-L3:",
+      "src/file.txt L2-L3",
       "",
       "```diff",
       "-const oldFirst = true",
@@ -64,6 +77,40 @@ test("dragging unified line numbers comments on the picked lines", async () => {
   ])
 })
 
+test("hovering a line shows a plus in its gutter, and the bar follows a drag up and down", async () => {
+  await using setup = await renderComment({ view: "unified", width: 80 })
+  const app = setup.app
+  const side = diffSides(app.renderer.root)[0]!
+  const first = rowOf(app, "const first")
+  const last = rowOf(app, "const last")
+
+  await app.mockMouse.moveTo(side.x + side.width - 4, first + 1)
+  await app.waitForFrame(() => marker(app, side, first + 1) === "+")
+  expect(marker(app, side, first)).toBe(" ")
+  await app.mockMouse.moveTo(side.x + side.width - 4, 23)
+  await app.waitForFrame(() => marker(app, side, first + 1) === " ")
+
+  await app.mockMouse.pressDown(side.x + 1, last)
+  await app.mockMouse.emitMouseEvent("drag", side.x + 1, first + 1)
+  await app.waitForFrame(() => marker(app, side, first + 1) === "+")
+  expect([first, first + 1, first + 2, first + 3, last].map((row) => marker(app, side, row))).toEqual([
+    " ",
+    "+",
+    "▌",
+    "▌",
+    "▌",
+  ])
+  await app.mockMouse.emitMouseEvent("drag", side.x + 1, last - 1)
+  await app.waitForFrame(() => marker(app, side, first + 1) === " ")
+  expect([last - 1, last].map((row) => marker(app, side, row))).toEqual(["+", "▌"])
+  await app.mockMouse.release(side.x + 1, last - 1)
+  await app.waitForFrame((frame) => frame.includes("L3-L4 · enter send"))
+  expect([last - 1, last].map((row) => marker(app, side, row))).toEqual(["+", "▌"])
+  app.mockInput.pressEscape()
+  await app.waitForFrame((frame) => marker(app, side, last - 1) === " " && !frame.includes("Leave a comment"))
+  expect(setup.sent).toHaveLength(0)
+})
+
 test("split line numbers comment on one side and cancelling sends nothing", async () => {
   await using setup = await renderComment({ view: "split", width: 160 })
   const app = setup.app
@@ -71,29 +118,22 @@ test("split line numbers comment on one side and cancelling sends nothing", asyn
   const row = rowOf(app, "const newFirst")
 
   await app.mockMouse.click(left!.x + 1, row)
-  await app.waitForFrame((frame) => frame.includes("src/file.txt L2 (removed)"))
+  await app.waitForFrame((frame) => frame.includes("L2 (removed) · enter send"))
   app.mockInput.pressEscape()
   await app.waitForFrame((frame) => !frame.includes("Leave a comment"))
 
   await app.mockMouse.drag(right!.x + 1, row, right!.x + 1, row + 1)
   await app.waitForFrame(
     (frame) =>
-      frame.includes("src/file.txt L2-L3") && app.renderer.currentFocusedRenderable instanceof TextareaRenderable,
+      frame.includes("L2-L3 · enter send") && app.renderer.currentFocusedRenderable instanceof TextareaRenderable,
   )
   app.mockInput.typeText("Why?")
   app.mockInput.pressEnter()
   await app.waitForFrame(() => setup.sent.length === 1)
   expect(setup.sent).toEqual([
-    [
-      "Review comment on src/file.txt L2-L3:",
-      "",
-      "```diff",
-      "+const newFirst = true",
-      " const afterFirst = true",
-      "```",
-      "",
-      "Why?",
-    ].join("\n"),
+    ["src/file.txt L2-L3", "", "```diff", "+const newFirst = true", " const afterFirst = true", "```", "", "Why?"].join(
+      "\n",
+    ),
   ])
 })
 
@@ -112,121 +152,102 @@ test("line numbers do not pick lines without a comment handler", async () => {
 })
 
 test("numbered code without a diff comments on its lines as added lines", async () => {
-  const temporary = await tmpdir()
   const sent: string[] = []
   const lines: PatchLine[] = ["one", "two", "three"].map((text, index) => ({ kind: "add", text, newLine: index + 1 }))
   function Written() {
     const theme = useTheme()
-    const comment = useLineComment()
+    const comment = createLineComment(async (text) => {
+      sent.push(text)
+    })
     const selection = createLineSelection({
-      select: () => (picked) =>
-        comment({
-          file: "notes.txt",
-          lines: picked,
-          send: async (text) => {
-            sent.push(text)
-          },
-        }),
+      select: () => (picked, anchor) => comment.open("write", "notes.txt", picked, anchor),
       color: () => theme.diff.background.selected,
+      marker: () => theme.diff.highlight.selected,
       source: (target) =>
         target instanceof LineNumberRenderable ? { sides: [target], lineAt: (_, row) => lines[row] } : undefined,
     })
     return (
-      <line_number fg={theme.text.muted} minWidth={3} paddingRight={1} {...selection}>
-        <code
-          fg={theme.text.base}
-          syntaxStyle={useThemes().currentSyntax()}
-          content={lines.map((line) => line.text).join("\n")}
-        />
-      </line_number>
+      <box>
+        <line_number fg={theme.text.muted} minWidth={3} paddingRight={1} {...selection}>
+          <code
+            fg={theme.text.base}
+            syntaxStyle={useThemes().currentSyntax()}
+            content={lines.map((line) => line.text).join("\n")}
+          />
+        </line_number>
+        <comment.Box at="write" />
+      </box>
     )
   }
-  const app = await testRender(
-    () => (
-      <TestTuiContexts directory={temporary.path} paths={{ state: temporary.path }}>
-        <ConfigProvider config={createTuiResolvedConfig()}>
-          <ThemeProvider mode="dark" source={emptyThemeSource}>
-            <Keymap.Provider>
-              <ToastProvider>
-                <DialogProvider>
-                  <Written />
-                </DialogProvider>
-              </ToastProvider>
-            </Keymap.Provider>
-          </ThemeProvider>
-        </ConfigProvider>
-      </TestTuiContexts>
-    ),
-    { width: 80, height: 24, kittyKeyboard: true },
+  await using setup = await renderTui(() => <Written />, { width: 80 })
+  const app = setup.app
+  await app.waitForFrame((frame) => frame.includes("three"))
+  const original = background(app, rowOf(app, "two"))
+  const three = rowOf(app, "three")
+  await app.mockMouse.drag(0, rowOf(app, "two"), 0, three)
+  await app.waitForFrame(
+    () =>
+      rowOf(app, "Leave a comment") === three + 1 &&
+      app.renderer.currentFocusedRenderable instanceof TextareaRenderable,
   )
-  try {
-    app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("three"))
-    const original = background(app, rowOf(app, "two"))
-    await app.mockMouse.drag(0, rowOf(app, "two"), 0, rowOf(app, "three"))
-    await app.waitForFrame(
-      (frame) =>
-        frame.includes("notes.txt L2-L3") && app.renderer.currentFocusedRenderable instanceof TextareaRenderable,
-    )
-    expect(background(app, rowOf(app, "two"))).not.toBe(original)
-    app.mockInput.typeText("Trim")
-    app.mockInput.pressEnter()
-    await app.waitForFrame(() => sent.length === 1)
-    expect(sent).toEqual(["Review comment on notes.txt L2-L3:\n\n```diff\n+two\n+three\n```\n\nTrim"])
-  } finally {
-    app.renderer.destroy()
-    await temporary[Symbol.asyncDispose]()
-  }
+  expect(rowOf(app, "L2-L3 · enter send")).toBe(three + 2)
+  expect(background(app, rowOf(app, "two"))).not.toBe(original)
+  expect(marker(app, lineNumbers(app.renderer.root)[0]!, rowOf(app, "three"))).toBe("▌")
+  app.mockInput.typeText("Trim")
+  app.mockInput.pressEnter()
+  await app.waitForFrame(() => sent.length === 1)
+  expect(sent).toEqual(["notes.txt L2-L3\n\n```diff\n+two\n+three\n```\n\nTrim"])
 })
 
 async function renderComment(options: { view: "unified" | "split"; width: number; comment?: boolean }) {
-  const temporary = await tmpdir()
   const sent: string[] = []
   function Diff() {
     const theme = useTheme()
-    const comment = useLineComment()
+    const comment = createLineComment(async (text) => {
+      sent.push(text)
+    })
     return (
-      <PatchDiff
-        diff={patch}
-        hunkFg={theme.diff.text.hunkHeader}
-        view={options.view}
-        showLineNumbers={true}
-        width="100%"
-        fg={theme.text.base}
-        addedBg={theme.diff.background.added}
-        removedBg={theme.diff.background.removed}
-        contextBg={theme.diff.background.context}
-        lineNumberFg={theme.diff.lineNumber.text}
-        lineNumberBg={theme.diff.background.context}
-        addedLineNumberBg={theme.diff.lineNumber.background.added}
-        removedLineNumberBg={theme.diff.lineNumber.background.removed}
-        selectedBg={theme.diff.background.selected}
-        onSelectLines={
-          options.comment === false
-            ? undefined
-            : (lines) =>
-                comment({
-                  file: "src/file.txt",
-                  lines,
-                  send: async (text) => {
-                    sent.push(text)
-                  },
-                })
-        }
-      />
+      <box>
+        <PatchDiff
+          diff={patch}
+          hunkFg={theme.diff.text.hunkHeader}
+          view={options.view}
+          showLineNumbers={true}
+          width="100%"
+          fg={theme.text.base}
+          addedBg={theme.diff.background.added}
+          removedBg={theme.diff.background.removed}
+          contextBg={theme.diff.background.context}
+          lineNumberFg={theme.diff.lineNumber.text}
+          lineNumberBg={theme.diff.background.context}
+          addedLineNumberBg={theme.diff.lineNumber.background.added}
+          removedLineNumberBg={theme.diff.lineNumber.background.removed}
+          selectedBg={theme.diff.background.selected}
+          selectedMarker={theme.diff.highlight.selected}
+          onSelectLines={
+            options.comment === false
+              ? undefined
+              : (lines, anchor) => comment.open("diff", "src/file.txt", lines, anchor)
+          }
+        />
+        <comment.Box at="diff" />
+      </box>
     )
   }
+  const setup = await renderTui(() => <Diff />, { width: options.width })
+  await setup.app.waitForFrame((frame) => frame.includes("const newFirst"))
+  return { ...setup, sent }
+}
+
+async function renderTui(render: () => JSX.Element, options: { width: number }) {
+  const temporary = await tmpdir()
   const app = await testRender(
     () => (
       <TestTuiContexts directory={temporary.path} paths={{ state: temporary.path }}>
         <ConfigProvider config={createTuiResolvedConfig()}>
           <ThemeProvider mode="dark" source={emptyThemeSource}>
             <Keymap.Provider>
-              <ToastProvider>
-                <DialogProvider>
-                  <Diff />
-                </DialogProvider>
-              </ToastProvider>
+              <ToastProvider>{render()}</ToastProvider>
             </Keymap.Provider>
           </ThemeProvider>
         </ConfigProvider>
@@ -235,10 +256,8 @@ async function renderComment(options: { view: "unified" | "split"; width: number
     { width: options.width, height: 24, kittyKeyboard: true },
   )
   app.renderer.start()
-  await app.waitForFrame((frame) => frame.includes("const newFirst"))
   return {
     app,
-    sent,
     async [Symbol.asyncDispose]() {
       app.renderer.destroy()
       await temporary[Symbol.asyncDispose]()
@@ -252,11 +271,21 @@ function diffSides(root: Renderable): LineNumberRenderable[] {
   return root.getChildren().flatMap(diffSides)
 }
 
+function lineNumbers(root: Renderable): LineNumberRenderable[] {
+  if (root instanceof LineNumberRenderable) return [root]
+  return root.getChildren().flatMap(lineNumbers)
+}
+
 function rowOf(app: Awaited<ReturnType<typeof testRender>>, text: string) {
   return app
     .captureCharFrame()
     .split("\n")
     .findIndex((line) => line.includes(text))
+}
+
+/** The character in the gutter's first column, where the selection bar and its `+` draw. */
+function marker(app: Awaited<ReturnType<typeof testRender>>, side: LineNumberRenderable, row: number) {
+  return app.captureCharFrame().split("\n")[row]?.[side.x] ?? ""
 }
 
 /** The background of the row's line-number gutter. */

@@ -178,7 +178,11 @@ const DiffDefinition = Schema.Struct({
     }),
   ),
   highlight: Schema.optional(
-    Schema.Struct({ added: Schema.optional(ColorValue), removed: Schema.optional(ColorValue) }),
+    Schema.Struct({
+      added: Schema.optional(ColorValue),
+      removed: Schema.optional(ColorValue),
+      selected: Schema.optional(ColorValue),
+    }),
   ),
   lineNumber: Schema.optional(
     Schema.Struct({
@@ -262,7 +266,7 @@ const CompleteThemeTokensDefinition = Schema.Struct({
       context: ColorValue,
       selected: Schema.optional(ColorValue),
     }),
-    highlight: Schema.Struct({ added: ColorValue, removed: ColorValue }),
+    highlight: Schema.Struct({ added: ColorValue, removed: ColorValue, selected: Schema.optional(ColorValue) }),
     lineNumber: Schema.Struct({
       text: ColorValue,
       background: Schema.Struct({ added: ColorValue, removed: ColorValue }),

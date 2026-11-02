@@ -105,7 +105,7 @@ The vertical tab subtree lists unresolved children (running, pending, permission
 
 ## Diff Line Comments (TUI)
 
-In the session transcript, the diffs of `edit` and `apply_patch` tool calls and the numbered content of `write` calls (quoted as added lines) take review comments: pressing or dragging down the line numbers picks lines within one hunk (and one side in split view); text on the code side still selects for copying. Releasing opens a one-line comment prompt, and submitting sends a normal prompt to the viewed session (`Review comment on <file> L<a>-L<b>:`, the picked lines in a `diff` fence, then the comment), so it queues while the session works. Ranges name new line numbers, or old ones marked `(removed)` when only removed lines are picked. Picked lines use the theme token `diff.background.selected`, which defaults to `$hue.interactive.700` for themes that do not set it. `createLineSelection` (`component/line-selection.ts`) owns picking and painting on any `LineNumberRenderable`; `PatchDiff` only uses it when given `onSelectLines`; `useLineComment` (`component/line-comment.tsx`) owns the prompt and message format.
+Dragging down the line numbers of an in-chat edit, patch or write block picks lines, GitHub style, and sends a comment on them to the session as a prompt.
 
 ## Message Actions Jump (TUI)
 
