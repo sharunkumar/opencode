@@ -6,7 +6,7 @@
 
 ## Builtin Plugin Options
 
-A `plugins` config entry whose `package` exactly matches a builtin (or SDK/instance) plugin id enables it and passes `options` as `ctx.options`; it is never installed as a package. Wildcard selectors (`custom.*`) do not pass options. Options are folded into the plugin revision, so editing them reloads the plugin. Plugins should decode `ctx.options` with a schema at their own boundary.
+A `plugins` config entry whose `package` is a builtin plugin id enables it and passes `options` to it. Wildcard entries (`custom.*`) pass no options.
 
 ## Disabled Workflows
 
@@ -18,7 +18,7 @@ Deleted `.opencode/tool/github-pr-search.ts` and `github-triage.ts`: v1-style to
 
 ## Fork CI Workflow
 
-`ci.yml` is the fork's only workflow (upstream's `release.yml` is kept as upstream has it, disabled): it checks pull requests and pushes to `dev`, and on a push to `dev` (forks only) builds all `packages/cli` targets, archives them as `opencode-<os>-<arch>[-baseline][-musl].{zip,tar.gz}`, and uploads to a datever GitHub Release.
+`ci.yml` is the fork's only workflow: it checks pull requests and pushes to `dev`, and on a push to `dev` builds the CLI and publishes a datever GitHub Release.
 
 ## Makefile
 
@@ -30,9 +30,7 @@ Git merge drivers (`packages/core/script/merge-driver.ts`) resolve `migration.ge
 
 ## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`)
 
-Submitting while the assistant is working normally steers/queues the message (shown with a `QUEUED` badge). The new `prompt_interrupt_submit` keybind (default `ctrl+return`, command `prompt.interrupt_submit`) instead aborts the active run and then submits, so the prompt starts a fresh run. No-op on an empty prompt; behaves like a normal submit when idle.
-
-`ctrl+return` is removed from `input_newline` (now `shift+return,alt+return,ctrl+j`) so Ctrl+Enter is free. Ctrl+Enter is distinct from plain Enter only under the kitty keyboard protocol; without it, terminals collapse it into a newline. `super+return` (Cmd+Enter) was dropped because macOS terminals reserve Cmd.
+`ctrl+return` (`prompt_interrupt_submit`) aborts the active run and submits the prompt as a fresh run. It needs the kitty keyboard protocol, and it is no longer a newline key.
 
 ## Click-to-Toggle MCPs in TUI Sidebar
 
@@ -52,11 +50,11 @@ Bash/shell tool commands use tree-sitter bash highlighting. The `$ ` marker rend
 
 ## Provider Colorization (TUI)
 
-Providers get stable theme colors (like agents/modes) in the model picker and prompt footer. `providerColor(theme, id)` hashes the provider id into the theme's `categorical` palette, the same role agents use; there are no per-provider brand hues. `DialogSelect` takes an optional `colorBy` callback so the widget stays domain-agnostic; the model dialog wires it for `{ providerID }` values.
+Each provider gets a stable theme color in the model picker and prompt footer.
 
 ## Model Keyword Highlights (TUI)
 
-`cli.json` `model_keywords: string[]` colorizes matching substrings in model names in the picker and prompt footer. Each entry is a case-insensitive regex (a plain string matches itself); first non-overlapping, longest matches win and only the matched span is tinted. Keyword colors are offset by the provider count in the same `categorical` palette so they stay distinct until it wraps. A v1 `tui.json` `model_keywords` entry is not read.
+`cli.json` `model_keywords` (case-insensitive regexes) colors matching text in model names in the picker and prompt footer.
 
 ## Free Badge for Zero-Cost Models (TUI)
 
@@ -64,7 +62,7 @@ Model picker shows a `Free` footer for any model with `cost.input === 0`, not on
 
 ## Agent Cycle Tab Strip (TUI)
 
-Tab cycles to the next agent and Shift+Tab to the previous one (`agent.cycle` / `agent.cycle.reverse`). Cycling briefly shows a colored tab list of visible agents (agent color as background on the active tab, black or white text by luminance). Settles back to the normal agent/model footer after 500ms idle. Clicking a tab selects it and closes the strip.
+Tab and Shift+Tab cycle agents forward and back, briefly showing a colored list of agents; click one to select it.
 
 ## `/timeouts` Command
 
@@ -92,7 +90,7 @@ The expanded vertical rail groups tabs under project headers and nests child ses
 
 ## Vertical Tab Compact Layout (TUI)
 
-In the expanded vertical rail, the project name shows only in the group header, not again on each tab's detail line; the detail row renders only when there is a worktree branch (`⎇ branch`). Tabs under the same project header sit directly under each other with no blank row (and no separator pulse between them), and idle tabs show a `•` in the status column. Compact rail, tooltips, and horizontal tabs are unchanged.
+In the expanded vertical rail, a tab shows a second line only when it has a worktree branch, tabs in one project group sit with no gap, and idle tabs show `•`.
 
 ## Subagent List Order (TUI)
 
@@ -124,11 +122,11 @@ Clicking a markdown link to a directory (trailing `/`, e.g. `[core](packages/cor
 
 ## Context Sidebar
 
-Plugin (`custom.context` + TUI `custom.sidebar.context`): the sidebar lists the current session's context as **Instructions** (ambient and session-injected instruction files; home paths show as `~`, and a symlinked global config dir shows the configured path), **Skills** (by name: mentions, `skill` messages, and completed `skill` tool calls in the post-compaction window, plus skills from `custom.skills.auto-load` via `custom-auto-load-skills`), and one node per session root. The backend takes each root's Instructions from `SessionRoots` (the same files the model receives) and groups loaded Skills by the root that provides them (a skill the primary Location also has stays under the primary Skills). Each root renders as a top-level node next to Instructions and Skills, labelled with its directory (displayed like other paths: project-relative, else `~`); a root inside the OS temp directory (`os.tmpdir()` and its real path) is flagged `temp` by the backend and shown as a muted `tmp/` prefix followed by the rest of the path; there is no explicit "Roots" header. Root nodes start collapsed and a click on the root's label toggles its contents and copies the root's absolute path (with a toast; no icons; the open state is not persisted). Empty subsections are hidden; Instructions and Skills never collapse.
+Plugin (`custom.context` + TUI `custom.sidebar.context`): the sidebar lists the session's loaded instruction files, loaded skills, and one collapsible node per session root. Clicking a root copies its path.
 
 ## Pull Request Sidebar
 
-Plugin (`custom.pull-requests` + TUI `custom.sidebar.pull-requests`): the sidebar lists pull requests linked in user messages and assistant replies (not tool calls, reasoning, or other transcript noise) as `owner/repo#n`; clicking one opens it. Only full `https://<host>/<owner>/<repo>/pull/<n>` URLs match. github.com is always recognized; add enterprise hosts with `{ "plugins": [{ "package": "custom.pull-requests", "options": { "hosts": ["ghe.example.com"] } }] }`. Two or fewer stay expanded; more collapse behind a click toggle.
+Plugin (`custom.pull-requests` + TUI `custom.sidebar.pull-requests`): the sidebar lists pull requests linked in the chat as `owner/repo#n`; click to open. Add enterprise hosts with the `hosts` plugin option.
 
 ## Cancel Tool
 
