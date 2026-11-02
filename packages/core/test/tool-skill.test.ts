@@ -13,7 +13,7 @@ import { Config } from "@opencode/core/config"
 import { Bus } from "@opencode/core/bus"
 import { SkillTool } from "@opencode/core/tool/plugin/skill"
 import { Tool } from "@opencode/core/tool"
-import { tmpdir } from "./fixture/tmpdir"
+import { tmpdirScoped } from "./fixture/tmpdir"
 import { Image } from "@opencode/core/image"
 import { it } from "./lib/effect"
 import { imagePassthrough } from "./lib/image"
@@ -26,7 +26,7 @@ import { registerIntegrationPolicy, setOrganizationPolicy } from "./fixture/poli
 const skillToolNode = makeLocationNode({
   name: "test/skill-tool-plugin",
   layer: Layer.effectDiscard(registerToolPlugin(SkillTool.Plugin)),
-  deps: [Tool.node, FSUtil.node, SessionRoots.node, Permission.node],
+  deps: [Tool.node, FSUtil.node, SessionRoots.node, Skill.node, Permission.node],
 })
 
 const sessionID = Session.ID.make("ses_skill_tool_test")
@@ -68,10 +68,7 @@ describe("SkillTool", () => {
   )
 
   it.live("lists available skills, authorizes the selected ID, and loads model-facing content", () =>
-    Effect.acquireRelease(
-      Effect.promise(() => tmpdir()),
-      (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
-    ).pipe(
+    tmpdirScoped().pipe(
       Effect.flatMap((tmp) =>
         Effect.gen(function* () {
           const directory = path.join(tmp.path, "effect")
@@ -110,6 +107,7 @@ describe("SkillTool", () => {
           })
           const skills = Layer.mock(Skill.Service, {
             get: (id) => Effect.succeed(current.find((skill) => skill.id === id)),
+            files: () => Effect.undefined,
             list: () => Effect.succeed(current),
           })
           const skillToolLayer = AppNodeBuilder.build(LayerNode.group([Tool.node, skillToolNode]), [

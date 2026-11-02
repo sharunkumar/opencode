@@ -35,7 +35,7 @@ const before = (tool: string, sessionID: Session.ID, input: unknown) => ({
 it.effect("drops a subagent sessionID that is not a child session", () =>
   Effect.gen(function* () {
     const hooks = yield* PluginHooks.Service
-    const host = yield* PluginHost.make(yield* Plugin.Service)
+    const host = yield* PluginHost.make(yield* Plugin.Service, "test")
     yield* CustomTaskResumePlugin.Plugin.effect(host)
     const sessionID = Session.ID.make("ses_custom_parent")
     const invalid = before("subagent", sessionID, { agent: "explore", sessionID: "not-a-session" })
@@ -53,7 +53,7 @@ it.effect("drops a subagent sessionID that is not a child session", () =>
 it.effect("disables the default shell timeout until a session opts in", () =>
   Effect.gen(function* () {
     const hooks = yield* PluginHooks.Service
-    const host = yield* PluginHost.make(yield* Plugin.Service)
+    const host = yield* PluginHost.make(yield* Plugin.Service, "test")
     yield* CustomTimeoutsPlugin.Plugin.effect(host)
     const sessionID = Session.ID.make("ses_custom_timeouts")
     const off = before("shell", sessionID, { command: "sleep 1" })

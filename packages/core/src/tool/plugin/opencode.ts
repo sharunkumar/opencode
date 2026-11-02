@@ -7,6 +7,7 @@ import { Model } from "@opencode/schema/model"
 import { AbsolutePath } from "@opencode/schema/schema"
 import { Session } from "@opencode/schema/session"
 import { Effect, Option, Schema } from "effect"
+import { toolFailure } from "../runtime.js"
 import { FileAccess } from "../../file-access.js"
 import { Git } from "../../git.js"
 import { Permission } from "../../permission.js"
@@ -257,9 +258,7 @@ export const Plugin = {
                 action: "edit",
                 resources: [target.resource],
                 save: ["*"],
-                sessionID: context.sessionID,
-                agent: context.agent,
-                source: { type: "tool", messageID: context.messageID, id: context.id },
+                ...Permission.invocation(context),
               })
               yield* ctx.worktree
                 .remove({
@@ -272,13 +271,7 @@ export const Plugin = {
                 output: { directory: target.absolute, removed: true },
                 content: `Removed worktree ${target.absolute}.`,
               }
-            }).pipe(
-              Effect.mapError((error) =>
-                error instanceof ToolFailure
-                  ? error
-                  : new ToolFailure({ message: `Unable to remove worktree ${input.directory}`, error }),
-              ),
-            ),
+            }).pipe(Effect.mapError(toolFailure(`Unable to remove worktree ${input.directory}`))),
         })
         draft.add({
           name: "models",
