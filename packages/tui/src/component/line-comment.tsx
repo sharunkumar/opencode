@@ -97,9 +97,21 @@ function LineCommentBox(props: {
     ],
   }))
 
-  onMount(() => textarea()?.focus())
+  // Focus moving elsewhere (a click on the composer or another pane) dismisses the box and leaves focus where it went.
+  const state = { blurred: false }
+  const dismiss = () => {
+    state.blurred = true
+    props.onCancel()
+  }
+  onMount(() => {
+    const element = textarea()
+    if (!element) return
+    element.focus()
+    element.on("blurred", dismiss)
+    onCleanup(() => element.off("blurred", dismiss))
+  })
   onCleanup(() => {
-    if (previous && !previous.isDestroyed) previous.focus()
+    if (!state.blurred && previous && !previous.isDestroyed) previous.focus()
   })
 
   // The box floats inside a transcript row, whose clicks open message actions.

@@ -111,6 +111,24 @@ test("hovering a line shows a plus in its gutter, and the bar follows a drag up 
   expect(setup.sent).toHaveLength(0)
 })
 
+test("the comment box closes without sending when it loses focus", async () => {
+  await using setup = await renderComment({ view: "unified", width: 80 })
+  const app = setup.app
+  const side = diffSides(app.renderer.root)[0]!
+  const removed = rowOf(app, "const oldFirst")
+  const original = background(app, removed)
+
+  await app.mockMouse.drag(side.x + 1, removed, side.x + 1, removed)
+  await app.waitForFrame(() => app.renderer.currentFocusedRenderable instanceof TextareaRenderable)
+  app.mockInput.typeText("Half")
+  app.renderer.currentFocusedRenderable?.blur()
+  await app.waitForFrame(
+    (frame) =>
+      !frame.includes("enter send") && background(app, removed) === original && marker(app, side, removed) === " ",
+  )
+  expect(setup.sent).toHaveLength(0)
+})
+
 test("split line numbers comment on one side and cancelling sends nothing", async () => {
   await using setup = await renderComment({ view: "split", width: 160 })
   const app = setup.app
