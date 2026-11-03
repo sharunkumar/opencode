@@ -2,151 +2,160 @@
 
 ## Skill Auto-Load
 
-`auto_load` is a plugin (`custom.skills.auto-load`): configure it with `{ "plugins": [{ "package": "custom.skills.auto-load", "options": { "skills": ["a", "b"] } }] }` to inject those skills into main-session system prompts and omit them from `available_skills`.
+The plugin `custom.skills.auto-load` adds named skills to the system prompts of main sessions. It removes those skills from `available_skills`. Configure it with `{ "plugins": [{ "package": "custom.skills.auto-load", "options": { "skills": ["a", "b"] } }] }`.
 
 ## Builtin Plugin Options
 
-A `plugins` config entry whose `package` is a builtin plugin id enables it and passes `options` to it. Wildcard entries (`custom.*`) pass no options.
+A `plugins` config entry enables a builtin plugin when its `package` is the plugin id. The entry passes `options` to the plugin. Wildcard entries (`custom.*`) pass no options.
 
 ## Disabled Workflows
 
-Only `ci` runs on this fork. After merging upstream, run `make disable-workflows` to disable the rest.
+Only `ci` runs on this fork. After you merge upstream, run `make disable-workflows`. It disables all other workflows.
 
 ## Removed Upstream Custom Tools
 
-Deleted `.opencode/tool/github-pr-search.ts` and `github-triage.ts`: v1-style tools (`import { tool } from "@opencode/plugin"`) that fail to load on v2 and break every prompt run in this repo.
+The fork removed `.opencode/tool/github-pr-search.ts` and `github-triage.ts`. These tools use the v1 style (`import { tool } from "@opencode/plugin"`). They fail to load on v2 and break every prompt run in this repo.
 
 ## Fork CI Workflow
 
-`ci.yml` is the fork's only workflow: it checks pull requests and pushes to `dev`, and on a push to `dev` builds the CLI and publishes a datever GitHub Release.
+`ci.yml` is the only workflow of the fork. It checks pull requests and pushes to `dev`. On a push to `dev`, it builds the CLI and publishes a datever GitHub Release.
 
 ## Makefile
 
-`make build-single` builds the single-file `opencode` binary, `make generate` regenerates the protocol, client, and docs, `make tests` runs the fork's tests, and `make git-setup` registers the merge drivers below.
+- `make build-single` builds the single-file `opencode` binary.
+- `make generate` regenerates the protocol, the client, and the docs.
+- `make tests` runs the tests of the fork.
+- `make git-setup` registers the merge drivers (see Migration Merge Drivers).
 
 ## Migration Merge Drivers
 
-Git merge drivers (`packages/core/script/merge-driver.ts`) resolve `migration.gen.ts` and `schema.json` when upstream adds a migration next to the fork's. Run `make git-setup` once per clone.
+The merge drivers in `packages/core/script/merge-driver.ts` resolve `migration.gen.ts` and `schema.json`. They apply when upstream adds a migration next to the migration of the fork. Run `make git-setup` one time in each clone.
 
 ## Interrupt-and-Submit Keybind (`prompt_interrupt_submit`)
 
-`ctrl+return` (`prompt_interrupt_submit`) aborts the active run and submits the prompt as a fresh run. It needs the kitty keyboard protocol, and it is no longer a newline key.
+`ctrl+return` (`prompt_interrupt_submit`) stops the active run and submits the prompt as a new run. It needs the kitty keyboard protocol. It no longer inserts a newline.
 
 ## Click-to-Toggle MCPs in TUI Sidebar
 
-Clicking an MCP in the sidebar enables or disables it. In-flight connections use status `pending` (upstream rename of `connecting`); the web UI still labels it "connecting". V1 servers that emit `connecting` are normalized to `pending` at the load boundary.
+Click an MCP in the sidebar to enable or disable it. A connection in progress has the status `pending` (upstream renamed `connecting` to `pending`). The web UI still shows "connecting". V1 servers that send `connecting` become `pending` when the config loads.
 
 ## Prompt Stash Defaults
 
-Default keybinds: `ctrl+s` to stash the current prompt, `ctrl+shift+s` to pop the last stashed prompt.
+`ctrl+s` stashes the current prompt. `ctrl+shift+s` restores the last stashed prompt.
 
 ## Terminal Title Without `OC |` Prefix
 
-Session and plugin terminal titles use the bare title/id (no `OC |` prefix).
+Terminal titles of sessions and plugins show the plain title or id. They have no `OC |` prefix.
 
 ## Bash Tool Syntax Highlighting (TUI)
 
-Bash/shell tool commands use tree-sitter bash highlighting. The `$ ` marker renders separately so the shell grammar only sees the command.
+The TUI highlights commands of the bash and shell tools with tree-sitter bash. The `$ ` marker renders separately, so the shell grammar sees only the command.
 
 ## Provider Colorization (TUI)
 
-Each provider gets a stable theme color in the model picker and prompt footer.
+Each provider has a stable theme color in the model picker and in the prompt footer.
 
 ## Model Keyword Highlights (TUI)
 
-`cli.json` `model_keywords` (case-insensitive regexes) colors matching text in model names in the picker and prompt footer.
+The `cli.json` setting `model_keywords` holds case-insensitive regexes. The TUI colors the matching text in model names in the model picker and in the prompt footer.
 
 ## Free Badge for Zero-Cost Models (TUI)
 
-Model picker shows a `Free` footer for any model with `cost.input === 0`, not only `opencode` provider models.
+The model picker shows a `Free` footer for each model with `cost.input === 0`. This applies to all providers, not only `opencode`.
 
 ## Agent Cycle Tab Strip (TUI)
 
-Tab and Shift+Tab cycle agents forward and back, briefly showing a colored list of agents; click one to select it.
+Tab selects the next agent. Shift+Tab selects the previous agent. A colored list of agents shows for a short time. Click an agent in the list to select it.
 
 ## `/timeouts` Command
 
-Plugin (`custom.shell.timeouts` + TUI `custom.timeouts`): foreground shell commands have no default timeout until `/timeouts` is toggled for the session. Explicit `timeout` on a call still applies; background calls are untouched. Contract in `packages/schema/src/custom-timeouts.ts`.
+The plugins `custom.shell.timeouts` and `custom.timeouts` (TUI) remove the default timeout of foreground shell commands. The default timeout returns only after you toggle `/timeouts` for the session. A `timeout` set on a call still applies. Background calls are not affected. The contract is in `packages/schema/src/custom-timeouts.ts`.
 
 ## Task Tool Invalid `task_id`
 
-Plugin (`custom.tool.subagent.resume`): a subagent `sessionID` that is not a child of the current session starts a new subagent instead of failing.
+The plugin `custom.tool.subagent.resume` starts a new subagent when the `sessionID` is not a child of the current session. Before, the call failed.
 
 ## Vertical Tabs Default
 
-Session tabs default to vertical in the TUI (`tabs.layout`) and desktop app (`appearance.tabLayout`).
+Session tabs are vertical by default in the TUI (`tabs.layout`) and in the desktop app (`appearance.tabLayout`).
 
 ## Vertical Tab Title Wrapping (TUI)
 
-Expanded vertical tab titles word-wrap onto as many rows as they need instead of cropping, and the tab grows to fit; the compact rail and project line still crop.
+In the expanded vertical rail, a long tab title wraps onto more rows, and the tab grows to fit. The compact rail and the project line crop the text.
 
 ## Vertical Tab Close Mark (TUI)
 
-In the expanded vertical rail, hovering an idle tab turns its `•` into `✕`; click it to close the tab. Horizontal tabs keep upstream's close button.
+In the expanded vertical rail, hover over an idle tab to change its `•` to `✕`. Click the `✕` to close the tab. Horizontal tabs keep the close button of upstream.
 
 ## Vertical Tab Project Groups (TUI)
 
-The expanded vertical rail groups tabs under project headers and nests child sessions under their parent tab; manual tab reordering is disabled while `tabs.layout` is vertical.
+The expanded vertical rail groups tabs under project headers. It nests child sessions under their parent tab. You cannot reorder tabs by hand while `tabs.layout` is vertical.
 
 ## Vertical Tab Compact Layout (TUI)
 
-In the expanded vertical rail, a tab shows a second line only when it has a worktree branch, tabs in one project group sit with no gap, and idle tabs show `•`.
+In the expanded vertical rail, a tab shows a second line only when it has a worktree branch. Tabs of one project group have no gap between them. Idle tabs show `•`.
 
 ## Subagent List Order (TUI)
 
-The vertical tab subtree lists unresolved children (running, pending, permission, or question), the child being viewed, and ancestors of those, oldest-first by `time.created`. The subagent picker lists children oldest-first by `time.created`.
+The vertical tab subtree lists these sessions, oldest first by `time.created`:
+
+- unresolved children (running, pending, permission, or question)
+- the child that you view
+- the ancestors of these sessions
+
+The subagent picker lists all children, oldest first by `time.created`.
 
 ## Diff Line Comments (TUI)
 
-Dragging down the line numbers of an in-chat edit, patch or write block picks lines, GitHub style, and sends a comment on them to the session as a prompt.
+Drag down the line numbers of an edit, patch, or write block in the chat to select lines, as on GitHub. The TUI sends a comment on the selected lines to the session as a prompt.
 
 ## Message Actions Jump (TUI)
 
-Clicking a message hides Jump to in Message Actions. The timeline still shows it.
+When you click a message, Message Actions does not show Jump to. The timeline still shows it.
 
 ## Session List Preview (TUI) [NOT MIGRATED]
 
-The session list (`<leader>l`) previews the highlighted session's latest messages on terminals 128 columns or wider.
+On terminals that are 128 columns or wider, the session list (`<leader>l`) previews the latest messages of the highlighted session.
 
 ## Retitle After Compaction
 
-Plugin (`custom.session.retitle`): regenerates a top-level session's title from the compaction summary after every compaction, unless the session was renamed by hand.
+The plugin `custom.session.retitle` writes a new title for a top-level session from the compaction summary. It runs after each compaction. It does not run when you renamed the session by hand.
 
 ## Skill Mentions Use `/`
 
-Skills are mentioned and autocompleted as `/skill-id` (leading `/` menu in the TUI and app composer) instead of `@skill-id`; `@` stays for files, agents, and references.
+Type `/skill-id` to mention a skill. The `/` menu in the TUI and in the app composer completes it. This replaces `@skill-id`. `@` still mentions files, agents, and references.
 
 ## Directory Links Open in Sublime Merge (TUI)
 
-Clicking a markdown link to a directory (trailing `/`, e.g. `[core](packages/core/)`) copies its absolute path and runs `smerge` on it; a missing path toasts an error. `make tests` runs the fork tests.
+Click a markdown link to a directory (the path ends with `/`, for example `[core](packages/core/)`). The TUI copies the absolute path and runs `smerge` on it. If the path does not exist, the TUI shows an error toast.
 
 ## Context Sidebar
 
-Plugin (`custom.context` + TUI `custom.sidebar.context`): the sidebar lists the session's loaded instruction files, loaded skills, and one collapsible node per session root. Clicking a root copies its path.
+The plugins `custom.context` and `custom.sidebar.context` (TUI) fill the sidebar. It lists the instruction files and skills that the session loaded. It also lists one collapsible node for each session root. Click a root to copy its path.
 
 ## Pull Request Sidebar
 
-Plugin (`custom.pull-requests` + TUI `custom.sidebar.pull-requests`): the sidebar lists pull requests linked in the chat as `owner/repo#n`; click to open. Add enterprise hosts with the `hosts` plugin option.
+The plugins `custom.pull-requests` and `custom.sidebar.pull-requests` (TUI) fill the sidebar. It lists the pull requests that the chat links, as `owner/repo#n`. Click an entry to open it. The plugin option `hosts` adds enterprise hosts.
 
 ## Cancel Tool
 
-`cancel` tool: agents cancel a background `shell` or `subagent` they started by passing the shell ID or subagent `sessionID` from its `background: true` result (which now names the id); jobs owned by another session are refused.
+The `cancel` tool stops a background `shell` or `subagent` that the agent started. The agent passes the shell ID or the `sessionID` from the result of the `background: true` call. The result names this id. The tool refuses jobs that belong to another session.
 
-Plugin (`custom.tool.cancel-hints`): tells the model to use `cancel` in the shell tool's description and background results.
+The plugin `custom.tool.cancel-hints` tells the model to use `cancel`. It adds this to the shell tool description and to the background results.
 
 ## Session Roots
 
-A session has one working directory plus optional `roots`: extra directories that are in scope like it, with no `external_directory` approval.
+A session has one working directory. It can also have `roots`: extra directories that are in scope like the working directory. Access to a root needs no `external_directory` approval.
 
-- Models add and remove roots with `session_root_add` / `session_root_remove` (plugin `custom.session.roots`); the API has `/api/session/:sessionID/root`.
-- A root's instruction files and skills load into the session's context.
-- Session move is upstream's and works with roots; `session.fork` also takes an optional `directory`.
-- In the TUI workspaces dialog, `ctrl+m` moves the session and `ctrl+y` adds a root.
+- Models add and remove roots with `session_root_add` and `session_root_remove` (plugin `custom.session.roots`). The API path is `/api/session/:sessionID/root`.
+- The instruction files and skills of a root load into the context of the session.
+- Session move is the move of upstream. It works with roots. `session.fork` also accepts an optional `directory`.
+- In the TUI workspaces dialog, `ctrl+m` moves the session. `ctrl+y` adds a root.
 
 ## Session Move Disabled for Models
 
-Plugin (`custom.tool.session-move.disable`): hides the `session_move` tool from models. Users can still move sessions.
+The plugin `custom.tool.session-move.disable` hides the `session_move` tool from models. Users can still move sessions.
 
 ## Instruction Filenames
 
-Auto-loaded instruction filenames are `InstructionDiscovery.filenames` (`AGENTS.md`, `CLAUDE.local.md`, `AGENTS.local.md`, `PATCH.md`), shared by the startup walk and the read-time walk.
+`InstructionDiscovery.filenames` lists the instruction files that load automatically: `AGENTS.md`, `CLAUDE.local.md`, `AGENTS.local.md`, and `PATCH.md`. The walk at startup and the walk at read time use this list.
