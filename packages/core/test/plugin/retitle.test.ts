@@ -8,6 +8,7 @@ import { PluginHost } from "@opencode/core/plugin/host"
 import { Session } from "@opencode/core/session"
 import { SessionEvent } from "@opencode/core/session/event"
 import { Model } from "@opencode/schema/model"
+import { Money } from "@opencode/schema/money"
 import { Provider } from "@opencode/schema/provider"
 import { Effect } from "effect"
 import { testEffect } from "../lib/effect"
@@ -29,7 +30,11 @@ const setup = Effect.gen(function* () {
       generate: (input) =>
         Effect.sync(() => {
           generated.push(input.sessionID)
-          return { text: "Generated title\nextra line" }
+          return {
+            text: "Generated title\nextra line",
+            tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            cost: Money.USD.make(0),
+          }
         }),
     },
   })

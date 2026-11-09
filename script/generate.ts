@@ -6,7 +6,7 @@ await $`bun run generate`.cwd("packages/protocol")
 
 await $`bun run generate`.cwd("packages/client")
 
-await $`bun run generate`.cwd("services/www")
+await $`bun run generate`.cwd("services/site")
 
 // Upstream does not keep the repo prettier-clean, so format only what generation touched.
 const changed = (await $`git diff --name-only --diff-filter=AM`.text()).split("\n").filter(Boolean)
