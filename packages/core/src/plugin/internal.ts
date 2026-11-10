@@ -212,6 +212,7 @@ export const requirements = LayerNode.group([
   InstructionDiscovery.node,
   Integration.node,
   Job.node,
+  Shell.daemonNode,
   KV.node,
   llmClient,
   Location.node,
