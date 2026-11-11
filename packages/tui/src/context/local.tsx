@@ -85,9 +85,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       )
       const colors = createMemo(() => {
         // The new designs palette keeps its vivid accent at 400; 200 there is a muted tint.
-        const step = newDesigns() ? 400 : 200
+        const steps = newDesigns() ? ([400, 600] as const) : ([200, 400] as const)
         return dedupeWith(
-          theme.categorical.map((scale) => scale[step]),
+          steps.flatMap((step) => theme.categorical.map((scale) => scale[step])),
           (first, second) => first.equals(second),
         )
       })
