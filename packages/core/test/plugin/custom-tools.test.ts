@@ -131,7 +131,7 @@ describe("custom.tool.cancel-hints", () => {
     Effect.promise(async () => {
       const source = await Bun.file(path.join(import.meta.dir, "../../src/tool/plugin/shell.ts")).text()
       expect(source).toContain(CustomCancelHintsPlugin.backgroundSentence)
-      expect(source).toContain("Command moved to the background (shell ID: ${shellID})")
+      expect(source).toContain("Command moved to the background (shell ID: ${info.id})")
     }),
   )
 
