@@ -22,7 +22,7 @@ export function linkDirectoryMarkdown(renderable: Renderable) {
 function linkCode(renderable: CodeRenderable) {
   const onChunks = renderable.onChunks
   renderable.onChunks = async (chunks, context) =>
-    linkDirectorySpans((await onChunks?.(chunks, context)) ?? chunks, context)
+    linkDirectorySpans((await onChunks?.call(renderable, chunks, context)) ?? chunks, context)
   const content = renderable.content
   renderable.content = ""
   renderable.content = content
