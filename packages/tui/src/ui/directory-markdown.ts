@@ -28,7 +28,7 @@ function linkCode(renderable: CodeRenderable) {
   renderable.content = content
 }
 
-async function linkDirectorySpans(chunks: Parameters<OnChunks>[0], context: Parameters<OnChunks>[1]) {
+export async function linkDirectorySpans(chunks: Parameters<OnChunks>[0], context: Parameters<OnChunks>[1]) {
   const candidates = context.highlights.flatMap(([start, end, group]) => {
     if (group !== "markup.raw" && !group.startsWith("markup.raw.")) return []
     const text = context.content.slice(start, end).replace(/^`+|`+$/g, "")

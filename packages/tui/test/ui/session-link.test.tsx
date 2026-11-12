@@ -12,6 +12,7 @@ import { TuiAppProvider } from "../../src/context/runtime"
 import { StorageProvider } from "../../src/context/storage"
 import { ThemeProvider } from "../../src/context/theme"
 import { DialogProvider, useDialog } from "../../src/ui/dialog"
+import { clickedLink } from "../../src/ui/link"
 import { useSessionLinks } from "../../src/ui/session-link"
 import { ToastProvider } from "../../src/ui/toast"
 import { emptyThemeSource, tmpdir } from "../fixture/fixture"
@@ -295,6 +296,61 @@ test("a label change re-highlights only the blocks that mention that session", a
     await waitForHighlightedFrame(app, (frame) => frame.includes("@Renamed"))
     expect(reset.length).toBeGreaterThan(0)
     expect(reset.every((text) => text.startsWith("First"))).toBe(true)
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("a renamed session relabels in a block that also links a directory", async () => {
+  await using state = await tmpdir()
+  const calls = createFetch(async () => undefined)
+  const opened: string[] = []
+  let data!: ReturnType<typeof useData>
+
+  function Transcript() {
+    data = useData()
+    data.session.remember({ ...known })
+    const links = useSessionLinks()
+    const renderer = useRenderer()
+    const syntaxStyle = SyntaxStyle.fromStyles({ default: { fg: "#ffffff" } }, renderer.nativeScene)
+    onCleanup(() => syntaxStyle.destroy())
+    return (
+      <box
+        onMouseUp={(event) => {
+          const link = clickedLink(renderer, event)
+          if (link) opened.push(link)
+        }}
+      >
+        <markdown
+          ref={links}
+          internalBlockMode="top-level"
+          conceal
+          syntaxStyle={syntaxStyle}
+          content={`See ${known.id}\n\nDir \`${state.path}\``}
+        />
+      </box>
+    )
+  }
+
+  const app = await mount(state.path, calls.fetch, () => <Transcript />, 200, 6)
+  const linked = () =>
+    app
+      .captureSpans()
+      .lines.flatMap((line) => line.spans)
+      .filter((span) => span.attributes & TextAttributes.UNDERLINE)
+      .map((span) => span.text.trim())
+      .join(" ")
+
+  try {
+    await waitForHighlightedFrame(app, () => linked().includes("@Fix"))
+    data.session.remember({ ...known, title: "Renamed" })
+    await waitForHighlightedFrame(app, () => linked().includes("@Renamed"))
+
+    const rows = app.captureCharFrame().split("\n")
+    const y = rows.findIndex((row) => row.startsWith("Dir"))
+    app.renderer.clearSelection()
+    await app.mockMouse.click(rows[y]!.indexOf("/"), y)
+    expect(opened).toEqual([state.path])
   } finally {
     app.renderer.destroy()
   }

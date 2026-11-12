@@ -16,6 +16,7 @@ import { displayLabel } from "@opencode/util/session-title-fallback"
 import { useData } from "../context/data"
 import { useRoute } from "../context/route"
 import { stringWidth } from "../util/string-width"
+import { linkDirectorySpans } from "./directory-markdown"
 import { useDialog } from "./dialog"
 import { plainClick } from "./link"
 
@@ -104,7 +105,10 @@ export function useSessionLinks() {
       return part.sessionID ? [{ start, end: offset, sessionID: part.sessionID }] : []
     })
     rendered.set(this, { text: parts.map((part) => part.chunk.text).join(""), ranges, sessionIDs })
-    return parts.map((part) => part.chunk)
+    return linkDirectorySpans(
+      parts.map((part) => part.chunk),
+      context,
+    )
   }
 
   createEffect(() => {
