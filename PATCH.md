@@ -67,6 +67,10 @@ The model picker shows a `Free` footer for each model with `cost.input === 0`. T
 
 Tab selects the next agent. Shift+Tab selects the previous agent. A colored list of agents shows for a short time. Click an agent in the list to select it.
 
+## Agent Colors (TUI)
+
+An agent without a `color` gets a stable color from its id.
+
 ## `/timeouts` Command
 
 The plugins `custom.shell.timeouts` and `custom.timeouts` (TUI) remove the default timeout of foreground shell commands. The default timeout returns only after you toggle `/timeouts` for the session. A `timeout` set on a call still applies. Background calls are not affected. The contract is in `packages/schema/src/custom-timeouts.ts`.

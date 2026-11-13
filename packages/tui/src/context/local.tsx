@@ -1,5 +1,5 @@
 import { createStore } from "solid-js/store"
-import { dedupeWith } from "effect/Array"
+import ColorHash from "color-hash"
 import { createSimpleContext } from "./helper"
 import { batch, createMemo, onCleanup } from "solid-js"
 import { useEvent } from "./event"
@@ -18,8 +18,7 @@ import {
   type ModelPreference,
   type ModelPreferenceModel,
 } from "../model-preference"
-import { useTheme } from "./theme"
-import { useNewDesigns } from "../config"
+import { useThemes } from "./theme"
 import { useToast } from "../ui/toast"
 import { useRoute } from "./route"
 import { useData } from "./data"
@@ -27,13 +26,17 @@ import { usePermission } from "./permission"
 import { useLocation } from "./location"
 import { parse } from "../util/model"
 
+const agentColorHash = {
+  dark: new ColorHash({ lightness: [0.6, 0.7], saturation: [0.55, 0.7] }),
+  light: new ColorHash({ lightness: [0.35, 0.45], saturation: [0.6, 0.75] }),
+}
+
 export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
   name: "Local",
   init: () => {
     const data = useData()
     const toast = useToast()
-    const theme = useTheme()
-    const newDesigns = useNewDesigns()
+    const themes = useThemes()
     const route = useRoute()
     const paths = useTuiPaths()
     const args = useArgs()
@@ -83,14 +86,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             setAgentStore("draftBySession", evt.data.sessionID, { agent: undefined })
         }),
       )
-      const colors = createMemo(() => {
-        // The new designs palette keeps its vivid accent at 400; 200 there is a muted tint.
-        const step = newDesigns() ? 400 : 200
-        return dedupeWith(
-          theme.categorical.map((scale) => scale[step]),
-          (first, second) => first.equals(second),
-        )
-      })
       return {
         list() {
           return agents()
@@ -143,12 +138,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           settle()
         },
         color(id: string) {
-          const index = visibleAgents().findIndex((agent) => agent.id === id)
-          if (index === -1) return colors()[0]
-          const agent = visibleAgents()[index]
-
-          if (agent?.color) return RGBA.fromHex(agent.color)
-          return colors()[index % colors().length]
+          const configured = visibleAgents().find((agent) => agent.id === id)?.color
+          if (configured) return RGBA.fromHex(configured)
+          return RGBA.fromHex(agentColorHash[themes.mode()].hex(id))
         },
       }
     }
