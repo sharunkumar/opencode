@@ -369,13 +369,14 @@ export const { use: useSessionTabs, provider: SessionTabsProvider } = createSimp
         setExpandedGroups(id, undefined)
       })
       const known = currentTab()
-      const closed = closeSessionTab(state().tabs, target, known?.sessionID === target ? known.index : undefined)
+      const lastIndex = known?.sessionID === target ? known.index : undefined
+      const closed = closeSessionTab(state().tabs, target, lastIndex)
       const selected = navigate && current() === target
       if (closed.tabs === state().tabs && !selected) return
       const previous = selected
         ? moveSessionTabHistory(recordSessionTabHistory(history, target), closed.tabs, target, -1)
         : { history, sessionID: undefined }
-      const next = previous.sessionID ?? closeSessionTab(ordered(), target).next
+      const next = previous.sessionID ?? closeSessionTab(ordered(), target, lastIndex).next
       history = previous.history
       update((draft) => {
         draft.tabs = closeSessionTab(draft.tabs, target).tabs
