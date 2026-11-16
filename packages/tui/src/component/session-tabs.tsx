@@ -109,6 +109,7 @@ export const EMPTY_SESSION_TAB_STATUS: SessionTabsStatus = {
   promptPulse: 0,
   attention: false,
   busy: false,
+  shell: false,
   renaming: false,
 }
 export type SessionTabsController = Pick<ContextController, "tabs" | "current" | "select" | "close" | "move"> & {
@@ -183,6 +184,7 @@ function TabIndicator(props: {
     if (runs()) return spinner().frames[0]
     if (props.label === "+") return "+"
     if (props.status.unread || fading()) return TAB_UNREAD_MARKERS[props.unreadMarker ?? "small-dot"]
+    if (props.status.shell) return "$"
     return props.idleLabel ?? ""
   }
   return (

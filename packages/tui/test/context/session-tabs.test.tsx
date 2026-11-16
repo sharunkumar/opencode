@@ -826,6 +826,43 @@ test("user prompt admissions pulse an already-busy background tab", async () => 
   }
 })
 
+test("flags a tab while a shell of its session is running", async () => {
+  const setup = await renderSessionTabs("background", { persisted: ["background"] })
+  const info = {
+    id: "sh_tab",
+    status: "running",
+    command: "bun dev",
+    cwd: directory,
+    shell: "/bin/sh",
+    file: "/tmp/opencode-shell-tab",
+    metadata: { sessionID: "background" },
+    time: { started: 1 },
+  } as const
+
+  try {
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "background"))
+    expect(setup.tabs.status("background").shell).toBe(false)
+
+    setup.emit({
+      id: "evt_shell_other",
+      created: 0,
+      type: "shell.created",
+      data: { info: { ...info, id: "sh_other", metadata: { sessionID: "other" } } },
+    })
+    await Bun.sleep(20)
+    expect(setup.tabs.status("background").shell).toBe(false)
+
+    setup.emit({ id: "evt_shell_created", created: 0, type: "shell.created", data: { info } })
+    await wait(() => setup.tabs.status("background").shell)
+    expect(setup.tabs.status("background").busy).toBe(false)
+
+    setup.emit({ id: "evt_shell_exited", created: 0, type: "shell.exited", data: { id: "sh_tab", status: "exited" } })
+    await wait(() => !setup.tabs.status("background").shell)
+  } finally {
+    await setup.destroy()
+  }
+})
+
 test("tracks a temporary new session tab across close and creation", async () => {
   const setup = await renderSessionTabs("first", { persisted: ["first"] })
 

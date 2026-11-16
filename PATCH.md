@@ -99,6 +99,10 @@ The expanded vertical rail groups tabs under project headers. It nests child ses
 
 In the expanded vertical rail, a tab shows a second line only when it has a worktree branch. Tabs of one project group have no gap between them. Idle tabs show `•`.
 
+## Tab Shell Marker (TUI)
+
+A tab shows `$` in the indicator while a shell of its session (or a subagent of it) runs and nothing else (busy, attention, unread) takes the indicator.
+
 ## Subagent List Order (TUI)
 
 The vertical tab subtree lists these sessions, oldest first by `time.created`:

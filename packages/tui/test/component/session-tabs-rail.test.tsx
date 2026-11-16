@@ -82,6 +82,9 @@ test("compact rail renders and controls session tabs", async () => {
     setStatus({ ...EMPTY_SESSION_TAB_STATUS, busy: true, attention: "question" })
     await app.waitForFrame((frame) => frame.split("\n")[5].slice(0, 5).trim() === "?")
 
+    setStatus({ ...EMPTY_SESSION_TAB_STATUS, shell: true })
+    await app.waitForFrame((frame) => frame.split("\n")[5].slice(0, 5).trim() === "$")
+
     setIndicators("numbers")
     await app.waitForFrame((frame) => frame.split("\n")[5].slice(0, 5).trim() === "2")
     expect([3, 5, 7].map((row) => app.captureCharFrame().split("\n")[row].slice(0, 5).trim())).toEqual(["1", "2", "3"])

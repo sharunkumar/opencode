@@ -136,6 +136,8 @@ for (const orientation of ["horizontal", "vertical"] as const) {
         { status: { busy: true, attention: "permission" }, label: "!" },
         { status: { unread: "activity" }, label: "\u2022" },
         { status: { unread: "error" }, label: "\u2022" },
+        { status: { shell: true }, label: "$" },
+        { status: { shell: true, busy: true }, label: SPINNER_FRAMES[0] },
         { status: {}, label: "" },
       ]
       for (const state of states) {

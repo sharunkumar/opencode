@@ -188,6 +188,7 @@ export const { use: useSessionTabs, provider: SessionTabsProvider } = createSimp
             data.session.status(id) === "running" ||
             data.session.pending.list(id).some((item) => item.type !== "synthetic"),
         ),
+        shell: members.some((id) => data.shell.listBySession(id).some((shell) => shell.status === "running")),
         renaming: data.session.title.pending(session),
       }
     }
@@ -315,7 +316,11 @@ export const { use: useSessionTabs, provider: SessionTabsProvider } = createSimp
         )
         await Promise.allSettled(
           Array.from(locations.values(), (location) =>
-            Promise.all([data.location.syncInfo(location), data.location.vcs.sync(location)]),
+            Promise.all([
+              data.location.syncInfo(location),
+              data.location.vcs.sync(location),
+              data.shell.sync(location),
+            ]),
           ),
         )
       })()
