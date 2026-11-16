@@ -57,6 +57,10 @@
       "dependsOn": ["transit"],
       "outputs": []
     },
+    "test:fork": {
+      "dependsOn": ["transit"],
+      "outputs": []
+    },
     "@opencode/desktop#test": {
       "outputs": [],
       "cache": false

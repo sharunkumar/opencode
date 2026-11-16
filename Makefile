@@ -2,20 +2,6 @@
 
 BUN := mise exec -- bun
 
-# Tests for changes made in this fork, relative to each package.
-TUI_FORK_TESTS := test/ui/directory-link.test.ts test/ui/directory-markdown.test.tsx test/util/session.test.ts \
-	test/cli/tui/data.test.tsx test/cli/tui/dialog-open.test.tsx test/cli/tui/prompt-move.test.tsx test/config.test.tsx \
-	test/context/session-tabs.test.tsx test/app-lifecycle.test.tsx test/component/session-tabs-rail.test.tsx \
-	test/component/line-comment.test.tsx
-CORE_FORK_TESTS := test/plugin/custom.test.ts test/plugin/supervisor.test.ts test/tool-cancel.test.ts \
-	test/session-create.test.ts test/session-roots.test.ts test/session-skill.test.ts test/session-generate.test.ts \
-	test/session-owned.test.ts test/session-runner.test.ts test/tool-skill.test.ts test/file-access.test.ts \
-	test/bus-session-routing.test.ts test/subagent-lifetime.test.ts test/websearch.test.ts test/v1-migration.test.ts \
-	test/session-move.test.ts test/tool-opencode.test.ts test/merge-driver.test.ts test/plugin/custom-tools.test.ts \
-	test/plugin/retitle.test.ts
-SCHEMA_FORK_TESTS := test/event-manifest.test.ts
-SDK_FORK_TESTS := test/instances-effect.test.ts
-
 install-deps: git-setup
 	$(BUN) install
 
@@ -48,10 +34,7 @@ tests: install-deps
 	# Merges keep the fork's generated files as text, but upstream can add sections that only regeneration fills in.
 	cd packages/protocol && $(BUN) run check:generated
 	cd packages/client && $(BUN) run check:generated
-	cd packages/tui && $(BUN) run test $(TUI_FORK_TESTS)
-	cd packages/core && $(BUN) run test $(CORE_FORK_TESTS)
-	cd packages/schema && $(BUN) run test $(SCHEMA_FORK_TESTS)
-	cd packages/sdk && $(BUN) run test $(SDK_FORK_TESTS)
+	$(BUN) turbo run test:fork --filter=@opencode/tui --filter=@opencode/core --filter=@opencode/schema --filter=@opencode/sdk
 
 generate: install-deps
 	./script/generate.ts
