@@ -124,6 +124,7 @@ import { stringWidth } from "../../util/string-width"
 import { useArgs } from "../../context/args"
 import { withTimestampedFallback } from "@opencode/util/session-title-fallback"
 import { SessionTurn } from "@opencode/util/session-turn"
+import { defaultComposerTab } from "../../util/session"
 import { TextBoundary } from "@opencode/util/text-boundary"
 import { useSessionTabs, type ScrollAnchor } from "../../context/session-tabs"
 import { createSingleFlight } from "../../util/single-flight"
@@ -1410,7 +1411,14 @@ export function Session(props: {
       run: (tab?: string) => {
         if (tab === "shell" || tab === "subagents") setComposer({ open: true, tab })
         else if (composer.open || session()?.parentID) setComposer("open", false)
-        else setComposer({ open: true, tab: "subagents" })
+        else
+          setComposer({
+            open: true,
+            tab: defaultComposerTab({
+              subagents: data.session.family(route.sessionID).filter((id) => id !== route.sessionID).length,
+              shells: data.shell.listBySession(route.sessionID).filter((shell) => shell.status === "running").length,
+            }),
+          })
         dialog.clear()
       },
     },

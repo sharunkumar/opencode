@@ -8,6 +8,10 @@ type SessionNode = {
   time?: { created: number }
 }
 
+export function defaultComposerTab(input: { subagents: number; shells: number }) {
+  return input.subagents === 0 && input.shells > 0 ? "shell" : "subagents"
+}
+
 export function sessionFamily<T extends SessionNode>(sessions: readonly T[], sessionID: string) {
   const byID = new Map(sessions.map((session) => [session.id, session]))
   const current = byID.get(sessionID)

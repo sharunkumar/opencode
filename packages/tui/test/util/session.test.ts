@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { sessionFamily } from "../../src/util/session"
+import { defaultComposerTab, sessionFamily } from "../../src/util/session"
 
 describe("util.session", () => {
   test("flattens nested subagents from any session in the family", () => {
@@ -31,5 +31,12 @@ describe("util.session", () => {
     ]
 
     expect(sessionFamily(sessions, "late").map((row) => row.session.id)).toEqual(["early", "late"])
+  })
+
+  test("focuses shells only when there are no subagents", () => {
+    expect(defaultComposerTab({ subagents: 0, shells: 2 })).toBe("shell")
+    expect(defaultComposerTab({ subagents: 1, shells: 2 })).toBe("subagents")
+    expect(defaultComposerTab({ subagents: 1, shells: 0 })).toBe("subagents")
+    expect(defaultComposerTab({ subagents: 0, shells: 0 })).toBe("subagents")
   })
 })
