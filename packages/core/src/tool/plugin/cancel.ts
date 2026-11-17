@@ -56,7 +56,7 @@ export const Plugin = {
                   content: `Background job ${info.id} is already ${info.status}.`,
                 }
               if (info.type === "subagent") yield* sessions.interrupt(SessionSchema.ID.make(info.id))
-              yield* jobs.cancel(info.id)
+              yield* jobs.cancel(info.id, "agent")
               return {
                 output: { id: info.id, status: "cancelled" as const },
                 content: `Cancelled background job ${info.id}.`,

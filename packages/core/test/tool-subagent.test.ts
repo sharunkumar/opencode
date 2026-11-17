@@ -581,7 +581,7 @@ describe("SubagentTool", () => {
             "continue while running",
           )
           expect((yield* jobs.get(child.id))?.status).toBe("running")
-          yield* jobs.cancel(child.id)
+          yield* jobs.cancel(child.id, "user")
         }),
       ),
     ),
@@ -1043,7 +1043,7 @@ describe("SubagentJob cancellation", () => {
 
       yield* subagents.start(recovery("ses_job_cancel_parent", cancelChild))
       yield* Deferred.await(cancelStarted)
-      yield* jobs.cancel(cancelChild)
+      yield* jobs.cancel(cancelChild, "user")
       expect(interrupted.has(cancelChild)).toBe(true)
       expect(interrupts).toEqual([cancelChild])
       expect(claimed.has(cancelChild)).toBe(false)

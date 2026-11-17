@@ -151,9 +151,9 @@ The `cancel` tool stops a background `shell` or `subagent` that the agent starte
 
 The plugin `custom.tool.cancel-hints` tells the model to use `cancel`. It adds this to the shell tool description and to the background results.
 
-## Killed Shell Reports Cancelled
+## Cancel Sources
 
-A background shell that the user kills (`ctrl+d` in the shell tab) reports "cancelled" to the session. Before, it reported "failed".
+Every job cancel names its source: `user`, `agent` (the `cancel` tool), or `session` (the owning session stopped). Shell notices say who cancelled the command, for example "Command cancelled by the user". A shell that the user kills (`ctrl+d` in the shell tab) reports "cancelled", not "failed".
 
 ## Session Roots
 

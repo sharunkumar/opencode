@@ -121,7 +121,7 @@ describe("subagent observer lifetime", () => {
             )
             yield* locations.invalidate(parent.location)
           }
-          if (outcome === "cancelled") yield* jobs.cancel(child.id)
+          if (outcome === "cancelled") yield* jobs.cancel(child.id, "user")
           yield* gate.release
           yield* jobs.wait({ id: child.id })
           yield* llm.wait(2).pipe(Effect.timeout("2 seconds"))

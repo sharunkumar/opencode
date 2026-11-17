@@ -429,7 +429,7 @@ const layer = Layer.effect(
         yield* result.get(sessionID)
         yield* execution.interrupt(sessionID)
         yield* execution.awaitIdle(sessionID)
-        yield* jobs.cancelSession(sessionID)
+        yield* jobs.cancelSession(sessionID, "session")
         yield* transport.close(sessionID)
         const children = yield* store.list({ parentID: sessionID })
         // Delete the parent before its children: an interrupted child settles through the report

@@ -341,7 +341,7 @@ describe("experimental_image_generate", () => {
       const jobs = yield* Job.Service
       const id = String(result.metadata?.jobID)
       expect((yield* jobs.get(id))?.status).toBe("running")
-      yield* jobs.cancel(id)
+      yield* jobs.cancel(id, "user")
       expect(yield* notice(result)).toBe(
         `<image id="${id}" state="cancelled">\nImage request for ${path.join(directory, "out")} was cancelled.\n</image>`,
       )

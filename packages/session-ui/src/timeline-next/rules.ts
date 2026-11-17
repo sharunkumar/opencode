@@ -86,13 +86,20 @@ export function toolFailed(tool: SessionMessageAssistantTool) {
 
 /**
  * Whether the user stopped a call, by stopping the turn or cancelling its command. The shell reports a cancelled
- * command as its own error, "Command cancelled".
+ * command as its own error, naming who cancelled it.
  */
 export function toolStopped(tool: SessionMessageAssistantTool) {
   if (tool.state.status !== "error") return false
 
-  return isInterruptedError(tool.state.error) || tool.state.error.message === "Command cancelled"
+  return isInterruptedError(tool.state.error) || cancelledMessages.has(tool.state.error.message)
 }
+
+const cancelledMessages = new Set([
+  "Command cancelled",
+  "Command cancelled by the user",
+  "Command cancelled by the agent",
+  "Command cancelled because its session was stopped",
+])
 
 /** Whether a part of an assistant message shows. A failure shows only where its category does. */
 export function contentShows(detail: TimelineDetail, content: Content) {

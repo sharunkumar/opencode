@@ -5,6 +5,7 @@ import { OpenCode } from "@opencode/client"
 import { Database } from "@opencode/core/database/database"
 import { Job } from "@opencode/core/job"
 import { Session } from "@opencode/core/session"
+import { Shell } from "@opencode/schema/shell"
 import { makeGlobalNode } from "@opencode/util/effect/app-node"
 import { Deferred, Effect, Layer } from "effect"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -18,6 +19,39 @@ const client = (handler: (request: Request) => Promise<Response>) =>
       preconnect: fetch.preconnect,
     }),
   })
+
+it.live("cancels a shell's job as the user when the shell is removed", () =>
+  Effect.gen(function* () {
+    const dir = (yield* tmpdirScoped("opencode-job-shell-remove-")).path
+    const captured = yield* Deferred.make<Job.Interface>()
+    const jobNode = makeGlobalNode({
+      service: Job.Service,
+      layer: Layer.effect(
+        Job.Service,
+        Job.make.pipe(Effect.tap((service) => Deferred.succeed(captured, service))),
+      ),
+      deps: [Database.node],
+    })
+    const handler = yield* ServerFetch.make(
+      {
+        app: { version: "test" },
+        database: { path: ":memory:" },
+        config: { directory: dir, project: false },
+        models: { fetch: false },
+        fs: { filewatcher: false },
+      },
+      { overrides: [Job.node.replace(jobNode)] },
+    )
+    const jobs = yield* Deferred.await(captured)
+    const api = client(handler)
+    const id = Shell.ID.create()
+
+    yield* jobs.start({ id, type: "shell", run: Effect.never })
+    yield* Effect.promise(() => api.shell.remove({ id, location: { directory: dir } }))
+
+    expect(yield* jobs.get(id)).toMatchObject({ status: "cancelled", cancelled_by: "user" })
+  }),
+)
 
 it.live("lists background jobs by session, kind, and descendants until completion notice clears them", () =>
   Effect.gen(function* () {

@@ -98,7 +98,7 @@ describe("CancelTool", () => {
 
       expect(yield* call("shell_other")).toMatchObject({ status: "error" })
       expect(yield* jobs.get("shell_other")).toMatchObject({ status: "running" })
-      yield* jobs.cancel("shell_other")
+      yield* jobs.cancel("shell_other", "user")
     }),
   )
 })

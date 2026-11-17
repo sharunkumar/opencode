@@ -34,7 +34,7 @@ tests: install-deps
 	# Merges keep the fork's generated files as text, but upstream can add sections that only regeneration fills in.
 	cd packages/protocol && $(BUN) run check:generated
 	cd packages/client && $(BUN) run check:generated
-	$(BUN) turbo run test:fork --filter=@opencode/tui --filter=@opencode/core --filter=@opencode/schema --filter=@opencode/sdk
+	$(BUN) turbo run test:fork --filter=@opencode/tui --filter=@opencode/core --filter=@opencode/schema --filter=@opencode/sdk --filter=@opencode/server --filter=@opencode/session-ui
 
 generate: install-deps
 	./script/generate.ts

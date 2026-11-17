@@ -57,6 +57,7 @@
     "typecheck": "bun check --no-script -b",
     "typecheck:tsc": "tsc -b",
     "test": "bun test src --only-failures",
+    "test:fork": "bun test --only-failures src/timeline-next/rules.test.ts",
     "test:components": "playwright test --config playwright.components.config.ts",
     "test:components:ui": "playwright test --config playwright.components.config.ts --ui"
   },

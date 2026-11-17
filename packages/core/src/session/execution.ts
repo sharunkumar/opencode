@@ -160,7 +160,7 @@ export const layer = Layer.effect(
             }
             // Claim the Job generation before cancelling it so the settlement commit owns its outbox row.
             const settlement = yield* subagentReport.prepare(sessionID, outcome)
-            if (outcome.type === "interrupted") yield* jobs.cancel(sessionID)
+            if (outcome.type === "interrupted") yield* jobs.cancel(sessionID, "session")
             yield* publishTerminal(bus, sessionID, outcome, settlement.commit)
             // Post-commit delivery is best effort: a retained outbox marker is recovered on the
             // next restart, and a delivery defect must not fail the settled hook.

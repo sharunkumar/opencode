@@ -1,3 +1,4 @@
+import { Job } from "@opencode/core/job"
 import { Shell } from "@opencode/core/shell"
 import { Location } from "@opencode/core/location"
 import { Effect } from "effect"
@@ -8,6 +9,7 @@ import { response } from "../location"
 
 export const ShellHandler = HttpApiBuilder.group(Api, "server.shell", (handlers) =>
   Effect.gen(function* () {
+    const jobs = yield* Job.Service
     return handlers
       .handle(
         "shell.list",
@@ -64,6 +66,7 @@ export const ShellHandler = HttpApiBuilder.group(Api, "server.shell", (handlers)
         "shell.remove",
         Effect.fn(function* (ctx) {
           const shell = yield* Shell.Service
+          yield* jobs.cancel(ctx.params.id, "user")
           yield* shell.remove(ctx.params.id).pipe(Effect.catchTag("Shell.NotFoundError", () => Effect.void))
           return HttpApiSchema.NoContent.make()
         }),

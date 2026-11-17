@@ -147,7 +147,7 @@ describe("Job", () => {
         Effect.forkChild({ startImmediately: true }),
       )
 
-      yield* jobs.cancel(job.id)
+      yield* jobs.cancel(job.id, "user")
       yield* Fiber.join(replacement)
       expect(yield* jobs.get(job.id)).toMatchObject({ type: "replacement", status: "running" })
       expect(yield* Deferred.isDone(finalized)).toBe(false)
@@ -325,7 +325,7 @@ describe("Job", () => {
       expect(marker).toMatchObject({ id: job.id, recovery, status: "running" })
       if (!marker) return yield* Effect.die("background marker missing")
 
-      yield* jobs.cancel(job.id)
+      yield* jobs.cancel(job.id, "user")
       expect((yield* jobs.pendingBackground).find((item) => item.id === job.id)).toMatchObject({
         notificationID: marker.notificationID,
         status: "cancelled",
@@ -504,8 +504,8 @@ describe("Job", () => {
         })
       yield* start("shell_cancel_one")
       yield* start("shell_cancel_session")
-      yield* jobs.cancel("shell_cancel_one")
-      yield* jobs.cancelSession(SessionSchema.ID.make("ses_cancel_hook"))
+      yield* jobs.cancel("shell_cancel_one", "user")
+      yield* jobs.cancelSession(SessionSchema.ID.make("ses_cancel_hook"), "session")
       expect(cancelled).toEqual(["shell_cancel_one", "shell_cancel_session"])
     }),
   )
@@ -534,7 +534,7 @@ describe("Job", () => {
       yield* jobs.background(other.id)
       yield* jobs.wait({ id: other.id })
 
-      const cancelled = yield* jobs.cancelSession(sessionID)
+      const cancelled = yield* jobs.cancelSession(sessionID, "session")
       expect(cancelled).toMatchObject([{ id: owned.id, status: "cancelled" }])
       yield* Deferred.await(interrupted).pipe(Effect.timeout("1 second"))
 
@@ -699,7 +699,7 @@ describe("Job", () => {
       const generation = (yield* jobs.currentGeneration(job.id))?.generation
       if (generation === undefined) return yield* Effect.die("generation missing")
 
-      yield* jobs.cancel(job.id)
+      yield* jobs.cancel(job.id, "user")
       expect(yield* jobs.get(job.id)).toMatchObject({ status: "cancelled" })
       // The cancel consumed the live entry; its matching generation still belongs to this busy period.
       expect(yield* jobs.prepareSubagentReport(job.id, generation - 1)).toEqual({ mode: "none" })
@@ -795,7 +795,7 @@ describe("Job", () => {
         run: Effect.never.pipe(Effect.ensuring(Deferred.succeed(cancelled, undefined))),
       })
       expect(yield* jobs.isCancelled(explicit.id)).toBe(false)
-      yield* jobs.cancel(explicit.id)
+      yield* jobs.cancel(explicit.id, "user")
       expect(yield* jobs.isCancelled(explicit.id)).toBe(true)
       yield* Deferred.await(cancelled).pipe(Effect.timeout("1 second"))
 
@@ -825,7 +825,7 @@ describe("Job", () => {
         background: true,
         run: Effect.never,
       })
-      yield* jobs.cancel(recovery.childSessionID)
+      yield* jobs.cancel(recovery.childSessionID, "user")
 
       // The started hook never ran, so no generation was bound; the cancel still owns this period.
       expect(yield* jobs.prepareSubagentReport(recovery.childSessionID)).toMatchObject({ mode: "background" })

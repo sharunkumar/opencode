@@ -134,6 +134,13 @@ const backgroundResult = (info: ShellSchema.Info, now: number, timeout?: number)
   status: "running" as const,
 })
 
+const cancelledMessage = (source: Job.CancelSource | undefined) => {
+  if (source === "user") return "Command cancelled by the user"
+  if (source === "agent") return "Command cancelled by the agent"
+  if (source === "session") return "Command cancelled because its session was stopped"
+  return "Command cancelled"
+}
+
 // Tells the session how a background command ended, once its job settles.
 const notify = Effect.fnUntraced(function* (
   sessions: Pick<Session.Interface, "synthetic">,
@@ -149,7 +156,11 @@ const notify = Effect.fnUntraced(function* (
   const info = (yield* jobs.wait({ id: input.id })).info
   if (!info || info.status === "running") return
   const output = info.status === "completed" ? yield* Deferred.await(input.settled) : undefined
-  const text = output ? (info.output ?? "") : info.status === "error" ? (info.error ?? "Command failed") : "Cancelled"
+  const text = output
+    ? (info.output ?? "")
+    : info.status === "error"
+      ? (info.error ?? "Command failed")
+      : cancelledMessage(info.cancelled_by)
   // A session deleted while its command ran has no one left to tell.
   yield* sessions
     .synthetic({
@@ -200,7 +211,6 @@ const startJob = Effect.fnUntraced(function* (
     run: Effect.gen(function* () {
       const result = yield* shell.result(info)
       if (!result.capture) {
-        // A command removed while running (the user's kill) is a cancellation, not a failure.
         if (result.info.status === "killed") return yield* Effect.interrupt
         return yield* new Shell.NotFoundError({ id: info.id })
       }
@@ -340,7 +350,7 @@ export const Plugin = {
       // The stop escalates to SIGKILL on its own; the session does not wait for that to settle the call.
       const result = yield* shell.result(info, { wait: INTERRUPT_WAIT })
       // The stopped job settles from the same exit; this only releases it.
-      yield* jobs.cancel(jobID)
+      yield* jobs.cancel(jobID, "user")
       const stopped = ShellResult.interrupted(result)
       return yield* new ToolFailure({
         message: stopped.message,
@@ -463,7 +473,7 @@ export const Plugin = {
                     ),
                   ).pipe(
                     Effect.onInterrupt(() =>
-                      shell.handoffPrepared() ? Effect.void : jobs.cancel(job.id).pipe(Effect.ignore),
+                      shell.handoffPrepared() ? Effect.void : jobs.cancel(job.id, "session").pipe(Effect.ignore),
                     ),
                   )
                   if (outcome.type === "cancelled") return yield* cancelled(info, job.id)
@@ -477,7 +487,8 @@ export const Plugin = {
                   }
                   if (result?.info.status === "error")
                     return yield* Effect.fail(new Error(result.info.error ?? "Command failed"))
-                  if (result?.info.status === "cancelled") return yield* Effect.fail(new Error("Command cancelled"))
+                  if (result?.info.status === "cancelled")
+                    return yield* Effect.fail(new Error(cancelledMessage(result.info.cancelled_by)))
 
                   return yield* Deferred.await(settled)
                 }).pipe(Effect.ensuring(listener ? Fiber.interrupt(listener) : Effect.void))

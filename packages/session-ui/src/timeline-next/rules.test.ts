@@ -134,9 +134,10 @@ describe("details", () => {
 describe("stopped calls", () => {
   const interrupted = { type: "aborted", message: "Tool execution interrupted" }
   const cancelled = { type: "unknown", message: "Command cancelled" }
+  const cancelledByUser = { type: "unknown", message: "Command cancelled by the user" }
 
   test("a call the user stopped or cancelled did not fail", () => {
-    for (const error of [interrupted, cancelled]) {
+    for (const error of [interrupted, cancelled, cancelledByUser]) {
       const call = errored("shell", error, { command: "git push" })
 
       expect(toolStopped(call)).toBe(true)

@@ -58,6 +58,8 @@ export type SubagentOutboxReport = {
 const decodeBackground = Schema.decodeUnknownResult(Background)
 const COMPLETED_LIMIT = 25
 
+export type CancelSource = "user" | "agent" | "session"
+
 export type Info = {
   id: string
   type: string
@@ -67,6 +69,7 @@ export type Info = {
   completed_at?: number
   output?: string
   error?: string
+  cancelled_by?: CancelSource
   metadata?: Record<string, unknown>
   notificationID?: SessionMessage.ID
 }
@@ -163,8 +166,8 @@ export interface Interface {
   readonly block: (input: BlockInput) => Effect.Effect<BlockResult | undefined>
   readonly background: (id: string) => Effect.Effect<Info | undefined>
   readonly backgroundAll: (input: BackgroundAllInput) => Effect.Effect<Info[]>
-  readonly cancel: (id: string) => Effect.Effect<Info | undefined>
-  readonly cancelSession: (sessionID: SessionSchema.ID) => Effect.Effect<Info[]>
+  readonly cancel: (id: string, source: CancelSource) => Effect.Effect<Info | undefined>
+  readonly cancelSession: (sessionID: SessionSchema.ID, source: CancelSource) => Effect.Effect<Info[]>
   readonly pendingBackground: Effect.Effect<readonly Background[]>
   readonly runningBackground: Effect.Effect<readonly Recovery[]>
   readonly backgroundJobs: Effect.Effect<readonly JobList.Item[]>
@@ -522,7 +525,7 @@ export const make = Effect.gen(function* () {
     return result.map((item) => item.info)
   })
 
-  const cancelInternal = Effect.fnUntraced(function* (id: string, persist = true) {
+  const cancelInternal = Effect.fnUntraced(function* (id: string, source: CancelSource, persist: boolean) {
     const completed_at = yield* Clock.currentTimeMillis
     const result = yield* SynchronizedRef.modifyEffect(
       state.jobs,
@@ -538,6 +541,7 @@ export const make = Effect.gen(function* () {
             ...job.info,
             status: "cancelled" as const,
             completed_at,
+            cancelled_by: source,
           },
         }
         // Settling work owns its outbox row: the settlement commit writes or deletes it.
@@ -555,13 +559,13 @@ export const make = Effect.gen(function* () {
     return result.info
   })
 
-  const cancel: Interface["cancel"] = Effect.fn("Job.cancel")((id) => cancelInternal(id, true))
+  const cancel: Interface["cancel"] = Effect.fn("Job.cancel")((id, source) => cancelInternal(id, source, true))
 
-  const cancelSession: Interface["cancelSession"] = Effect.fn("Job.cancelSession")(function* (sessionID) {
+  const cancelSession: Interface["cancelSession"] = Effect.fn("Job.cancelSession")(function* (sessionID, source) {
     const ids = [...(yield* SynchronizedRef.get(state.jobs)).values()]
       .filter((job) => job.info.status === "running" && matchesSession(job, sessionID))
       .map((job) => job.info.id)
-    const cancelled = yield* Effect.forEach(ids, (id) => cancelInternal(id, false))
+    const cancelled = yield* Effect.forEach(ids, (id) => cancelInternal(id, source, false))
     yield* db
       .delete(JobTable)
       .where(or(eq(JobTable.session_id, sessionID), eq(JobTable.child_session_id, sessionID)))

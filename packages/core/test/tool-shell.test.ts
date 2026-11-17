@@ -1536,7 +1536,7 @@ describe("ShellTool", () => {
           const shell = yield* Shell.Service
           expect((yield* shell.get(id)).status).toBe("running")
           const jobs = yield* Job.Service
-          expect(yield* jobs.cancel(id)).toMatchObject({ id, status: "cancelled" })
+          expect(yield* jobs.cancel(id, "user")).toMatchObject({ id, status: "cancelled", cancelled_by: "user" })
           // Cancelling stops the command and keeps it, output file included.
           expect((yield* shell.wait(id)).status).toBe("killed")
           expect(yield* shell.list()).toEqual([])
@@ -1813,7 +1813,7 @@ describe("ShellTool", () => {
         expect((yield* jobs.get(started.finishing.id))?.status).toBe("running")
 
         // Cancelling the session's job still stops its command.
-        yield* jobs.cancel(started.cancelled.id)
+        yield* jobs.cancel(started.cancelled.id, "agent")
         while (!fake?.ops.includes("signal")) yield* Effect.promise(() => Bun.sleep(2))
         expect(fake?.requests).toContainEqual(
           expect.objectContaining({ op: "signal", id: process(started.cancelled), signal: "SIGTERM" }),
@@ -1830,6 +1830,7 @@ describe("ShellTool", () => {
         )
         expect(notices).toContainEqual(
           expect.objectContaining({
+            text: expect.stringContaining("Command cancelled by the agent"),
             metadata: expect.objectContaining({ shellID: started.cancelled.id, state: "cancelled" }),
           }),
         )
@@ -2428,7 +2429,7 @@ describe("ShellTool stopped", () => {
                   expect(process?.pipe?.metadata).toMatchObject({ toolCall: { callID: "call-interrupted" } })
                   expect(fake?.ops).not.toContain("signal")
                   expect((yield* jobs.get(shellID))?.status).toBe("running")
-                  yield* jobs.cancel(shellID)
+                  yield* jobs.cancel(shellID, "user")
                   return
                 }
                 // Nothing will take it over, so it is stopped and its job ends.

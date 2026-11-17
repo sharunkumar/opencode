@@ -339,7 +339,7 @@ describe("SessionExecution lifecycle", () => {
         background: true,
         run: Effect.never,
       })
-      yield* jobs.cancel(child)
+      yield* jobs.cancel(child, "user")
       const scope = yield* Scope.fork(yield* Effect.scope)
       const restarted = yield* Job.make.pipe(Scope.provide(scope))
       const drained: Session.ID[] = []
@@ -952,7 +952,7 @@ describe("SessionRestart background recovery", () => {
       expect(yield* Deferred.await(seen).pipe(Effect.timeout("2 seconds"))).toMatchObject({ status: "completed" })
       expect((yield* restarted.get(info.id))?.status).toBe("running")
       // Cancelling a reattached job stops its command.
-      yield* restarted.cancel(info.id)
+      yield* restarted.cancel(info.id, "user")
       while (daemon.signals(1).length === 0) yield* Effect.sleep(5)
       expect(daemon.signals(1)).toEqual(["SIGTERM"])
     }),

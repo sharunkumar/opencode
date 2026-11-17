@@ -115,7 +115,7 @@ describe("SubagentReport settlement", () => {
         background: true,
         run: Effect.never,
       })
-      yield* jobs.cancel(cancelled)
+      yield* jobs.cancel(cancelled, "user")
 
       const started = yield* Deferred.make<void>()
       const released = yield* Deferred.make<void>()
@@ -378,7 +378,7 @@ describe("SubagentReport settlement", () => {
 
       // Match the tool's onInterrupt: cancel the job and interrupt the execution before
       // the coordinator's leading yield lets `started` run.
-      yield* jobs.cancel(child)
+      yield* jobs.cancel(child, "user")
       yield* execution.interrupt(child)
       yield* execution.awaitIdle(child)
 
