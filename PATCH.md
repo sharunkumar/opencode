@@ -151,6 +151,10 @@ The `cancel` tool stops a background `shell` or `subagent` that the agent starte
 
 The plugin `custom.tool.cancel-hints` tells the model to use `cancel`. It adds this to the shell tool description and to the background results.
 
+## Killed Shell Reports Cancelled
+
+A background shell that the user kills (`ctrl+d` in the shell tab) reports "cancelled" to the session. Before, it reported "failed".
+
 ## Session Roots
 
 A session has one working directory. It can also have `roots`: extra directories that are in scope like the working directory. Access to a root needs no `external_directory` approval.

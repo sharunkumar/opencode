@@ -1840,6 +1840,33 @@ describe("ShellTool", () => {
     ),
   )
 
+  parity.live("reports a background command removed by the user as cancelled", () =>
+    withTempDir((tmp) => {
+      reset()
+      return withSession(tmp.path, (registry) =>
+        Effect.gen(function* () {
+          const bus = yield* Bus.Service
+          const shell = yield* Shell.Service
+          const admitted = yield* bus.subscribe(SessionEvent.InboxEnqueued).pipe(
+            Stream.filter((event) => event.data.sessionID === sessionID && event.data.item.type === "synthetic"),
+            Stream.runHead,
+            Effect.forkScoped({ startImmediately: true }),
+          )
+          const settled = yield* executeTool(registry, call({ command: idleCommand, background: true }))
+          yield* shell.remove(ID.make(String(settled.metadata?.shellID)))
+
+          const notice = yield* Fiber.join(admitted).pipe(Effect.timeout("5 seconds"))
+          expect(notice._tag).toBe("Some")
+          if (notice._tag !== "Some" || notice.value.data.item.type !== "synthetic") return
+          expect(notice.value.data.item.payload.metadata).toMatchObject({
+            source: "shell",
+            state: "cancelled",
+          })
+        }),
+      )
+    }),
+  )
+
   parity.live("returns the shell id and PID for a background command", () =>
     withTempDir((tmp) => {
       reset()

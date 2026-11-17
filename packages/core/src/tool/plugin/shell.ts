@@ -199,7 +199,11 @@ const startJob = Effect.fnUntraced(function* (
     background: input.background,
     run: Effect.gen(function* () {
       const result = yield* shell.result(info)
-      if (!result.capture) return yield* new Shell.NotFoundError({ id: info.id })
+      if (!result.capture) {
+        // A command removed while running (the user's kill) is a cancellation, not a failure.
+        if (result.info.status === "killed") return yield* Effect.interrupt
+        return yield* new Shell.NotFoundError({ id: info.id })
+      }
       const completed = result.info.time.completed ?? (yield* Clock.currentTimeMillis)
       return {
         ...ShellResult.output(result),
