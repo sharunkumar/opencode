@@ -34,9 +34,14 @@ describe("util.session", () => {
   })
 
   test("focuses shells only when there are no subagents", () => {
-    expect(defaultComposerTab({ subagents: 0, shells: 2 })).toBe("shell")
-    expect(defaultComposerTab({ subagents: 1, shells: 2 })).toBe("subagents")
-    expect(defaultComposerTab({ subagents: 1, shells: 0 })).toBe("subagents")
-    expect(defaultComposerTab({ subagents: 0, shells: 0 })).toBe("subagents")
+    expect(defaultComposerTab({ subagents: [], shells: ["running", "running"] })).toBe("shell")
+    expect(defaultComposerTab({ subagents: ["running"], shells: ["running"] })).toBe("subagents")
+    expect(defaultComposerTab({ subagents: ["running"], shells: [] })).toBe("subagents")
+    expect(defaultComposerTab({ subagents: [], shells: [] })).toBe("subagents")
+  })
+
+  test("ignores finished subagents and shells", () => {
+    expect(defaultComposerTab({ subagents: ["idle", "error"], shells: ["running"] })).toBe("shell")
+    expect(defaultComposerTab({ subagents: [], shells: ["exited"] })).toBe("subagents")
   })
 })

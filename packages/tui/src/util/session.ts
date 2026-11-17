@@ -8,8 +8,9 @@ type SessionNode = {
   time?: { created: number }
 }
 
-export function defaultComposerTab(input: { subagents: number; shells: number }) {
-  return input.subagents === 0 && input.shells > 0 ? "shell" : "subagents"
+export function defaultComposerTab(input: { subagents: readonly string[]; shells: readonly string[] }) {
+  const running = (statuses: readonly string[]) => statuses.filter((status) => status === "running").length
+  return running(input.subagents) === 0 && running(input.shells) > 0 ? "shell" : "subagents"
 }
 
 export function sessionFamily<T extends SessionNode>(sessions: readonly T[], sessionID: string) {

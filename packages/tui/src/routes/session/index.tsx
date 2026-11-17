@@ -1415,8 +1415,11 @@ export function Session(props: {
           setComposer({
             open: true,
             tab: defaultComposerTab({
-              subagents: data.session.family(route.sessionID).filter((id) => id !== route.sessionID).length,
-              shells: data.shell.listBySession(route.sessionID).filter((shell) => shell.status === "running").length,
+              subagents: data.session
+                .family(route.sessionID)
+                .filter((id) => id !== route.sessionID)
+                .map((id) => data.session.status(id)),
+              shells: data.shell.listBySession(route.sessionID).map((shell) => shell.status),
             }),
           })
         dialog.clear()
