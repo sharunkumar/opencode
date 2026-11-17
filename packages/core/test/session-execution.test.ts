@@ -418,7 +418,7 @@ describe("SessionExecution lifecycle", () => {
       expect(continued.map((event) => event.data).toSorted((a, b) => a.sessionID.localeCompare(b.sessionID))).toEqual(
         [first, second].map((sessionID) => ({
           sessionID,
-          text: "The server restarted while you were working. Continue from where you left off without repeating completed work.",
+          text: "The server restarted while you were working. Continue from where you left off without repeating completed work. Background shell commands and subagents are preserved: shells keep running and subagents resume, and each reports its result when done. A job that cannot be recovered reports as cancelled or failed. Do not relaunch a job unless it reports that.",
           description: "Continuing after restart",
           metadata: { notice: "restart" },
         })),
@@ -1170,7 +1170,7 @@ describe("SessionRestart background recovery", () => {
       const execution = Context.get(context, SessionExecution.Service)
       yield* Context.get(context, SessionRestart.Service).resumeSuspendedSessions
       expect(yield* Deferred.await(observed)).toEqual([
-        "The server restarted while you were working. Continue from where you left off without repeating completed work.",
+        "The server restarted while you were working. Continue from where you left off without repeating completed work. Background shell commands and subagents are preserved: shells keep running and subagents resume, and each reports its result when done. A job that cannot be recovered reports as cancelled or failed. Do not relaunch a job unless it reports that.",
         expect.stringContaining("Command cancelled because the server restarted"),
       ])
       yield* execution.awaitIdle(parent)

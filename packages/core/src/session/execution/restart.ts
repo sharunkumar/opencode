@@ -22,7 +22,7 @@ import { SubagentCompletion } from "../subagent-completion.js"
 import { SubagentJob } from "../subagent-job.js"
 
 const CONTINUE_AFTER_SERVER_RESTART =
-  "The server restarted while you were working. Continue from where you left off without repeating completed work."
+  "The server restarted while you were working. Continue from where you left off without repeating completed work. Background shell commands and subagents are preserved: shells keep running and subagents resume, and each reports its result when done. A job that cannot be recovered reports as cancelled or failed. Do not relaunch a job unless it reports that."
 
 const RESUME_EXHAUSTED = {
   type: "aborted",
