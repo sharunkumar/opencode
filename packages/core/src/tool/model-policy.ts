@@ -22,7 +22,7 @@ export function modelTools(input: {
     for (const name of usesPatch(input.model) ? ["edit", "write"] : ["patch"]) hidden.add(name)
   }
 
-  return { hidden, direct: new Set<string>() }
+  return { hidden, direct: new Set(input.fullCodeMode ? ["shell"] : []) }
 }
 
 function usesPatch(model: Model.Info) {

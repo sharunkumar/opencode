@@ -75,6 +75,10 @@ An agent without a `color` gets a stable color from its id.
 
 The `shell` tool and the `execute` call (`full_codemode`) have no default timeout. A call waits until the command or script finishes. A `timeout` set on the call still applies: a foreground call that passes it moves to the background, and a background shell command stops. For `shell`, `timeout: 0` also means no timeout. Upstream's defaults (2 minutes for `shell`, 10 minutes for `shell` in Code Mode, 2 minutes for `execute`) are removed in `tool/plugin/shell.ts` and `codemode/job.ts`.
 
+## Direct Shell with `full_codemode`
+
+With `full_codemode`, `shell` is a direct tool and not part of the `execute` catalog (`direct` in `tool/model-policy.ts`).
+
 ## `/timeouts` Command
 
 The plugins `custom.shell.timeouts` and `custom.timeouts` (TUI) toggle a `timeout: 0` for foreground shell commands per session. Since shell calls have no default timeout, the toggle has no effect. The contract is in `packages/schema/src/custom-timeouts.ts`.
