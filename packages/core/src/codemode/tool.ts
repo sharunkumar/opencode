@@ -126,7 +126,7 @@ const description = (full: boolean) =>
     "Await every call whose completion matters; pending calls are interrupted when execution ends. Run independent calls concurrently with `Promise.allSettled`.",
     ...(full
       ? [
-          "Scripts still running after their timeout move to the background and keep running. Background scripts return a job ID immediately, and you will be notified when they complete; do not poll for them.",
+          "Scripts have no timeout unless one is set; a script still running after its timeout moves to the background and keeps running. Background scripts return a job ID immediately, and you will be notified when they complete; do not poll for them.",
         ]
       : []),
   ].join("\n")
@@ -135,7 +135,8 @@ const description = (full: boolean) =>
 export const FullInput = Schema.Struct({
   ...CodeMode.Input.fields,
   timeout: Schema.optionalKey(PositiveInt).annotate({
-    description: `Optional time in milliseconds to wait for the script before moving it to the background (default ${2 * 60 * 1_000}). The script keeps running in the background after that; it is never stopped. With \`background: true\` the call returns immediately instead.`,
+    description:
+      "Optional time in milliseconds to wait for the script before moving it to the background. Without one, the call waits until the script finishes. The script keeps running in the background after that; it is never stopped. With `background: true` the call returns immediately instead.",
   }),
   background: Schema.optionalKey(Schema.Boolean).annotate({
     description:

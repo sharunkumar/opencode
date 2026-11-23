@@ -20,8 +20,6 @@ export function notice(job: Pick<Job.Info, "id" | "status" | "output" | "error">
   }
 }
 
-const BLOCK_TIMEOUT = "2 minutes"
-
 type Execute = (context: Tool.Context) => Effect.Effect<Tool.NormalizedResult, Tool.Error>
 /** The execute call's own `timeout` and `background` inputs, which only exist with `full_codemode`. */
 export type Options = { readonly timeout?: number; readonly background?: boolean }
@@ -86,13 +84,9 @@ export const make = Effect.fnUntraced(function* (
         const blocked = options?.background
           ? Option.none()
           : yield* restore(
-              jobs
-                .block({ id, sessionID })
-                .pipe(
-                  Effect.timeoutOption(
-                    options?.timeout === undefined ? BLOCK_TIMEOUT : Duration.millis(options.timeout),
-                  ),
-                ),
+              options?.timeout === undefined
+                ? Effect.asSome(jobs.block({ id, sessionID }))
+                : jobs.block({ id, sessionID }).pipe(Effect.timeoutOption(Duration.millis(options.timeout))),
             ).pipe(Effect.onInterrupt(() => jobs.cancel(id, "session")))
         if (Option.isSome(blocked) && blocked.value?.type === "finished") return yield* Deferred.await(result)
         const job = yield* jobs.background(id)

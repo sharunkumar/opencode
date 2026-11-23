@@ -4,7 +4,6 @@ import os from "os"
 import path from "path"
 import { describe, expect } from "bun:test"
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Queue, Schedule, Scope, Stream, Tracer } from "effect"
-import { TestClock } from "effect/testing"
 import { Money } from "@opencode/schema/money"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNode } from "@opencode/util/effect/layer-node"
@@ -1026,7 +1025,7 @@ describe("ShellTool", () => {
     { timeout: 15_000 },
   )
 
-  codeModeIt.live("runs parallel Code Mode shells with the long default and notifies after a shorter timeout", () =>
+  codeModeIt.live("runs parallel Code Mode shells without a default timeout and notifies after a shorter one", () =>
     withTempDir((tmp) => {
       reset()
       return withSession(tmp.path, (registry) =>
@@ -1038,7 +1037,6 @@ describe("ShellTool", () => {
             (namespace) => namespace.entries,
           )
           expect(pinned.map((entry) => entry.path)).toEqual(["shell"])
-          expect(pinned[0]!.line).toContain("600000")
           expect(pinned[0]!.line).toContain("Execute a shell command and return its output.")
           // No background parameter in Code Mode.
           expect(pinned[0]!.line).not.toContain("background?: boolean")
@@ -1085,7 +1083,7 @@ describe("ShellTool", () => {
             outputPath: expect.any(String),
             wallTimeSeconds: expect.any(Number),
           })
-          expect(timeouts.toSorted((a, b) => a - b)).toEqual([10, 600_000])
+          expect(timeouts.toSorted((a, b) => a - b)).toEqual([0, 10])
           yield* Effect.promise(() => Bun.write(path.join(tmp.path, "release"), ""))
           expect((yield* Fiber.join(notice)).valueOrUndefined?.data.item.payload).toMatchObject({
             text: expect.stringContaining("xxxxxx"),
@@ -1689,30 +1687,21 @@ describe("ShellTool", () => {
     }),
   )
 
-  it.effect("treats a foreground timeout of zero as the default timeout", () =>
+  it.live("waits for a foreground command until it exits when no timeout is set", () =>
     withTempDir((tmp) => {
       reset()
       return withSession(tmp.path, (registry) =>
         Effect.gen(function* () {
           const running = yield* executeTool(
             registry,
-            call({ command: progressOverflowCommand(0, "release"), timeout: 0 }, "call-zero-timeout"),
+            call({ command: progressOverflowCommand(0, "release") }, "call-no-timeout"),
           ).pipe(Effect.forkScoped({ startImmediately: true }))
-          // The wait starts only after the command spawns, so keep advancing the clock until the call returns.
-          const result = yield* Fiber.join(running).pipe(
-            Effect.raceFirst(
-              Effect.forever(Effect.promise(() => Bun.sleep(20)).pipe(Effect.andThen(TestClock.adjust("2 minutes")))),
-            ),
-          )
-          expect(result.content?.[0]).toMatchObject({
-            type: "text",
-            text: expect.stringContaining("did not finish within its timeout of 120 seconds"),
-          })
-          const id = ID.make(String(result.metadata?.shellID))
-          const shell = yield* Shell.Service
-          expect((yield* shell.get(id)).status).toBe("running")
+          yield* Effect.promise(() => Bun.sleep(300))
+          expect(running.pollUnsafe()).toBeUndefined()
           yield* Effect.promise(() => Bun.write(path.join(tmp.path, "release"), ""))
-          expect(yield* shell.wait(id)).toMatchObject({ status: "exited", exit: 0 })
+          const result = yield* Fiber.join(running)
+          expect(result.metadata).toMatchObject({ status: "completed", exit: 0 })
+          expect(result.metadata).not.toHaveProperty("shellID")
         }),
       )
     }),
