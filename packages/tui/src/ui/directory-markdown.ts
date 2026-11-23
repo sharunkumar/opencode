@@ -1,50 +1,27 @@
-import { stat } from "node:fs/promises"
-import { CodeRenderable, Renderable } from "@opentui/core"
+import { statSync } from "node:fs"
+import type { MarkdownInlineHook, MarkdownInlineSpan, MarkdownRenderable } from "@opentui/core"
 import { directoryLinkPath } from "./directory-link"
 
-const hooked = new WeakSet<Renderable>()
+/** Source text that can hold an inline-code directory path; the hook runs only on blocks that contain one. */
+export const directoryHookFilter = ["`/", "`~/"] as const
 
-type OnChunks = NonNullable<CodeRenderable["onChunks"]>
-
-/** Links inline code spans holding an existing absolute directory so a click opens it like a directory link. */
-export function linkDirectoryMarkdown(renderable: Renderable) {
-  if (hooked.has(renderable)) return
-  hooked.add(renderable)
-  const add = renderable.add.bind(renderable)
-  renderable.add = (child, index) => {
-    if (child instanceof Renderable) linkDirectoryMarkdown(child)
-    return add(child, index)
-  }
-  if (renderable instanceof CodeRenderable && renderable.filetype === "markdown") linkCode(renderable)
-  renderable.getChildren().forEach(linkDirectoryMarkdown)
+/** Links an inline code span holding an existing absolute directory so a click opens it like a directory link. */
+export function linkDirectorySpan(span: MarkdownInlineSpan): MarkdownInlineSpan {
+  if (!span.code || span.link) return span
+  const text = span.text.replace(/^`+\s?|\s?`+$/g, "")
+  if (!/^(\/|~\/)\S*$/.test(text)) return span
+  const directory = directoryLinkPath(text, "/")
+  if (!directory || !isDirectory(directory)) return span
+  return { ...span, link: { url: text } }
 }
 
-function linkCode(renderable: CodeRenderable) {
-  const onChunks = renderable.onChunks
-  renderable.onChunks = async (chunks, context) =>
-    linkDirectorySpans((await onChunks?.call(renderable, chunks, context)) ?? chunks, context)
-  const content = renderable.content
-  renderable.content = ""
-  renderable.content = content
+export const directoryHook: MarkdownInlineHook = (spans, context) => (context.tableCell ? spans : spans.map(linkDirectorySpan))
+
+export function linkDirectoryMarkdown(renderable: MarkdownRenderable) {
+  renderable.inlineHook = directoryHook
+  renderable.inlineHookFilter = directoryHookFilter
 }
 
-export async function linkDirectorySpans(chunks: Parameters<OnChunks>[0], context: Parameters<OnChunks>[1]) {
-  const candidates = context.highlights.flatMap(([start, end, group]) => {
-    if (group !== "markup.raw" && !group.startsWith("markup.raw.")) return []
-    const text = context.content.slice(start, end).replace(/^`+|`+$/g, "")
-    return /^(\/|~\/)\S*$/.test(text) ? [text] : []
-  })
-  if (candidates.length === 0) return chunks
-  const directories = new Set(
-    (
-      await Promise.all(
-        [...new Set(candidates)].map(async (text) => {
-          const directory = directoryLinkPath(text, "/")
-          if (!directory) return
-          return (await stat(directory).catch(() => undefined))?.isDirectory() ? text : undefined
-        }),
-      )
-    ).filter((text) => text !== undefined),
-  )
-  return chunks.map((chunk) => (directories.has(chunk.text) && !chunk.link ? { ...chunk, link: { url: chunk.text } } : chunk))
+function isDirectory(directory: string) {
+  return statSync(directory, { throwIfNoEntry: false })?.isDirectory() === true
 }

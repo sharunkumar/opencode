@@ -25,8 +25,18 @@ import { host } from "./plugin/host"
 
 function watched(directories: string[]): Watcher.WatchInput[] {
   return directories.flatMap((directory) =>
-    InstructionDiscovery.filenames.map((name) => ({ path: path.join(directory, name), type: "file" })),
+    InstructionDiscovery.discoverable({ claude: true }).map((name) => ({
+      path: path.join(directory, name),
+      type: "file",
+    })),
   )
+}
+
+function watchedGlobal(global: string, home: string): Watcher.WatchInput[] {
+  return [
+    ...InstructionDiscovery.filenames.map((name) => ({ path: path.join(global, name), type: "file" }) as const),
+    { path: path.join(home, ".claude", "CLAUDE.md"), type: "file" },
+  ]
 }
 
 const it = testEffect(Layer.empty)
@@ -39,6 +49,7 @@ const instructionLayer = (input: {
   instructions?: string[]
   http?: HttpClient.HttpClient
   project?: boolean
+  claude?: boolean
 }) => {
   const watcher = Watcher.testLayer
   const config = Config.testLayer(input.instructions ? [configured(input.instructions)] : [])
@@ -55,7 +66,12 @@ const instructionLayer = (input: {
       ]),
       [
         Config.node.replace(config),
-        InstructionDiscovery.node.replace(InstructionDiscovery.configured({ project: input.project })),
+        InstructionDiscovery.node.replace(
+          InstructionDiscovery.configured({
+            project: input.project,
+            claude: input.claude,
+          }),
+        ),
         Global.node.replace(
           input.config || input.home
             ? Global.layerWith({
@@ -227,9 +243,10 @@ describe("ConfigInstructionPlugin.Plugin", () => {
 
           const discovery = yield* start()
           const watcher = yield* Watcher.Test
-          expect(yield* watcher.subscriptions()).toEqual(
-            watched([global, directory, path.join(project, "packages"), project, shared, home]),
-          )
+          expect(yield* watcher.subscriptions()).toEqual([
+            ...watchedGlobal(global, home),
+            ...watched([directory, path.join(project, "packages"), project, shared, home]),
+          ])
           expect(yield* watcher.subscriptions()).not.toContainEqual({
             path: path.join(tmp.path, "AGENTS.md"),
             type: "file",
@@ -416,6 +433,67 @@ describe("ConfigInstructionPlugin.Plugin", () => {
     ),
   )
 
+  it.live("falls back to CLAUDE.md where no AGENTS.md exists", () =>
+    tmpdirScoped().pipe(
+      Effect.flatMap((tmp) => {
+        const global = path.join(tmp.path, "global")
+        const home = path.join(tmp.path, "home")
+        const project = path.join(home, "repo")
+        const directory = path.join(project, "packages", "core")
+        const claudeGlobal = path.join(home, ".claude", "CLAUDE.md")
+        const projectAgents = path.join(project, "AGENTS.md")
+        const packageClaude = path.join(directory, "CLAUDE.md")
+        const load = (claude?: boolean) =>
+          Effect.gen(function* () {
+            const discovery = yield* start()
+            return (yield* readInitial(yield* discovery.load())).text
+          }).pipe(Effect.provide(layer(claude)), Effect.scoped)
+        const layer = (claude?: boolean) =>
+          instructionLayer({
+            config: global,
+            home,
+            claude,
+            locationServiceLayer: Layer.succeed(
+              Location.Service,
+              Location.Service.of(
+                location({ directory: AbsolutePath.make(directory) }, { projectDirectory: AbsolutePath.make(project) }),
+              ),
+            ),
+          })
+        return Effect.gen(function* () {
+          yield* Effect.promise(async () => {
+            await fs.mkdir(path.dirname(claudeGlobal), { recursive: true })
+            await fs.mkdir(directory, { recursive: true })
+            await fs.writeFile(claudeGlobal, "claude global")
+            await fs.writeFile(projectAgents, "project agents")
+            await fs.writeFile(path.join(project, "CLAUDE.md"), "project claude")
+            await fs.writeFile(packageClaude, "package claude")
+          })
+
+          expect(yield* load()).toBe(
+            [
+              `Instructions from: ${claudeGlobal}\nclaude global`,
+              `Instructions from: ${packageClaude}\npackage claude`,
+              `Instructions from: ${projectAgents}\nproject agents`,
+            ].join("\n\n"),
+          )
+
+          yield* Effect.promise(async () => {
+            await fs.mkdir(global, { recursive: true })
+            await fs.writeFile(path.join(global, "AGENTS.md"), "global agents")
+          })
+          const preferred = yield* load()
+          expect(preferred).toContain(`Instructions from: ${path.join(global, "AGENTS.md")}\nglobal agents`)
+          expect(preferred).not.toContain("claude global")
+
+          const disabled = yield* load(false)
+          expect(disabled).not.toContain("CLAUDE.md")
+          expect(disabled).toContain(`Instructions from: ${projectAgents}\nproject agents`)
+        })
+      }),
+    ),
+  )
+
   it.live("keeps an empty AGENTS.md as available context", () =>
     tmpdirScoped().pipe(
       Effect.flatMap((tmp) =>
@@ -494,9 +572,10 @@ describe("ConfigInstructionPlugin.Plugin", () => {
           yield* Effect.promise(() => fs.mkdir(directory, { recursive: true }))
           yield* start()
           const watcher = yield* Watcher.Test
-          expect(yield* watcher.subscriptions()).toEqual(
-            watched([global, directory, path.join(project, "packages"), project]),
-          )
+          expect(yield* watcher.subscriptions()).toEqual([
+            ...watchedGlobal(global, home),
+            ...watched([directory, path.join(project, "packages"), project]),
+          ])
         }).pipe(
           Effect.provide(
             instructionLayer({
@@ -536,7 +615,9 @@ describe("ConfigInstructionPlugin.Plugin", () => {
             const watcher = yield* Watcher.Test
             expect(yield* watcher.subscriptions()).toEqual([
               { path: path.join(global, "AGENTS.md"), type: "file" },
+              { path: path.join(home, ".claude", "CLAUDE.md"), type: "file" },
               { path: path.join(directory, "AGENTS.md"), type: "file" },
+              { path: path.join(directory, "CLAUDE.md"), type: "file" },
             ])
             expect((yield* readInitial(yield* discovery.load())).text).toBe(
               `Instructions from: ${path.join(directory, "AGENTS.md")}\nproject`,
@@ -717,7 +798,9 @@ describe("ConfigInstructionPlugin.Plugin", () => {
       )
 
       const repo = path.resolve("/repo")
-      expect(observed.values).toEqual([{ targets: [...InstructionDiscovery.filenames], start: repo, stop: repo, type: "file" }])
+      expect(observed.values).toEqual([
+        { targets: [...InstructionDiscovery.filenames, "CLAUDE.md"], start: repo, stop: repo, type: "file" },
+      ])
     }),
   )
 })

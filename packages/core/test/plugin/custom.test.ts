@@ -25,6 +25,7 @@ const it = testEffect(PluginTestLayer)
 
 const before = (tool: string, sessionID: Session.ID, input: unknown) => ({
   tool,
+  codemode: false,
   sessionID,
   agent: Agent.ID.make("build"),
   messageID: SessionMessage.ID.make("msg_custom"),

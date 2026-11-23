@@ -38,9 +38,13 @@ export const Plugin = define({
       const home = yield* fs.resolve(global.home)
       const project = discovery.project && FSUtil.contains(root, start)
       const stop = FSUtil.contains(home, start) ? home : root
-      const globalFiles = yield* Effect.all(
+      const configFiles = yield* Effect.all(
         InstructionDiscovery.filenames.map((name) => fs.resolve(join(global.config, name))),
       )
+      // ~/.claude/CLAUDE.md stands in for the global AGENTS.md when it is missing.
+      const claudeGlobalFile = yield* fs.resolve(join(home, ".claude", "CLAUDE.md"))
+      const names = InstructionDiscovery.discoverable(discovery)
+      const globalFiles = discovery.claude ? [...configFiles, claudeGlobalFile] : configFiles
       const loaded: { current: Loaded } = { current: { type: "available", files: [] } }
       const configured: { sources: string[]; remote: Map<string, InstructionDiscovery.File> } = {
         sources: [],
@@ -53,9 +57,7 @@ export const Plugin = define({
       const candidates = [
         ...(discovery.global ? globalFiles : []),
         ...(project
-          ? ancestorDirectories(start, stop).flatMap((directory) =>
-              InstructionDiscovery.filenames.map((name) => join(directory, name)),
-            )
+          ? ancestorDirectories(start, stop).flatMap((directory) => names.map((name) => join(directory, name)))
           : []),
       ].filter((file) => discovery.global || !globalFiles.includes(file))
       for (const file of new Set(candidates)) {
@@ -79,21 +81,17 @@ export const Plugin = define({
 
       const globalSource = Effect.fn("ConfigInstructionPlugin.globalSource")(function* () {
         if (!discovery.global) return []
-        const files = yield* Effect.forEach(globalFiles, (path) =>
-          Effect.gen(function* () {
-            if (!(yield* fs.isFile(path))) return
-            return yield* read(path)
-          }),
-        )
+        const present = yield* Effect.filter(globalFiles, (path) => fs.isFile(path))
+        const agents = configFiles[0]
+        const selected = present.filter((path) => path !== claudeGlobalFile || !present.includes(agents))
+        const files = yield* Effect.forEach(selected, read)
         return files.filter((file) => file instanceof InstructionDiscovery.File)
       })
 
       const projectSource = Effect.fn("ConfigInstructionPlugin.projectSource")(function* () {
         if (!project) return []
-        const walked = yield* Effect.forEach(
-          yield* fs.up({ targets: [...InstructionDiscovery.filenames], start, stop, type: "file" }),
-          fs.resolve,
-        )
+        const found = yield* fs.up({ targets: names, start, stop, type: "file" })
+        const walked = yield* Effect.forEach(InstructionDiscovery.preferAgents(found), fs.resolve)
         const discovered = new Set(walked.filter((file) => discovery.global || !globalFiles.includes(file)))
         const files = yield* Effect.forEach(discovered, read, { concurrency: "unbounded" })
         if (files.some((file) => file === undefined)) return Instructions.unavailable

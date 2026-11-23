@@ -13,7 +13,9 @@ export const Plugin = define({
     // The builtin opencode tools add a system hint that points at the removed tool. Its hook runs first.
     yield* ctx.session.hook("context", (event) =>
       Effect.sync(() => {
-        const kept = event.system.filter((part) => !part.text.includes("tools.opencode.session_move"))
+        const kept = event.system.filter(
+          (part) => !part.text.includes("tools.opencode.session.move") && !part.text.includes(tool),
+        )
         event.system.splice(0, event.system.length, ...kept)
       }),
     )

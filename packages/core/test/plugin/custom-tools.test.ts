@@ -36,7 +36,7 @@ const context = (sessionID: Session.ID): SessionHooks["context"] => ({
   model: Model.Ref.make({ providerID: Provider.ID.make("test"), id: Model.ID.make("model") }),
   system: [],
   messages: [],
-  tools: {},
+  tools: { execute: { description: "", input: {} } },
   options: {},
 })
 
@@ -51,16 +51,16 @@ describe("custom.tool.session-move.disable", () => {
       const hooks = yield* PluginHooks.Service
       const plugins = yield* host
       yield* OpenCodeTools.Plugin.effect(plugins)
-      expect(yield* names).toContain("session_move")
+      expect(yield* names).toContain("move")
       const before = context(Session.ID.make("ses_missing"))
       yield* hooks.trigger("session", "context", before)
-      expect(before.system.some((part) => part.text.includes("tools.opencode.session_move"))).toBe(true)
+      expect(before.system.some((part) => part.text.includes("tools.opencode.session.move"))).toBe(true)
 
       yield* CustomDisableSessionMovePlugin.Plugin.effect(plugins)
-      expect(yield* names).not.toContain("session_move")
+      expect(yield* names).not.toContain("move")
       const after = context(Session.ID.make("ses_missing"))
       yield* hooks.trigger("session", "context", after)
-      expect(after.system.some((part) => part.text.includes("tools.opencode.session_move"))).toBe(false)
+      expect(after.system.some((part) => part.text.includes("tools.opencode.session.move"))).toBe(false)
     }),
   )
 })
@@ -109,6 +109,7 @@ describe("custom.session.roots", () => {
 describe("custom.tool.cancel-hints", () => {
   const background = (shellID: string): PluginHooks.Domains["tool"]["execute.after"] => ({
     tool: ShellTool.name,
+    codemode: false,
     sessionID: Session.ID.make("ses_cancel_hints"),
     agent: Agent.ID.make("build"),
     messageID: SessionMessage.ID.make("msg_cancel_hints"),
