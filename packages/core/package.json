@@ -22,6 +22,7 @@
     "build": "bun run script/build.ts",
     "pack": "bun run script/pack.ts",
     "update-models-snapshot": "bun run script/update-models-snapshot.ts",
+    "generate:api-skill": "bun run script/generate-api-skill.ts",
     "test": "bun run script/test.ts",
     "test:fork": "bun run script/test.ts test/plugin/custom.test.ts test/plugin/supervisor.test.ts test/tool-cancel.test.ts test/session-create.test.ts test/session-roots.test.ts test/session-skill.test.ts test/session-generate.test.ts test/session-owned.test.ts test/session-runner.test.ts test/tool-skill.test.ts test/file-access.test.ts test/bus-session-routing.test.ts test/subagent-lifetime.test.ts test/websearch.test.ts test/v1-migration.test.ts test/session-move.test.ts test/tool-opencode.test.ts test/merge-driver.test.ts test/plugin/custom-tools.test.ts test/plugin/retitle.test.ts test/job.test.ts test/codemode-execute-options.test.ts && bun run script/test.ts test/tool-shell.test.ts -t 'cancel|reports how it ended|ShellTool stopped|no timeout is set|without a default timeout'",
     "typecheck": "bun check --no-script -b -p tsconfig.tests.json",

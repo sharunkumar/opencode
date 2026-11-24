@@ -24,8 +24,11 @@ export {
   localID,
   make,
   node,
+  type Options,
   Place,
   Service,
+  unavailable,
   workingDirectory,
+  workspace,
   workingDirectoryResolver,
 } from "./environment.js"

@@ -8,7 +8,6 @@ import { useClient } from "../../context/client"
 import { errorMessage } from "../../util/error"
 import { DialogFork } from "./dialog-fork"
 import { usePromptRestore } from "../../prompt/restore"
-import { useNewDesigns } from "../../config"
 import { appendToSessionPrompt } from "../../component/prompt/draft-stash"
 
 export function DialogMessage(props: { messageID: string; sessionID: string; jump?: boolean }) {
@@ -18,7 +17,6 @@ export function DialogMessage(props: { messageID: string; sessionID: string; jum
   const client = useClient()
   const renderer = useRenderer()
   const restorePrompt = usePromptRestore()
-  const newDesigns = useNewDesigns()
   const message = createMemo(() => data.session.message.get(props.sessionID, props.messageID))
   const jumpOption: DialogSelectOption = {
     title: "Jump to",
@@ -30,7 +28,8 @@ export function DialogMessage(props: { messageID: string; sessionID: string; jum
   return (
     <DialogSelect
       title="Message Actions"
-      renderFilter={!newDesigns()}
+      searchInTitle
+      titlePlaceholder="Search actions"
       options={[
         ...(props.jump ? [jumpOption] : []),
         {

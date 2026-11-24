@@ -2,7 +2,7 @@ export * as SkillInstructions from "./instructions.js"
 
 import { makeLocationNode } from "@opencode/util/effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
-import { Permission } from "../permission.js"
+import type { PermissionPolicy } from "../permission/policy.js"
 import { Skill } from "../skill.js"
 import { Instructions } from "../instructions/index.js"
 
@@ -47,13 +47,10 @@ const update = Instructions.listUpdate<Summary>({
 
 export interface Interface {
   /**
-   * Lists skills the given ruleset does not deny; callers pass the merged agent and Session permissions.
+   * Lists skills the given policy does not deny; callers pass the session's effective permission policy.
    * `skills` replaces the Location's skills, e.g. with Session root skills merged in.
    */
-  readonly load: (
-    permissions: Permission.Ruleset,
-    skills?: ReadonlyArray<Skill.Info>,
-  ) => Effect.Effect<Instructions.List>
+  readonly load: (policy: PermissionPolicy.Policy, skills?: ReadonlyArray<Skill.Info>) => Effect.Effect<Instructions.List>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SkillInstructions") {}
@@ -64,8 +61,8 @@ const layer = Layer.effect(
     const skills = yield* Skill.Service
 
     return Service.of({
-      load: Effect.fn("SkillInstructions.load")(function* (permissions, override) {
-        const available = Skill.available(override ?? (yield* skills.list()), permissions)
+      load: Effect.fn("SkillInstructions.load")(function* (policy, override) {
+        const available = Skill.available(override ?? (yield* skills.list()), policy)
           .flatMap((skill) =>
             skill.description === undefined || skill.autoinvoke === false
               ? []
